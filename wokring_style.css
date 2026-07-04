@@ -1,0 +1,250 @@
+/* =========================================================
+   1. GLOBAL VARIABLES
+   ========================================================= */
+:root {
+    --bg: #0f0f14;
+    --surface: #17171f;
+    --surface2: #1e1e28;
+    --surface3: #252530;
+    --border: rgba(255, 255, 255, 0.07);
+    --text: #f0f0f5;
+    --text2: #9090a8;
+    --text3: #5a5a70;
+    --accent: #7c6ef5;
+    --accent2: #5de8c1;
+    --accent3: #f5a623;
+    --accent4: #f5647c;
+    --accent5: #64c8f5;
+    --red: #f5647c;
+    --green: #5de8c1;
+    --yellow: #f5a623;
+    --danger: #f5647c;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --time-tint: rgba(255, 255, 255, 0);
+    /* Default */
+}
+
+[data-theme='light'] {
+    --bg: #f4f4f9;
+    --surface: #ffffff;
+    --surface2: #e0e0e0;
+    --surface3: #cccccc;
+    --border: rgba(0, 0, 0, 0.1);
+    --text: #121212;
+    --text2: #5a5a70;
+    --text3: #9090a8;
+    --accent: #5d4ed9;
+}
+
+/* Apply transitions for a smooth "fade" effect */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* =========================================================
+   2. GLOBAL ELEMENT STYLES
+   ========================================================= */
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    --time-tint: rgba(255, 255, 255, 0);
+}
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+}
+
+.input {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.07));
+}
+
+/* =========================================================
+   3. AUTHENTICATION MODAL
+   ========================================================= */
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.auth-box {
+    background: var(--surface);
+    color: var(--text);
+    padding: 30px;
+    border-radius: 10px;
+    width: 350px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+.auth-tabs button {
+    background: none;
+    border: none;
+    padding: 10px;
+    color: var(--text2);
+    cursor: pointer;
+}
+
+.auth-tabs button.active {
+    color: var(--text);
+    font-weight: bold;
+    border-bottom: 2px solid var(--accent);
+}
+
+.auth-submit {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* =========================================================
+   5. COST TRACKER STYLES
+   ========================================================= */
+/* Update this in your style.css */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .7);
+    z-index: 9999;
+    display: none;
+    align-items: flex-end;
+    /* <-- change back to flex-end */
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.modal-overlay.open {
+    display: flex;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.account-card {
+    background: var(--surface2);
+    padding: 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.account-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.balance-text {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--accent2);
+    margin-top: 8px;
+}
+
+.back-btn {
+    color: var(--text2);
+    cursor: pointer;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+}
+
+/* =========================================================
+   4. UTILITY COMPONENTS
+   ========================================================= */
+.logout-btn {
+    background-color: transparent;
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    padding: 6px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.logout-btn:hover {
+    background-color: var(--danger);
+    color: white;
+}
+
+/* ================= DESKTOP OPTIMIZATIONS ================= */
+@media (min-width: 768px) {
+    #screen-planner.active {
+        display: grid;
+        /* Calendar 600px on left, rest of space on right */
+        grid-template-columns: 600px 1fr;
+        grid-template-rows: auto 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+
+    #screen-planner .section-header {
+        grid-column: 1 / -1;
+        /* This forces the title to span the top row */
+    }
+
+    #screen-planner .calendar-wrapper {
+        grid-column: 1;
+        /* Forces calendar to left column */
+    }
+
+    #screen-planner #plannerEvents {
+        grid-column: 2;
+        /* Forces events list to right column */
+        margin-top: 0;
+        /* Removes extra gap */
+    }
+
+    /* ADD THIS: force the date-jump card to sit below the calendar */
+    #screen-planner .date-jump-card {
+        grid-column: 1;
+        grid-row: 3;
+    }
+}
+
+/* <--- This closing brace properly ends the @media block */
+
+/* .content is global, so it stays outside the media query block */
+.content {
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+#expensesMainView .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
