@@ -1,0 +1,3459 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f0f14">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="LifeEasy">
+    <script src="vendor/supabase.js"></script>
+    <title>Life Easy</title>
+    <link
+            href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap"
+            rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script>
+        // Set theme immediately to prevent flashing
+        const savedTheme = localStorage.getItem('theme');
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', savedTheme || (systemDark ? 'dark' : 'light'));
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        /* SPLASH */
+        #splash {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity .5s;
+        }
+
+        #splash .logo {
+            font-family: 'Syne', sans-serif;
+            font-size: 48px;
+            font-weight: 800;
+            letter-spacing: -2px;
+        }
+
+        #splash .logo span {
+            color: var(--accent);
+        }
+
+        #splash .tagline {
+            color: var(--text2);
+            font-size: 14px;
+            margin-top: 8px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        #splash .bar {
+            width: 120px;
+            height: 3px;
+            background: var(--surface3);
+            border-radius: 2px;
+            margin-top: 40px;
+            overflow: hidden;
+        }
+
+        #splash .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            border-radius: 2px;
+            animation: load 1.2s ease forwards;
+        }
+
+        @keyframes load {
+            from {
+                width: 0
+            }
+
+            to {
+                width: 100%
+            }
+        }
+
+        /* APP SHELL */
+        #app {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* TOP BAR */
+        .topbar {
+            /* This pushes the topbar down below the phone's clock/battery icons */
+            padding: max(16px, env(safe-area-inset-top, 45px)) 20px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .topbar-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .topbar-title span {
+            color: var(--accent);
+        }
+
+        .topbar-date {
+            font-size: 12px;
+            color: var(--text2);
+        }
+
+        /* CONTENT */
+        .content {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .screen {
+            position: absolute;
+            inset: 0;
+            overflow-y: auto;
+            padding: 16px 16px 80px;
+            display: none;
+            animation: fadeUp .25s ease;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        /* BOTTOM NAV */
+        .bottom-nav {
+            display: flex;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+            flex-shrink: 0;
+            position: relative;
+            z-index: 10;
+            overflow-x: auto;
+            scrollbar-width: none;
+            justify-content: flex-start;
+        }
+
+        .bottom-nav::-webkit-scrollbar {
+            display: none;
+        }
+
+        .nav-item {
+            flex: 0 0 auto;
+            min-width: 65px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            padding: 4px 8px;
+            transition: all .2s;
+        }
+
+        .nav-item .nav-icon {
+            font-size: 20px;
+            transition: transform .2s;
+        }
+
+        .nav-item .nav-label {
+            font-size: 9px;
+            color: var(--text3);
+            letter-spacing: .5px;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .nav-item.active .nav-icon {
+            transform: translateY(-2px);
+        }
+
+        .nav-item.active .nav-label {
+            color: var(--accent);
+        }
+
+        .nav-item:nth-child(1).active .nav-icon {
+            filter: drop-shadow(0 0 6px var(--accent));
+        }
+
+        .nav-item:nth-child(2).active .nav-icon {
+            filter: drop-shadow(0 0 6px var(--accent2));
+        }
+
+        .nav-item:nth-child(3).active .nav-icon {
+            filter: drop-shadow(0 0 6px var(--accent3));
+        }
+
+        .nav-item:nth-child(4).active .nav-icon {
+            filter: drop-shadow(0 0 6px var(--accent4));
+        }
+
+        .nav-item:nth-child(5).active .nav-icon {
+            filter: drop-shadow(0 0 6px var(--accent5));
+        }
+
+        .nav-item:nth-child(6).active .nav-icon {
+            filter: drop-shadow(0 0 6px var(--green));
+        }
+
+        .nav-item:nth-child(7).active .nav-icon {
+            filter: drop-shadow(0 0 6px var(--yellow));
+        }
+
+        /* FLOATING ACTION BUTTON (FAB) */
+        .fab {
+            position: fixed;
+            bottom: 85px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: var(--accent);
+            color: white;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 300;
+            box-shadow: 0 8px 24px rgba(124, 110, 245, 0.4);
+            z-index: 50;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .fab:active {
+            transform: scale(0.9);
+        }
+
+        /* CARDS & PILLS */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .card-sm {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .section-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .btn-add {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            transition: opacity .2s;
+        }
+
+        .btn-add:active {
+            opacity: .8;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .pill-accent {
+            background: rgba(124, 110, 245, .18);
+            color: var(--accent);
+        }
+
+        .pill-green {
+            background: rgba(93, 232, 193, .15);
+            color: var(--accent2);
+        }
+
+        .pill-red {
+            background: rgba(245, 100, 124, .15);
+            color: var(--red);
+        }
+
+        .pill-yellow {
+            background: rgba(245, 166, 35, .15);
+            color: var(--yellow);
+        }
+
+        /* INPUTS & MODALS */
+        .input {
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: 'DM Sans', sans-serif;
+            outline: none;
+            transition: border-color .2s;
+        }
+
+        .input:focus {
+            border-color: var(--accent);
+        }
+
+        .input::placeholder {
+            color: var(--text3);
+        }
+
+        select.input {
+            cursor: pointer;
+        }
+
+        textarea.input {
+            resize: none;
+            min-height: 80px;
+        }
+
+        .label {
+            font-size: 12px;
+            color: var(--text2);
+            margin-bottom: 6px;
+            display: block;
+            font-weight: 500;
+        }
+
+        .form-row {
+            margin-bottom: 14px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .7);
+            z-index: 100;
+            display: none;
+            align-items: flex-end;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border-radius: 24px 24px 0 0;
+            padding: 24px 20px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: slideUp .3s cubic-bezier(.2, .9, .3, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%)
+            }
+
+            to {
+                transform: translateY(0)
+            }
+        }
+
+        .modal-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--surface3);
+            border-radius: 2px;
+            margin: 0 auto 20px;
+        }
+
+        .modal-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-primary {
+            flex: 1;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            transition: opacity .2s;
+        }
+
+        .btn-primary:active {
+            opacity: .8;
+        }
+
+        .btn-secondary {
+            flex: 1;
+            background: var(--surface2);
+            color: var(--text);
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        /* personal vault */
+
+
+
+        /* CALENDAR */
+        .calendar-wrapper {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-family: 'Syne', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .calendar-header button {
+            background: var(--surface2);
+            border: none;
+            color: var(--text);
+            font-size: 16px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .calendar-header button:active {
+            background: var(--surface3);
+        }
+
+        .calendar-grid-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-size: 12px;
+            color: var(--text2);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .cal-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: 0.2s;
+            position: relative;
+        }
+
+        .cal-day:active {
+            background: var(--surface2);
+        }
+
+        .cal-day.today {
+            color: var(--accent);
+            font-weight: 700;
+            border-color: var(--accent);
+        }
+
+        .cal-day.selected {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(124, 110, 245, 0.4);
+        }
+
+        .cal-day.other-month {
+            opacity: 0.3;
+        }
+
+        .cal-dot {
+            width: 4px;
+            height: 4px;
+            background: var(--accent2);
+            border-radius: 50%;
+            position: absolute;
+            bottom: 4px;
+        }
+
+        /* DASHBOARD */
+        .greeting {
+            font-family: 'Syne', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 4px;
+        }
+
+        .greeting-sub {
+            color: var(--text2);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+        }
+
+        .stat-card .stat-num {
+            font-family: 'Syne', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .stat-card .stat-label {
+            font-size: 11px;
+            color: var(--text2);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .stat-card .stat-icon {
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
+
+        .today-list .today-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .today-list .today-item:last-child {
+            border: none;
+        }
+
+        .today-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .today-time {
+            font-size: 11px;
+            color: var(--text2);
+            width: 38px;
+            flex-shrink: 0;
+        }
+
+        .today-text {
+            font-size: 13px;
+            flex: 1;
+        }
+
+        /* DAILY PLANNER */
+        .time-slot {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 8px;
+            min-height: 60px;
+        }
+
+        .time-label {
+            width: 40px;
+            font-size: 11px;
+            color: var(--text3);
+            text-align: right;
+            padding-top: 4px;
+            flex-shrink: 0;
+        }
+
+        .time-line {
+            width: 1px;
+            background: var(--border);
+            flex-shrink: 0;
+        }
+
+        .time-events {
+            flex: 1;
+        }
+
+        .event-block {
+            background: var(--surface);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .event-block:active {
+            opacity: .8;
+        }
+
+        .event-block.done {
+            opacity: .5;
+            text-decoration: line-through;
+        }
+
+        .event-title {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .event-desc {
+            font-size: 11px;
+            color: var(--text2);
+            margin-top: 2px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text3);
+        }
+
+        .empty-state .empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+        }
+
+        /* TASKS */
+        .filter-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 14px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+        }
+
+        .filter-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .filter-tab {
+            flex-shrink: 0;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text2);
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .filter-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .task-item:active {
+            background: var(--surface2);
+        }
+
+        .task-item.done {
+            opacity: .55;
+        }
+
+        .task-check {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            border: 2px solid var(--border);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1px;
+            transition: all .2s;
+            cursor: pointer;
+        }
+
+        .task-check.checked {
+            background: var(--accent2);
+            border-color: var(--accent2);
+        }
+
+        .task-check.checked::after {
+            content: '✓';
+            font-size: 12px;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .task-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .task-title {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .task-due {
+            font-size: 11px;
+            color: var(--text3);
+        }
+
+        .priority-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .p0 {
+            background: #9090a8;
+        }
+
+        .p1 {
+            background: var(--yellow);
+        }
+
+        .p2 {
+            background: var(--red);
+        }
+
+        .task-delete {
+            padding: 4px 8px;
+            color: var(--text3);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        /* COUNTER */
+        .counter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .counter-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            text-align: center;
+        }
+
+        .counter-name {
+            font-size: 12px;
+            color: var(--text2);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .counter-val {
+            font-family: 'Syne', sans-serif;
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .counter-controls {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .c-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: none;
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all .2s;
+        }
+
+        .c-btn:active {
+            transform: scale(.9);
+        }
+
+        .c-btn-minus {
+            background: rgba(245, 100, 124, .15);
+            color: var(--red);
+        }
+
+        .c-btn-plus {
+            background: rgba(93, 232, 193, .15);
+            color: var(--green);
+        }
+
+        .c-btn-reset {
+            background: var(--surface2);
+            color: var(--text2);
+            font-size: 14px;
+        }
+
+        .counter-step {
+            font-size: 10px;
+            color: var(--text3);
+            margin-top: 6px;
+        }
+
+        /* MONEY & ALARMS */
+        .money-summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .money-card {
+            border-radius: var(--radius);
+            padding: 14px;
+        }
+
+        .money-card.lent {
+            background: rgba(93, 232, 193, .1);
+            border: 1px solid rgba(93, 232, 193, .2);
+        }
+
+        .money-card.borrowed {
+            background: rgba(245, 100, 124, .1);
+            border: 1px solid rgba(245, 100, 124, .2);
+        }
+
+        .money-card .mc-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 4px;
+        }
+
+        .money-card.lent .mc-label {
+            color: var(--green);
+        }
+
+        .money-card.borrowed .mc-label {
+            color: var(--red);
+        }
+
+        .money-card .mc-amount {
+            font-family: 'Syne', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+        }
+
+        .money-card.lent .mc-amount {
+            color: var(--green);
+        }
+
+        .money-card.borrowed .mc-amount {
+            color: var(--red);
+        }
+
+        .money-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+        }
+
+        .money-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Syne', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .money-avatar.lent {
+            background: rgba(93, 232, 193, .15);
+            color: var(--green);
+        }
+
+        .money-avatar.borrowed {
+            background: rgba(245, 100, 124, .15);
+            color: var(--red);
+        }
+
+        .money-info {
+            flex: 1;
+        }
+
+        .money-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .money-note {
+            font-size: 11px;
+            color: var(--text2);
+            margin-top: 2px;
+        }
+
+        .money-amount {
+            font-family: 'Syne', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .money-amount.lent {
+            color: var(--green);
+        }
+
+        .money-amount.borrowed {
+            color: var(--red);
+        }
+
+        .money-settled {
+            opacity: .4;
+        }
+
+        .settle-btn {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: var(--surface2);
+            border: none;
+            color: var(--text2);
+            cursor: pointer;
+        }
+
+        .alarm-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 10px;
+        }
+
+        .alarm-time {
+            font-family: 'Syne', sans-serif;
+            font-size: 32px;
+            font-weight: 800;
+            line-height: 1;
+            flex: 1;
+        }
+
+        .alarm-time-ampm {
+            font-size: 14px;
+            color: var(--text2);
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 400;
+            margin-left: 4px;
+        }
+
+        .alarm-label {
+            font-size: 12px;
+            color: var(--text2);
+        }
+
+        .alarm-days {
+            font-size: 10px;
+            color: var(--text3);
+            margin-top: 2px;
+        }
+
+        .alarm-toggle {
+            position: relative;
+            width: 46px;
+            height: 26px;
+            flex-shrink: 0;
+        }
+
+        .alarm-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: var(--surface3);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: .3s;
+        }
+
+        .toggle-slider:before {
+            content: '';
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: .3s;
+        }
+
+        input:checked+.toggle-slider {
+            background: var(--accent);
+        }
+
+        input:checked+.toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        .alarm-delete {
+            padding: 6px;
+            color: var(--text3);
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .days-selector {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .day-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--text2);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all .2s;
+        }
+
+        .day-btn.selected {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        /* ROADMAP */
+        .roadmap-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .roadmap-item:active {
+            background: var(--surface2);
+        }
+
+        .roadmap-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .roadmap-desc {
+            font-size: 12px;
+            color: var(--text2);
+            margin-bottom: 10px;
+        }
+
+        .roadmap-progress {
+            height: 4px;
+            background: var(--surface3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .roadmap-progress-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width .5s;
+        }
+
+        .roadmap-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .roadmap-steps-count {
+            font-size: 11px;
+            color: var(--text2);
+        }
+
+        .step-timeline {
+            position: relative;
+            padding-left: 28px;
+        }
+
+        .step-line {
+            position: absolute;
+            left: 10px;
+            top: 16px;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .step-item {
+            position: relative;
+            padding: 0 0 20px 20px;
+        }
+
+        .step-dot {
+            position: absolute;
+            left: -18px;
+            top: 4px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: var(--bg);
+            transition: all .2s;
+            cursor: pointer;
+        }
+
+        .step-dot.done {
+            background: var(--green);
+            border-color: var(--green);
+        }
+
+        .step-dot.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(124, 110, 245, .2);
+        }
+
+        .step-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+        }
+
+        .step-content-title {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .step-content-desc {
+            font-size: 11px;
+            color: var(--text2);
+            margin-top: 2px;
+        }
+
+        .step-content.done {
+            opacity: .6;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text2);
+            font-size: 13px;
+            margin-bottom: 16px;
+            cursor: pointer;
+        }
+
+        /* ATTENDANCE */
+        .att-card {
+            background: var(--surface);
+            padding: 16px;
+            border-radius: var(--radius);
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .att-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .att-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .att-pct {
+            font-family: 'Syne', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .att-bar-bg {
+            height: 6px;
+            background: var(--surface3);
+            border-radius: 3px;
+            margin: 12px 0;
+            overflow: hidden;
+        }
+
+        .att-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        .att-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .att-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .att-btn.attend {
+            background: rgba(93, 232, 193, .15);
+            color: var(--green);
+        }
+
+        .att-btn.miss {
+            background: rgba(245, 100, 124, .15);
+            color: var(--red);
+        }
+
+        /* ACADEMIC */
+        .acad-card {
+            background: var(--surface);
+            padding: 14px;
+            border-radius: var(--radius);
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent3);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .acad-card:active {
+            background: var(--surface2);
+        }
+
+        .acad-type {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--accent3);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .acad-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .acad-detail {
+            font-size: 12px;
+            color: var(--text2);
+            margin-bottom: 2px;
+        }
+
+        /* SCROLLBAR & TOAST */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--surface3);
+            border-radius: 2px;
+        }
+
+        #toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-80px);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-size: 13px;
+            z-index: 9999;
+            transition: transform .3s cubic-bezier(.2, .9, .3, 1);
+            white-space: nowrap;
+            box-shadow: var(--shadow);
+        }
+
+        #toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 8px;
+        }
+
+        .color-opt {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: .2s;
+        }
+
+        .color-opt.selected {
+            border-color: #fff;
+            transform: scale(1.15);
+        }
+
+        /* ================== STANDBY MODE UI ================== */
+        #zenStandby {
+            position: fixed;
+            inset: 0;
+            z-index: 100000;
+            background: #000000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.5s ease;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .zen-close {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            font-size: 20px;
+            color: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 10px;
+            z-index: 10;
+        }
+
+        .zen-nav {
+            position: absolute;
+            top: 40px;
+            display: flex;
+            gap: 24px;
+            z-index: 10;
+        }
+
+        .zen-nav span {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .zen-nav span.active {
+            color: var(--zen-accent, #7c6ef5);
+            text-shadow: 0 0 10px var(--zen-accent, #7c6ef5);
+        }
+
+        /* Themes */
+        #zenStandby.theme-void {
+            background: #000000;
+            --zen-accent: #5de8c1;
+        }
+
+        #zenStandby.theme-aurora {
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            --zen-accent: #7c6ef5;
+        }
+
+        #zenStandby.theme-sunset {
+            background: linear-gradient(135deg, #2b0f0f 0%, #4a1c1c 100%);
+            --zen-accent: #f5a623;
+        }
+
+        #zenStandby.theme-forest {
+            background: linear-gradient(135deg, #091f15 0%, #05100a 100%);
+            --zen-accent: #5de8c1;
+        }
+
+        /* Clock Mode */
+        .zen-clock-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .zen-time-row {
+            display: flex;
+            align-items: baseline;
+        }
+
+        .zen-time {
+            font-family: 'Syne', sans-serif;
+            font-size: 28vmin;
+            font-weight: 800;
+            line-height: 1;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .zen-sec {
+            font-size: 8vmin;
+            font-weight: 700;
+            color: var(--zen-accent, #7c6ef5);
+            margin-left: 12px;
+        }
+
+        .zen-date {
+            font-size: 3vmin;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Pomodoro Mode */
+        .zen-pomo-container {
+            position: relative;
+            width: 60vmin;
+            height: 60vmin;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zen-ring-svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .zen-ring-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.1);
+            stroke-width: 4;
+        }
+
+        .zen-ring-prog {
+            fill: none;
+            stroke: var(--zen-accent, #7c6ef5);
+            stroke-width: 6;
+            stroke-linecap: round;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 0;
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        .zen-pomo-time {
+            font-family: 'Syne', sans-serif;
+            font-size: 14vmin;
+            font-weight: 800;
+            color: #fff;
+            z-index: 1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .zen-pomo-label {
+            font-size: 2vmin;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 10px;
+            z-index: 1;
+        }
+
+        .zen-controls {
+            display: flex;
+            gap: 16px;
+            margin-top: 20px;
+            z-index: 1;
+        }
+
+        .zen-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+
+        .zen-themes {
+            position: absolute;
+            bottom: 30px;
+            display: flex;
+            gap: 16px;
+        }
+
+        .zen-theme-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: 0.3s;
+        }
+
+        .zen-theme-dot.active {
+            border-color: #fff;
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="authModal" class="auth-overlay">
+    <div class="auth-box">
+        <div class="auth-tabs">
+            <button id="tabLogin" class="active" onclick="switchAuthTab('login')">Login</button>
+            <button id="tabRegister" onclick="switchAuthTab('register')">Sign Up</button>
+        </div>
+
+        <form id="loginForm" onsubmit="handleAuth(event, 'login.php')">
+            <h2>Welcome Back</h2>
+            <input type="text" id="loginUsername" placeholder="Username" required>
+            <input type="password" id="loginPassword" placeholder="Password" required>
+            <p id="loginError" class="error-msg"></p>
+            <button type="submit" class="auth-submit">Log In</button>
+        </form>
+
+        <form id="registerForm" style="display: none;" onsubmit="handleAuth(event, 'register.php')">
+            <h2>Create Account</h2>
+            <input type="text" id="regUsername" placeholder="Choose a Username" required>
+            <input type="password" id="regPassword" placeholder="Create a Password" required>
+            <p id="regError" class="error-msg"></p>
+            <button type="submit" class="auth-submit">Sign Up</button>
+        </form>
+    </div>
+</div>
+
+<!-- SPLASH -->
+<div id="splash">
+    <div class="logo">Life<span>Easy</span></div>
+    <div class="tagline">Your productivity, elevated</div>
+    <div class="bar">
+        <div class="bar-fill"></div>
+    </div>
+</div>
+
+<!-- ================= STANDBY MODE ================= -->
+<div id="zenStandby" class="theme-void">
+    <button class="zen-close" onclick="exitStandby()">✕ Close</button>
+
+    <div class="zen-nav">
+        <span id="nav-clock" class="active" onclick="switchStandbyMode('clock')">Clock</span>
+        <span id="nav-pomo" onclick="switchStandbyMode('pomo')">Pomodoro</span>
+    </div>
+
+    <!-- Clock Component -->
+    <div class="zen-clock-container" id="zenClock">
+        <div class="zen-time-row">
+            <div class="zen-time" id="zenTimeDisplay">00:00</div>
+            <div class="zen-sec" id="zenSecDisplay">00</div>
+        </div>
+        <div class="zen-date" id="zenDateDisplay">Monday, January 1</div>
+    </div>
+
+    <!-- Pomodoro Component -->
+    <div class="zen-pomo-container" id="zenPomo">
+        <svg class="zen-ring-svg" viewBox="0 0 100 100">
+            <circle class="zen-ring-bg" cx="50" cy="50" r="45"></circle>
+            <circle class="zen-ring-prog" id="zenPomoRing" cx="50" cy="50" r="45"></circle>
+        </svg>
+        <div class="zen-pomo-label">Focus Time</div>
+        <div class="zen-pomo-time" id="zenPomoDisplay">25:00</div>
+        <div class="zen-controls">
+            <button class="zen-btn" id="zenPomoBtn" onclick="togglePomodoro()">Start</button>
+            <button class="zen-btn" onclick="resetPomodoro()">Reset</button>
+        </div>
+    </div>
+
+    <!-- Theme Switcher -->
+    <div class="zen-themes">
+        <div class="zen-theme-dot active" style="background:#000; border-color:#fff;"
+             onclick="setStandbyTheme('theme-void', this)"></div>
+        <div class="zen-theme-dot" style="background:linear-gradient(135deg, #302b63, #24243e);"
+             onclick="setStandbyTheme('theme-aurora', this)"></div>
+        <div class="zen-theme-dot" style="background:linear-gradient(135deg, #4a1c1c, #2b0f0f);"
+             onclick="setStandbyTheme('theme-sunset', this)"></div>
+        <div class="zen-theme-dot" style="background:linear-gradient(135deg, #091f15, #05100a);"
+             onclick="setStandbyTheme('theme-forest', this)"></div>
+    </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+    <!-- TOP BAR -->
+    <div class="topbar">
+        <div class="topbar-title">Life<span>Easy</span></div>
+        <div class="topbar-right" style="display: flex; gap: 10px; align-items: center;">
+            <div class="topbar-date" id="topbarDate"></div>
+
+            <button onclick="navTo('settings')"
+                    style="background:none; border:none; color:var(--text2); font-size:18px; cursor:pointer;">⚙️</button>
+            <button
+                    style="background:rgba(124,110,245,0.15); color:var(--accent); border:1px solid rgba(124,110,245,0.3); padding:6px 12px; border-radius:8px; font-weight:600; cursor:pointer;"
+                    onclick="openStandby()">🕰️ Standby</button>
+
+            <button id="logoutBtn" onclick="logoutUser()" class="logout-btn"
+                    style="background:rgba(245, 100, 124, 0.15); color:var(--red); border:1px solid rgba(245, 100, 124, 0.3); padding:6px 12px; border-radius:8px; font-weight:600; cursor:pointer; transition: 0.2s;">
+                Log Out
+            </button>
+        </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+        <!-- DASHBOARD -->
+        <div class="screen active" id="screen-dash">
+            <div class="greeting" id="greeting">Good morning 👋</div>
+            <div class="greeting-sub" id="greetingSub">Here's your day at a glance</div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-num" id="dashTasks">0</div>
+                    <div class="stat-label">Pending Tasks</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-num" id="dashPlans">0</div>
+                    <div class="stat-label">Today's Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔢</div>
+                    <div class="stat-num" id="dashCounters">0</div>
+                    <div class="stat-label">Counters</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-num" id="dashMoney">0</div>
+                    <div class="stat-label">Money Records</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-header">
+                    <div class="section-title">Today's Schedule</div>
+                </div>
+                <div class="today-list" id="dashTodayList">
+                    <div class="empty-state" style="padding:20px 0">
+                        <div class="empty-icon">📅</div>
+                        <p>No events today</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-header">
+                    <div class="section-title">Upcoming Tasks</div>
+                </div>
+                <div id="dashTaskList">
+                    <div class="empty-state" style="padding:20px 0">
+                        <div class="empty-icon">✅</div>
+                        <p>All clear!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-header">
+                    <div class="section-title">Data Backup</div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <button class="btn-secondary" onclick="exportData()">💾 Export JSON</button>
+                    <button class="btn-secondary" onclick="document.getElementById('importFile').click()">📂 Import
+                        JSON</button>
+                </div>
+                <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+            </div>
+        </div>
+
+        <!-- personal vault -->
+        <div class="screen" id="screen-vault">
+            <div class="section-header">
+                <div class="section-title">Personal Vault</div>
+            </div>
+
+            <div id="dropZone" class="card"
+                 style="border: 2px dashed var(--accent); text-align: center; padding: 40px; cursor: pointer;"
+                 onclick="document.getElementById('fileInput').click()">
+                <p>Drag & Drop files here or <strong>click to select</strong></p>
+                <input type="file" id="fileInput" style="display:none">
+            </div>
+
+            <div id="vaultFiles" class="card">
+            </div>
+        </div>
+
+        <!-- settings -->
+
+        <div class="screen" id="screen-settings">
+            <div class="section-header">
+                <div class="section-title">Settings</div>
+            </div>
+
+            <div class="card">
+                <div class="section-title" style="margin-bottom:15px;">Appearance</div>
+                <div class="form-row">
+                    <label class="label">Theme Mode</label>
+                    <select class="input" id="themeSelect" onchange="toggleTheme(this.value)">
+                        <option value="light">Light Mode</option>
+                        <option value="dark" selected>Dark Mode</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-title">About Developer</div>
+                <p style="font-size: 13px; color: var(--text2);">LifeEasy v1.0.0</p>
+                <!-- Keep only the Visit Dev Site button -->
+                <button class="btn-secondary" style="margin-top:10px;"
+                        onclick="window.open('https://raverahat.com', '_blank')">Visit Dev
+                    Site</button>
+            </div>
+        </div>
+
+        <!-- DAILY PLANNER (Full Calendar) -->
+        <div class="screen" id="screen-planner">
+            <div class="section-header">
+                <div class="section-title">Monthly Planner</div>
+            </div>
+
+            <div class="calendar-wrapper">
+                <div class="calendar-header">
+                    <button onclick="prevMonth()">◀</button>
+                    <div id="calendarMonthYear">Month Year</div>
+                    <button onclick="nextMonth()">▶</button>
+                </div>
+                <div class="calendar-grid-header">
+                    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
+            </div>
+
+            <div class="card date-jump-card"
+                 style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
+                <input type="date" id="goToDateInput" class="input" style="flex: 1;">
+                <button class="btn-secondary" onclick="goToToday()"
+                        style="padding: 10px 16px; flex: 0 0 auto;">Today</button>
+                <button class="btn-primary" onclick="goToDate()"
+                        style="padding: 10px 16px; flex: 0 0 auto;">Go</button>
+            </div>
+
+            <div id="plannerEvents"></div>
+        </div>
+        <!-- cost tracker -->
+        <!-- TASKS -->
+        <div class="screen" id="screen-tasks">
+            <div class="section-header">
+                <div class="section-title">Task Manager</div>
+            </div>
+            <div class="filter-tabs" id="taskFilters">
+                <div class="filter-tab active" data-filter="all" onclick="setTaskFilter('all',this)">All</div>
+                <div class="filter-tab" data-filter="active" onclick="setTaskFilter('active',this)">Active</div>
+                <div class="filter-tab" data-filter="done" onclick="setTaskFilter('done',this)">Done</div>
+                <div class="filter-tab" data-filter="high" onclick="setTaskFilter('high',this)">🔴 High</div>
+                <div class="filter-tab" data-filter="work" onclick="setTaskFilter('work',this)">Work</div>
+                <div class="filter-tab" data-filter="personal" onclick="setTaskFilter('personal',this)">Personal
+                </div>
+            </div>
+            <div id="taskList"></div>
+        </div>
+
+        <!-- COUNTER -->
+        <div class="screen" id="screen-counter">
+            <div class="section-header">
+                <div class="section-title">Counters</div>
+            </div>
+            <div class="counter-grid" id="counterGrid"></div>
+        </div>
+
+        <!-- MONEY -->
+        <div class="screen" id="screen-money">
+            <div class="section-header">
+                <div class="section-title">Money Tracker</div>
+            </div>
+            <div class="money-summary">
+                <div class="money-card lent">
+                    <div class="mc-label">You Lent</div>
+                    <div class="mc-amount" id="totalLent">$0</div>
+                </div>
+                <div class="money-card borrowed">
+                    <div class="mc-label">You Owe</div>
+                    <div class="mc-amount" id="totalOwed">$0</div>
+                </div>
+            </div>
+            <div class="filter-tabs">
+                <div class="filter-tab active" onclick="setMoneyFilter('all',this)">All</div>
+                <div class="filter-tab" onclick="setMoneyFilter('lent',this)">Lent</div>
+                <div class="filter-tab" onclick="setMoneyFilter('borrowed',this)">Borrowed</div>
+                <div class="filter-tab" onclick="setMoneyFilter('pending',this)">Pending</div>
+                <div class="filter-tab" onclick="setMoneyFilter('settled',this)">Settled</div>
+            </div>
+            <div id="moneyList"></div>
+        </div>
+
+        <!-- ALARMS -->
+        <div class="screen" id="screen-alarms">
+            <div class="section-header">
+                <div class="section-title">Alarms</div>
+            </div>
+            <div id="alarmList"></div>
+        </div>
+
+        <!-- ROADMAP -->
+        <div class="screen" id="screen-roadmap">
+            <div id="roadmapList-view">
+                <div class="section-header">
+                    <div class="section-title">Roadmaps</div>
+                </div>
+                <div id="roadmapList"></div>
+            </div>
+            <div id="roadmapDetail-view" style="display:none"></div>
+        </div>
+
+
+        <!-- ATTENDANCE -->
+        <div class="screen" id="screen-attendance">
+            <div class="section-header">
+                <div class="section-title">Attendance Tracker</div>
+            </div>
+            <div id="attendanceList"></div>
+        </div>
+
+        <!-- ACADEMIC -->
+        <div class="screen" id="screen-academic">
+            <div class="section-header">
+                <div class="section-title">Academic Hub</div>
+            </div>
+            <div id="academicList"></div>
+        </div>
+
+
+        <div class="screen" id="screen-expenses">
+
+            <!-- MAIN ACCOUNTS LIST VIEW -->
+
+            <div id="expensesMainView">
+
+                <div class="section-header">
+
+                    <div class="section-title">Accounts &amp; Expenses</div>
+
+                    <!-- BUG FIX: "+ Account" button was missing from this view -->
+
+                    <button class="btn-add" onclick="openAccountModal()">+ Account</button>
+
+                </div>
+
+                <div id="accountDisplay" class="stats-grid"></div>
+
+            </div>
+
+            <!-- TRANSACTION DETAIL VIEW (shown after tapping an account) -->
+
+            <div id="transactionDetailView" style="display:none;">
+
+                <!--
+
+        BUG FIX: "Back to Accounts" button now calls hideTransactionDetail()
+
+        which correctly swaps the views instead of doing nothing.
+
+    -->
+
+                <div onclick="hideTransactionDetail()" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+
+                    padding:8px 14px; background:var(--surface2); border-radius:8px;
+
+                    margin-bottom:16px; color:var(--text); font-size:13px; font-weight:600;
+
+                    border:1px solid var(--border); transition:0.2s;">
+
+                    ← Back to Accounts
+
+                </div>
+
+                <div class="section-header">
+
+                    <!-- Account name + trash icon injected by openAccountDetail() -->
+
+                    <div class="section-title" id="accountNameTitle" style="display:flex; align-items:center;">
+                        Account</div>
+
+                    <div style="display:flex; gap:8px;">
+
+                        <button class="btn-add"
+                                style="background:rgba(93,232,193,0.15); color:var(--green); border:1px solid rgba(93,232,193,0.3);"
+                                onclick="openAddFundModal()">+ Add Funds</button>
+
+                        <button class="btn-add" onclick="openTransactionModal()">+ Expense</button>
+
+                    </div>
+
+                </div>
+
+                <div id="transactionList"></div>
+
+            </div>
+
+        </div>
+
+        <!-- End of screen-expenses — make sure this is INSIDE <div class="content"> -->
+
+        <!-- NOTES -->
+        <div class="screen" id="screen-notes">
+            <div class="section-header">
+                <div class="section-title">Notes</div>
+                <button class="btn-add" onclick="openNoteModal()">+ Note</button>
+            </div>
+
+            <input class="input" id="noteSearch" placeholder="🔎 Search notes..." style="width:100%;margin-bottom:12px;padding:10px;border-radius:var(--radius-sm)" oninput="renderNotes()">
+
+            <div class="notes-tabs">
+                <button class="notes-tab active" id="notesTab-active" onclick="setNotesView('active')">Notes</button>
+                <button class="notes-tab" id="notesTab-archived" onclick="setNotesView('archived')">Archive</button>
+                <button class="notes-tab" id="notesTab-trashed" onclick="setNotesView('trashed')">Trash</button>
+            </div>
+
+            <div class="notes-grid" id="notesGrid"></div>
+        </div>
+
+        <!-- SLEEP TRACKER -->
+        <div class="screen" id="screen-sleep">
+            <div class="section-header">
+                <div class="section-title">Sleep Tracker</div>
+                <button class="btn-add" onclick="openSleepModal()">+ Log Sleep</button>
+            </div>
+
+            <div id="sleepMeterCard" style="margin-bottom:16px"></div>
+
+            <div class="stats-grid" style="margin-bottom:16px">
+                <div class="stat-card">
+                    <div style="font-size:12px;color:var(--text2)">7-day avg</div>
+                    <div style="font-size:20px;font-weight:800" id="sleepAvgWeek">—</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size:12px;color:var(--text2)">30-day avg</div>
+                    <div style="font-size:20px;font-weight:800" id="sleepAvgMonth">—</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size:12px;color:var(--text2)">Late nights (7d)</div>
+                    <div style="font-size:20px;font-weight:800" id="sleepLateCount">0</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-title" style="font-size:14px;margin-bottom:10px">Weekly Overview</div>
+                <div id="sleepWeekChart"></div>
+            </div>
+
+            <div class="card">
+                <div class="section-title" style="font-size:14px;margin-bottom:10px">Monthly Overview</div>
+                <div id="sleepMonthChart"></div>
+            </div>
+
+            <div class="section-title" style="font-size:14px;margin:16px 0 10px">History</div>
+            <div id="sleepList"></div>
+        </div>
+
+    </div><!-- /content -->
+
+    <!-- FLOATING ACTION BUTTON (FAB) -->
+    <div class="fab" onclick="handleFabClick()">+</div>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="navTo('dash')">
+            <div class="nav-icon">🏠</div>
+            <div class="nav-label">Home</div>
+        </div>
+        <div class="nav-item" onclick="navTo('planner')">
+            <div class="nav-icon">📅</div>
+            <div class="nav-label">Planner</div>
+        </div>
+        <div class="nav-item" onclick="navTo('tasks')">
+            <div class="nav-icon">✅</div>
+            <div class="nav-label">Tasks</div>
+        </div>
+        <div class="nav-item" onclick="navTo('counter')">
+            <div class="nav-icon">🔢</div>
+            <div class="nav-label">Counter</div>
+        </div>
+        <div class="nav-item" onclick="navTo('money')">
+            <div class="nav-icon">💰</div>
+            <div class="nav-label">Money</div>
+        </div>
+        <div class="nav-item" onclick="navTo('alarms')">
+            <div class="nav-icon">⏰</div>
+            <div class="nav-label">Alarms</div>
+        </div>
+        <div class="nav-item" onclick="navTo('roadmap')">
+            <div class="nav-icon">🗺️</div>
+            <div class="nav-label">Roadmap</div>
+        </div>
+        <div class="nav-item" onclick="navTo('attendance')">
+            <div class="nav-icon">📊</div>
+            <div class="nav-label">Attend</div>
+        </div>
+        <div class="nav-item" onclick="navTo('academic')">
+            <div class="nav-icon">🎓</div>
+            <div class="nav-label">School</div>
+        </div>
+        <div class="nav-item" onclick="navTo('vault')">
+            <div class="nav-icon">🔒</div>
+            <div class="nav-label">Vault</div>
+        </div>
+        <div class="nav-item" onclick="navTo('expenses')">
+            <div class="nav-icon">💸</div>
+            <div class="nav-label">Expenses</div>
+        </div>
+        <div class="nav-item" onclick="navTo('notes')">
+            <div class="nav-icon">📝</div>
+            <div class="nav-label">Notes</div>
+        </div>
+        <div class="nav-item" onclick="navTo('sleep')">
+            <div class="nav-icon">😴</div>
+            <div class="nav-label">Sleep</div>
+        </div>
+        <div class="nav-item" onclick="navTo('settings')">
+            <div class="nav-icon">⚙️</div>
+            <div class="nav-label">Settings</div>
+        </div>
+    </nav>
+</div><!-- /app -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- TASK MODAL -->
+<div class="modal-overlay" id="taskModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="taskModalTitle">New Task</div>
+        <div class="form-row"><label class="label">Title *</label><input class="input" id="taskTitle"
+                                                                         placeholder="What needs to be done?"></div>
+        <div class="form-row"><label class="label">Description</label><textarea class="input" id="taskDesc"
+                                                                                placeholder="Details..."></textarea></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Category</label><select class="input" id="taskCategory">
+                <option>Work</option>
+                <option>Personal</option>
+                <option>Health</option>
+                <option>Finance</option>
+                <option>Other</option>
+            </select></div>
+            <div class="form-row"><label class="label">Priority</label><select class="input" id="taskPriority">
+                <option value="0">Low</option>
+                <option value="1">Medium</option>
+                <option value="2" selected>High</option>
+            </select></div>
+        </div>
+        <div class="form-row"><label class="label">Due Date</label><input class="input" type="date" id="taskDue">
+        </div>
+        <div class="form-row"><label class="label">Reminder</label><input class="input" type="datetime-local"
+                                                                          id="taskReminder"></div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('taskModal')">Cancel</button><button class="btn-primary"
+                                                                                                   onclick="saveTask()">Save Task</button></div>
+    </div>
+</div>
+
+<!-- PLANNER MODAL -->
+<div class="modal-overlay" id="plannerModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Add Event</div>
+        <div class="form-row"><label class="label">Title *</label><input class="input" id="planTitle"
+                                                                         placeholder="Event name"></div>
+        <div class="form-row"><label class="label">Description</label><input class="input" id="planDesc"
+                                                                             placeholder="Notes..."></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Time</label><input class="input" type="time" id="planTime">
+            </div>
+            <div class="form-row"><label class="label">Date</label><input class="input" type="date" id="planDate">
+            </div>
+        </div>
+        <div class="form-row"><label class="label">Color</label>
+            <div class="color-picker" id="planColorPicker"></div>
+        </div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('plannerModal')">Cancel</button><button class="btn-primary"
+                                                                                                      onclick="savePlan()">Add Event</button></div>
+    </div>
+</div>
+
+<!-- COUNTER MODAL -->
+<div class="modal-overlay" id="counterModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">New Counter</div>
+        <div class="form-row"><label class="label">Name *</label><input class="input" id="counterName"
+                                                                        placeholder="Counter name"></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Step</label><input class="input" type="number"
+                                                                          id="counterStep" value="1"></div>
+            <div class="form-row"><label class="label">Start Value</label><input class="input" type="number"
+                                                                                 id="counterStart" value="0"></div>
+        </div>
+        <div class="form-row"><label class="label">Color</label>
+            <div class="color-picker" id="counterColorPicker"></div>
+        </div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('counterModal')">Cancel</button><button class="btn-primary"
+                                                                                                      onclick="saveCounter()">Create</button></div>
+    </div>
+</div>
+
+<!-- MONEY MODAL -->
+<div class="modal-overlay" id="moneyModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Add Record</div>
+        <div class="form-row"><label class="label">Person's Name *</label><input class="input" id="moneyPerson"
+                                                                                 placeholder="Name"></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Amount *</label><input class="input" type="number"
+                                                                              id="moneyAmount" placeholder="0.00"></div>
+            <div class="form-row"><label class="label">Type</label><select class="input" id="moneyType">
+                <option value="lent">I Lent</option>
+                <option value="borrowed">I Borrowed</option>
+            </select></div>
+        </div>
+        <div class="form-row"><label class="label">Note</label><input class="input" id="moneyNote"
+                                                                      placeholder="For what?"></div>
+        <div class="form-row"><label class="label">Due Date (optional)</label><input class="input" type="date"
+                                                                                     id="moneyDue"></div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('moneyModal')">Cancel</button><button class="btn-primary"
+                                                                                                    onclick="saveMoney()">Save</button></div>
+    </div>
+</div>
+
+<!-- ALARM MODAL -->
+<div class="modal-overlay" id="alarmModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Set Alarm</div>
+        <div class="form-row"><label class="label">Time *</label><input class="input" type="time" id="alarmTime">
+        </div>
+        <div class="form-row"><label class="label">Label</label><input class="input" id="alarmLabel"
+                                                                       placeholder="Alarm label"></div>
+        <div class="form-row">
+            <label class="label">Repeat</label>
+            <div class="days-selector" id="daySelector">
+                <div class="day-btn" data-day="0" onclick="toggleDay(this)">Su</div>
+                <div class="day-btn" data-day="1" onclick="toggleDay(this)">Mo</div>
+                <div class="day-btn" data-day="2" onclick="toggleDay(this)">Tu</div>
+                <div class="day-btn" data-day="3" onclick="toggleDay(this)">We</div>
+                <div class="day-btn" data-day="4" onclick="toggleDay(this)">Th</div>
+                <div class="day-btn" data-day="5" onclick="toggleDay(this)">Fr</div>
+                <div class="day-btn" data-day="6" onclick="toggleDay(this)">Sa</div>
+            </div>
+        </div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('alarmModal')">Cancel</button><button class="btn-primary"
+                                                                                                    onclick="saveAlarm()">Set Alarm</button></div>
+    </div>
+</div>
+
+<!-- ROADMAP MODAL -->
+<div class="modal-overlay" id="roadmapModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">New Roadmap</div>
+        <div class="form-row"><label class="label">Title *</label><input class="input" id="roadmapTitle"
+                                                                         placeholder="Goal name"></div>
+        <div class="form-row"><label class="label">Description</label><textarea class="input" id="roadmapDesc"
+                                                                                placeholder="What do you want to achieve?"></textarea></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Category</label><select class="input" id="roadmapCategory">
+                <option>Career</option>
+                <option>Learning</option>
+                <option>Health</option>
+                <option>Finance</option>
+                <option>Personal</option>
+            </select></div>
+            <div class="form-row"><label class="label">Target Date</label><input class="input" type="date"
+                                                                                 id="roadmapTarget"></div>
+        </div>
+        <div class="form-row"><label class="label">Color</label>
+            <div class="color-picker" id="roadmapColorPicker"></div>
+        </div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('roadmapModal')">Cancel</button><button class="btn-primary"
+                                                                                                      onclick="saveRoadmap()">Create</button></div>
+    </div>
+</div>
+
+<!-- STEP MODAL -->
+<div class="modal-overlay" id="stepModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Add Step</div>
+        <div class="form-row"><label class="label">Step Title *</label><input class="input" id="stepTitle"
+                                                                              placeholder="Milestone name"></div>
+        <div class="form-row"><label class="label">Description</label><input class="input" id="stepDesc"
+                                                                             placeholder="Details..."></div>
+        <div class="form-row"><label class="label">Target Date</label><input class="input" type="date"
+                                                                             id="stepDate"></div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('stepModal')">Cancel</button><button class="btn-primary"
+                                                                                                   onclick="saveStep()">Add Step</button></div>
+    </div>
+</div>
+
+<!-- ATTENDANCE MODAL -->
+<div class="modal-overlay" id="attendanceModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Add Class</div>
+        <div class="form-row"><label class="label">Subject Name *</label><input class="input" id="attSubject"
+                                                                                placeholder="e.g. Computer Networks"></div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('attendanceModal')">Cancel</button><button class="btn-primary"
+                                                                                                         onclick="saveAttendance()">Add Class</button></div>
+    </div>
+</div>
+
+<!-- NOTE MODAL -->
+<div class="modal-overlay" id="noteModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Note</div>
+        <div class="form-row"><input class="input" id="noteTitle" placeholder="Title" style="font-weight:700"></div>
+        <div class="form-row"><textarea class="input" id="noteBody" placeholder="Take a note..." rows="4" style="resize:vertical"></textarea></div>
+
+        <div id="noteChecklistEditor" style="display:none">
+            <div id="noteChecklistItemsList"></div>
+            <div style="display:flex;gap:8px;margin-top:6px">
+                <input class="input" id="noteChecklistInput" placeholder="List item" style="flex:1"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();addNoteChecklistItem();}">
+                <button class="btn-secondary" onclick="addNoteChecklistItem()">Add</button>
+            </div>
+        </div>
+
+        <div class="form-row" style="margin-top:10px">
+            <button class="btn-secondary" id="noteModeBtn" onclick="toggleNoteMode()" style="width:100%">☑️ Switch to Checklist</button>
+        </div>
+
+        <div class="form-row">
+            <label class="label">Color</label>
+            <div id="noteColorPicker" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveNote()">Save Note</button>
+        </div>
+    </div>
+</div>
+
+<!-- SLEEP MODAL -->
+<div class="modal-overlay" id="sleepModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Log Sleep</div>
+        <div class="form-row"><label class="label">Date (morning you woke up)</label>
+            <input class="input" type="date" id="sleepDate"></div>
+        <div class="form-row"><label class="label">Bedtime</label>
+            <input class="input" type="time" id="sleepBed"></div>
+        <div class="form-row"><label class="label">Wake time</label>
+            <input class="input" type="time" id="sleepWake"></div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('sleepModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveSleepLog()">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ACADEMIC MODAL -->
+<div class="modal-overlay" id="academicModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="academicModalTitle">New Academic Event</div>
+        <div class="form-row"><label class="label">Subject *</label><input class="input" id="acadSubject"
+                                                                           placeholder="Course name"></div>
+        <div class="form-grid">
+            <div class="form-row">
+                <label class="label">Type</label>
+                <select class="input" id="acadType">
+                    <option>Class Test</option>
+                    <option>Midterm</option>
+                    <option>Final</option>
+                    <option>Presentation</option>
+                    <option>Project</option>
+                    <option>Lab Test</option>
+                </select>
+            </div>
+            <div class="form-row"><label class="label">Date</label><input class="input" type="date" id="acadDate">
+            </div>
+        </div>
+        <div class="form-row"><label class="label">Topic Name</label><input class="input" id="acadTopic"
+                                                                            placeholder="What is it about?"></div>
+        <div class="form-row"><label class="label">Description</label><input class="input" id="acadDesc"
+                                                                             placeholder="Brief details"></div>
+        <div class="form-row"><label class="label">Note</label><textarea class="input" id="acadNote"
+                                                                         placeholder="Extra notes..." style="min-height:60px"></textarea></div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('academicModal')">Cancel</button><button class="btn-primary"
+                                                                                                       onclick="saveAcademic()">Save Event</button></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="accountModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Create Account</div>
+        <div class="form-row">
+            <label class="label">Account Name *</label>
+            <input class="input" id="accountName" placeholder="e.g., Cash, Bank">
+        </div>
+        <div class="form-row">
+            <label class="label">Initial Balance</label>
+            <input class="input" type="number" id="accountInitial" value="0">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('accountModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveAccount()">Create Account</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="transactionModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Add Expense</div>
+        <div class="form-row">
+            <label class="label">Amount *</label>
+            <input class="input" type="number" id="transAmount" placeholder="0.00" step="0.01">
+        </div>
+        <div class="form-row">
+            <label class="label">Category</label>
+            <select class="input" id="transCategory">
+                <option>Food</option>
+                <option>Transport</option>
+                <option>Rent</option>
+                <option>Shopping</option>
+                <option>Health</option>
+                <option>Entertainment</option>
+                <option>Education</option>
+                <option>Utilities</option>
+                <option>Other</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label class="label">Note</label>
+            <input class="input" id="transNote" placeholder="What was this for?">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('transactionModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveTransaction()">Add Expense</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADD FUND MODAL -->
+<div class="modal-overlay" id="addFundModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Add Funds</div>
+        <div class="form-row">
+            <label class="label">Amount *</label>
+            <input class="input" type="number" id="fundAmount" placeholder="0.00" step="0.01">
+        </div>
+        <div class="form-row">
+            <label class="label">Note</label>
+            <input class="input" id="fundNote" placeholder="e.g. Salary, Transfer...">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('addFundModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveAddFund()">Add Funds</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ===================== STATE & STORAGE =====================
+    const STATE = {
+        // EXISTING FEATURES
+        tasks: [],
+        plans: [],
+        counters: [],
+        money: [],          // Keep this for your Lent/Borrow tracker
+        alarms: [],
+        roadmaps: [],
+        steps: [],
+        attendance: [],
+        academic: [],
+
+        // NEW COST TRACKER FEATURES
+        accounts: [],       // Stores: { id, name, balance }
+        expenses: [],       // Stores: { id, accountId, amount, category, note, date }
+
+        // NOTES (Google Keep style)
+        notes: [],          // { id, title, body, checklist:[{text,done}]|null, color, pinned, archived, trashed, updatedAt }
+
+        // SLEEP TRACKER
+        sleepLogs: [],      // { id, date, bedtime, wake, durationMins }
+
+        syncQueue: [],
+        // SETTINGS
+        selectedDate: '',
+        activeRoadmap: null,
+        activeAccountId: null, // Track which account you are viewing
+        taskFilter: 'all',
+        moneyFilter: 'all'
+    };
+    const COLORS = ['#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64'];
+    let selectedColors = { plan: '#7c6ef5', counter: '#7c6ef5', roadmap: '#7c6ef5' };
+    // Add this right after: let selectedColors = { ... };
+
+    let toastTimeout;
+    function toast(message) {
+        const toastEl = document.getElementById('toast');
+        toastEl.textContent = message;
+        toastEl.classList.add('show');
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toastEl.classList.remove('show');
+        }, 3000);
+    }
+
+    function fmtDate(d) {
+        const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+    function fmtDisplay(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00'); return d.toLocaleDateString('en', { month: 'short', day: 'numeric' });
+    }
+
+    // NEW Server-Side Load Function
+    // NEW Server-Side Load Function
+    // ===================== INIT =====================
+    // Add this to make sure the app syncs automatically when internet returns
+    window.addEventListener('DOMContentLoaded', () => {
+        // 1. LOAD OFFLINE DATA FIRST!
+        const cachedData = localStorage.getItem('proflow_state');
+        if (cachedData) {
+            try {
+                const parsed = JSON.parse(cachedData);
+                Object.assign(STATE, parsed); // Hydrate state immediately
+                renderAll(); // Draw the UI instantly
+            } catch (e) { }
+        }
+
+        setTimeout(() => {
+            document.getElementById('splash').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('splash').style.display = 'none';
+                document.getElementById('app').style.display = 'flex';
+            }, 500);
+
+            // 2. Drain any offline sync queue first, THEN pull fresh data — avoids racing with load()
+            processSyncQueue().then(load).then(rescheduleAllReminders);   // ← chain it on
+            const today = new Date();
+            STATE.selectedDate = fmtDate(today);   // always today on load, don't fall back to cache
+            document.getElementById('planDate').value = STATE.selectedDate;
+            document.getElementById('planTime').value = `${String(today.getHours()).padStart(2, '0')}:00`;
+            document.getElementById('taskDue').value = fmtDate(today);
+            updateGreeting();
+            renderCalendar();
+            renderAll();
+            setupAlarmTicks();
+            rescheduleAllReminders();   // ← and once immediately, using cached data
+        }, 1400);
+    });
+
+    function renderAll() {
+        renderTasks();
+        renderPlanner();
+        renderCounters();
+        renderMoney();
+        renderAlarms();
+        renderRoadmaps();
+        renderAttendance();
+        renderAcademic();
+        renderDashboard();
+        renderVault(); // <--- ADD THIS LINE
+        renderNotes();
+        renderSleep();
+        initColorPickers();
+    }
+    // settings////////////////////////////////////////////
+
+    // Initialize theme on app load
+    // Call initTheme inside your DOMContentLoaded event
+
+    // ===================== NAVIGATION & FAB =====================
+    let currentScreen = 'dash';
+    function navTo(screen) {
+        // 1. Hide all screens
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+
+        // 2. Show the selected screen
+        const targetScreen = document.getElementById('screen-' + screen);
+        if (targetScreen) targetScreen.classList.add('active');
+
+        // 3. Highlight the correct nav item
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+        // Find the nav-item that matches this screen and highlight it
+        const navItems = Array.from(document.querySelectorAll('.nav-item'));
+        const activeNav = navItems.find(item => item.getAttribute('onclick') && item.getAttribute('onclick').includes(screen));
+        if (activeNav) activeNav.classList.add('active');
+
+        currentScreen = screen;
+
+        // Logic-specific triggers
+        if (screen === 'roadmap') {
+            document.getElementById('roadmapList-view').style.display = 'block';
+            document.getElementById('roadmapDetail-view').style.display = 'none';
+            STATE.activeRoadmap = null;
+        }
+        // ADD THIS BLOCK: Reset expense view when navigating away
+        if (screen !== 'expenses') {
+            STATE.activeAccountId = null;
+            const dv = document.getElementById('transactionDetailView');
+            if (dv) dv.style.display = 'none';
+        }
+        if (screen === 'dash') renderDashboard();
+        // Add this inside your existing navTo function's trigger block
+        if (screen === 'expenses') {
+            renderExpenses();
+        }
+
+        // Expenses and Vault already have their own contextual "+" buttons
+        // (+ Account / + Add Funds / + Expense, and the drop-zone itself) —
+        // the global FAB has no matching action for them and was falling
+        // back to opening the Task modal, so hide it on those screens.
+        if (screen === 'notes') renderNotes();
+        if (screen === 'sleep') renderSleep();
+
+        const fab = document.querySelector('.fab');
+        if (fab) fab.style.display = (screen === 'expenses' || screen === 'vault' || screen === 'settings' || screen === 'notes' || screen === 'sleep') ? 'none' : 'flex';
+    }
+
+    function handleFabClick() {
+        if (currentScreen === 'tasks') openTaskModal();
+        else if (currentScreen === 'planner') openPlannerModal();
+        else if (currentScreen === 'counter') openCounterModal();
+        else if (currentScreen === 'money') openMoneyModal();
+        else if (currentScreen === 'alarms') openAlarmModal();
+        else if (currentScreen === 'roadmap') openRoadmapModal();
+        else if (currentScreen === 'attendance') openAttendanceModal();
+        else if (currentScreen === 'academic') openAcademicModal();
+        else openTaskModal();
+    }
+
+    function updateGreeting() {
+        const h = new Date().getHours(); const g = h < 12 ? 'Good morning 👋' : h < 17 ? 'Good afternoon ☀️' : 'Good evening 🌙';
+        document.getElementById('greeting').textContent = g;
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        document.getElementById('greetingSub').textContent = `${days[new Date().getDay()]} — let's get things done`;
+        document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // ===================== JSON EXPORT / IMPORT =====================
+
+    // ===================== DASHBOARD =====================
+    function renderDashboard() {
+        const active = STATE.tasks.filter(t => !t.completed).length; const todayStr = fmtDate(new Date()); const todayPlans = STATE.plans.filter(p => p.date === todayStr);
+        document.getElementById('dashTasks').textContent = active; document.getElementById('dashPlans').textContent = todayPlans.length;
+        document.getElementById('dashCounters').textContent = STATE.counters.length; document.getElementById('dashMoney').textContent = STATE.money.filter(m => !m.settled).length;
+
+        const list = document.getElementById('dashTodayList');
+        if (todayPlans.length === 0) { list.innerHTML = '<div class="empty-state" style="padding:16px 0"><div class="empty-icon">📅</div><p>No events today</p></div>'; }
+        else { list.innerHTML = todayPlans.sort((a, b) => a.time > b.time ? 1 : -1).slice(0, 5).map(p => `<div class="today-item"><div class="today-dot" style="background:${p.color || 'var(--accent)'}"></div><div class="today-time">${p.time}</div><div class="today-text">${p.title}</div></div>`).join(''); }
+
+        const taskEl = document.getElementById('dashTaskList');
+        const upcoming = STATE.tasks.filter(t => !t.completed).slice(0, 3);
+        if (upcoming.length === 0) { taskEl.innerHTML = '<div class="empty-state" style="padding:16px 0"><div class="empty-icon">✅</div><p>All clear!</p></div>'; }
+        else { taskEl.innerHTML = upcoming.map(t => `<div class="task-item" style="margin-bottom:8px"><div class="priority-dot p${t.priority}" style="margin-top:6px"></div><div class="task-body"><div class="task-title">${t.title}</div><div class="task-due">${t.category} ${t.due ? '· ' + fmtDisplay(t.due) : ''}</div></div></div>`).join(''); }
+    }
+
+    // ===================== FULL CALENDAR & PLANNER =====================
+    let calCurrentDate = new Date();
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid'); const monthYear = document.getElementById('calendarMonthYear'); grid.innerHTML = '';
+        const year = calCurrentDate.getFullYear(); const month = calCurrentDate.getMonth();
+        monthYear.textContent = new Date(year, month).toLocaleDateString('en', { month: 'long', year: 'numeric' });
+
+        const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const prevMonthDays = new Date(year, month, 0).getDate();
+        for (let i = firstDay - 1; i >= 0; i--) grid.appendChild(createCalDay(year, month - 1, prevMonthDays - i, true));
+        for (let i = 1; i <= daysInMonth; i++) grid.appendChild(createCalDay(year, month, i, false));
+        const totalCells = firstDay + daysInMonth; const remaining = (Math.ceil(totalCells / 7) * 7) - totalCells;
+        for (let i = 1; i <= remaining; i++) grid.appendChild(createCalDay(year, month + 1, i, true));
+    }
+
+    function createCalDay(y, m, d, isOtherMonth) {
+        const dateObj = new Date(y, m, d); const dateStr = fmtDate(dateObj);
+        const el = document.createElement('div'); el.className = 'cal-day';
+        if (isOtherMonth) el.classList.add('other-month');
+        if (dateStr === fmtDate(new Date())) el.classList.add('today');
+        if (dateStr === STATE.selectedDate) el.classList.add('selected');
+        el.textContent = dateObj.getDate();
+        if (STATE.plans.some(p => p.date === dateStr) || STATE.academic.some(a => a.date === dateStr)) { const dot = document.createElement('div'); dot.className = 'cal-dot'; el.appendChild(dot); }
+        el.onclick = () => { STATE.selectedDate = dateStr; calCurrentDate = new Date(y, m, d); document.getElementById('planDate').value = dateStr; renderCalendar(); renderPlanner(); };
+        return el;
+    }
+
+    function prevMonth() { calCurrentDate.setMonth(calCurrentDate.getMonth() - 1); renderCalendar(); }
+    function nextMonth() { calCurrentDate.setMonth(calCurrentDate.getMonth() + 1); renderCalendar(); }
+
+    function openPlannerModal() { document.getElementById('planTitle').value = ''; document.getElementById('planDesc').value = ''; document.getElementById('planDate').value = STATE.selectedDate; document.getElementById('plannerModal').classList.add('open'); }
+
+    function renderPlanner() {
+        const el = document.getElementById('plannerEvents');
+        const selDateObj = new Date(STATE.selectedDate + 'T00:00:00');
+        const selDisplay = selDateObj.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
+        let html = `<div class="section-header"><div class="section-title">Events on ${selDisplay}</div></div>`;
+
+        const selPlans = STATE.plans.filter(p => p.date === STATE.selectedDate).sort((a, b) => a.time > b.time ? 1 : -1);
+        if (selPlans.length === 0) {
+            html += `<div style="text-align:center; color:var(--text3); font-size:13px; margin-bottom:24px;">No events scheduled for this day.</div>`;
+        } else {
+            html += selPlans.map(p => `
+        <div class="time-slot">
+          <div class="time-label">${formatTime(p.time)}</div>
+          <div class="time-line" style="background:${p.color}"></div>
+          <div class="time-events" style="flex:1">
+            <div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${p.color}" onclick="togglePlan(event, ${p.id})">
+              <div class="event-title">${p.title}</div>
+              ${p.desc ? `<div class="event-desc">${p.desc}</div>` : ''}
+              <div style="display:flex;justify-content:space-between;margin-top:4px">
+                <span style="font-size:10px;color:var(--text3)">${p.completed ? '✓ Done' : '⏰ ' + p.time}</span>
+                <span onclick="deletePlan(event, ${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px">🗑</span>
+              </div>
+            </div>
+          </div>
+        </div>`).join('');
+        }
+
+        /* UPCOMING 60 DAYS LIST */
+        html += `<div class="section-header" style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
+                <div class="section-title">Upcoming (Next 2 Months)</div>
+             </div>`;
+        const todayObj = new Date(); todayObj.setHours(0, 0, 0, 0);
+        const twoMonths = new Date(todayObj); twoMonths.setDate(todayObj.getDate() + 60);
+
+        let allUpcoming = [];
+        STATE.plans.forEach(p => { const d = new Date(p.date + 'T00:00:00'); if (d >= todayObj && d <= twoMonths) allUpcoming.push({ ...p, isAcad: false }); });
+        STATE.academic.forEach(a => { if (!a.date) return; const d = new Date(a.date + 'T00:00:00'); if (d >= todayObj && d <= twoMonths) allUpcoming.push({ ...a, title: a.subject, isAcad: true }); });
+
+        allUpcoming.sort((a, b) => { const da = new Date(a.date + 'T' + (a.time || '00:00')); const db = new Date(b.date + 'T' + (b.time || '00:00')); return da - db; });
+
+        if (allUpcoming.length === 0) { html += `<div style="text-align:center; color:var(--text3); font-size:13px; padding-bottom:20px;">No upcoming events.</div>`; }
+        else {
+            let lastDate = '';
+            allUpcoming.forEach(e => {
+                if (e.date !== lastDate) {
+                    const disp = new Date(e.date + 'T00:00:00').toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' });
+                    html += `<div style="font-size:11px; font-weight:700; color:var(--accent); margin:16px 0 8px 0; text-transform:uppercase; letter-spacing:1px;">${disp}</div>`;
+                    lastDate = e.date;
+                }
+                if (e.isAcad) {
+                    html += `<div class="event-block" style="border-color:var(--accent3); margin-bottom:8px; cursor:pointer;" onclick="navTo('academic'); openAcademicModalById(${e.id})">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-size:10px; color:var(--accent3); font-weight:600; text-transform:uppercase;">🎓 ${e.type}</div>
+                        <span onclick="delAcademic(event, ${e.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span>
+                    </div>
+                    <div class="event-title">${e.subject}</div>
+                    ${e.topic ? `<div class="event-desc">${e.topic}</div>` : ''}
+                </div>`;
+                } else {
+                    html += `<div class="event-block ${e.completed ? 'done' : ''}" style="border-color:${e.color}; margin-bottom:8px;" onclick="togglePlan(event, ${e.id})">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="event-title">${e.title}</div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <div style="font-size:10px; color:var(--text3)">⏰ ${formatTime(e.time)}</div>
+                            <span onclick="deletePlan(event, ${e.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span>
+                        </div>
+                    </div>
+                </div>`;
+                }
+            });
+        }
+        el.innerHTML = html;
+    }
+
+    function formatTime(t) { const [h, m] = t.split(':'); const hr = parseInt(h); return `${hr > 12 ? hr - 12 : hr === 0 ? 12 : hr}:${m}${hr >= 12 ? 'pm' : 'am'}`; }
+
+    // ===================== TASKS =====================
+    function openTaskModal() {
+        document.getElementById('taskModalTitle').textContent = 'New Task'; document.getElementById('taskTitle').value = ''; document.getElementById('taskDesc').value = ''; document.getElementById('taskDue').value = fmtDate(new Date()); document.getElementById('taskReminder').value = '';
+        delete document.getElementById('taskModal').dataset.editId; document.getElementById('taskModal').classList.add('open');
+    }
+    function openTaskModalById(id) {
+        const t = STATE.tasks.find(x => x.id === id); if (!t) return;
+        document.getElementById('taskModalTitle').textContent = 'Edit Task'; document.getElementById('taskTitle').value = t.title; document.getElementById('taskDesc').value = t.description || ''; document.getElementById('taskCategory').value = t.category || 'Work'; document.getElementById('taskPriority').value = t.priority || 0; document.getElementById('taskDue').value = t.due || ''; document.getElementById('taskReminder').value = t.reminder || '';
+        document.getElementById('taskModal').dataset.editId = t.id; document.getElementById('taskModal').classList.add('open');
+    }
+    // NEW Server-Side Save Task Function
+    // OFFLINE-FIRST: SAVE / EDIT TASK
+    function setTaskFilter(f, el) { STATE.taskFilter = f; document.querySelectorAll('#taskFilters .filter-tab').forEach(t => t.classList.remove('active')); el.classList.add('active'); renderTasks(); }
+    function renderTasks() {
+        let tasks = [...STATE.tasks];
+        if (STATE.taskFilter === 'active') tasks = tasks.filter(t => !t.completed); else if (STATE.taskFilter === 'done') tasks = tasks.filter(t => t.completed); else if (STATE.taskFilter === 'high') tasks = tasks.filter(t => t.priority === 2 && !t.completed); else if (STATE.taskFilter === 'work') tasks = tasks.filter(t => t.category === 'Work'); else if (STATE.taskFilter === 'personal') tasks = tasks.filter(t => t.category === 'Personal');
+        const el = document.getElementById('taskList');
+        if (tasks.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No tasks here</p></div>';
+        el.innerHTML = tasks.map(t => `
+    <div class="task-item ${t.completed ? 'done' : ''}" onclick="openTaskModalById(${t.id})" style="cursor:pointer;">
+      <div class="task-check ${t.completed ? 'checked' : ''}" onclick="toggleTask(event, ${t.id})"></div>
+      <div class="task-body">
+        <div class="task-title">${t.title}</div>
+        <div class="task-meta">
+          <span class="priority-dot p${t.priority}"></span><span class="pill pill-accent" style="font-size:10px;padding:2px 7px">${t.category}</span>
+          ${t.due ? `<span class="task-due">📅 ${fmtDisplay(t.due)}</span>` : ''} ${t.priority === 2 ? '<span style="font-size:11px;color:var(--red)">🔴 High</span>' : ''}
+        </div>
+      </div>
+      <div class="task-delete" onclick="deleteTask(event, ${t.id})">🗑</div>
+    </div>`).join('');
+    }
+    // OFFLINE-FIRST: TOGGLE TASK CHECKMARK
+    // OFFLINE-FIRST: DELETE TASK
+    // ===================== COUNTERS =====================
+    function openCounterModal() { document.getElementById('counterName').value = ''; document.getElementById('counterStep').value = '1'; document.getElementById('counterStart').value = '0'; document.getElementById('counterModal').classList.add('open'); }
+    function renderCounters() {
+        const el = document.getElementById('counterGrid');
+        if (STATE.counters.length === 0) return el.innerHTML = '<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">🔢</div><p>Create your first counter</p></div>';
+        el.innerHTML = STATE.counters.map(c => `
+    <div class="counter-card">
+      <div class="counter-name">${c.name}</div>
+      <div class="counter-val" style="color:${c.color}">${c.value}</div>
+      <div class="counter-controls"><button class="c-btn c-btn-minus" onclick="adjustCounter(${c.id},-1)">−</button><button class="c-btn c-btn-reset" onclick="resetCounter(${c.id})">↺</button><button class="c-btn c-btn-plus" onclick="adjustCounter(${c.id},1)">+</button></div>
+      <div class="counter-step">step: ${c.step}</div>
+      <div style="font-size:11px; color:var(--text2); margin-top:8px;">Last Update: ${c.lastUpdated || 'Never'}</div>
+      <div style="text-align:right;margin-top:8px"><span onclick="deleteCounter(event, ${c.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div>
+    </div>`).join('');
+    }
+    // ===================== MONEY =====================
+    function openMoneyModal() { document.getElementById('moneyPerson').value = ''; document.getElementById('moneyAmount').value = ''; document.getElementById('moneyNote').value = ''; document.getElementById('moneyDue').value = ''; document.getElementById('moneyModal').classList.add('open'); }
+    function setMoneyFilter(f, el) { STATE.moneyFilter = f; document.querySelectorAll('#screen-money .filter-tab').forEach(t => t.classList.remove('active')); el.classList.add('active'); renderMoney(); }
+    function renderMoney() {
+        let records = [...STATE.money];
+        if (STATE.moneyFilter === 'lent') records = records.filter(m => m.type === 'lent'); else if (STATE.moneyFilter === 'borrowed') records = records.filter(m => m.type === 'borrowed'); else if (STATE.moneyFilter === 'pending') records = records.filter(m => !m.settled); else if (STATE.moneyFilter === 'settled') records = records.filter(m => m.settled);
+        const lentTotal = STATE.money.filter(m => m.type === 'lent' && !m.settled)
+            .reduce((s, m) => s + parseFloat(m.amount || 0), 0);
+        const owedTotal = STATE.money.filter(m => m.type === 'borrowed' && !m.settled)
+            .reduce((s, m) => s + parseFloat(m.amount || 0), 0);
+        document.getElementById('totalLent').textContent = '$' + lentTotal.toFixed(2);
+        document.getElementById('totalOwed').textContent = '$' + owedTotal.toFixed(2);
+        const el = document.getElementById('moneyList');
+        if (records.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>No records found</p></div>';
+        el.innerHTML = records.map(m => `
+    <div class="money-item ${m.settled ? 'money-settled' : ''}">
+      <div class="money-avatar ${m.type}">${m.person[0].toUpperCase()}</div>
+      <div class="money-info"><div class="money-name">${m.person} ${m.settled ? '<span class="pill pill-green" style="font-size:9px">Settled</span>' : ''}</div><div class="money-note">${m.note || (m.type === 'lent' ? 'You lent' : 'You borrowed')} ${m.due ? '· Due ' + fmtDisplay(m.due) : ''}</div></div>
+      <div style="text-align:right"><div class="money-amount ${m.type}">${m.type === 'lent' ? '+' : '-'}$${parseFloat(m.amount).toFixed(2)}</div>${!m.settled ? `<button class="settle-btn" onclick="settleMoney(event, ${m.id})">Settle</button>` : ''}<div onclick="deleteMoney(event, ${m.id})" style="font-size:16px;color:var(--text3);cursor:pointer;margin-top:4px;padding:4px;">🗑</div></div>
+    </div>`).join('');
+    }
+    // ===================== ALARMS =====================
+    function openAlarmModal() { document.getElementById('alarmTime').value = ''; document.getElementById('alarmLabel').value = ''; document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected')); document.getElementById('alarmModal').classList.add('open'); }
+    function toggleDay(el) { el.classList.toggle('selected'); }
+    function renderAlarms() {
+        const el = document.getElementById('alarmList');
+        if (STATE.alarms.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏰</div><p>No alarms set</p></div>';
+        el.innerHTML = STATE.alarms.map(a => {
+            const [h, m] = a.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
+            const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']; const daysStr = a.days ? a.days.split('').map(d => dayNames[parseInt(d)]).join(' ') : 'Once';
+            return `<div class="alarm-item ${!a.enabled ? 'money-settled' : ''}"><div style="flex:1"><div class="alarm-time">${String(displayH).padStart(2, '0')}:${String(m).padStart(2, '0')}<span class="alarm-time-ampm">${ampm}</span></div><div class="alarm-label">${a.label}</div><div class="alarm-days">${daysStr}</div></div><label class="alarm-toggle"><input type="checkbox" ${a.enabled ? 'checked' : ''} onchange="toggleAlarm(event, ${a.id})"><span class="toggle-slider"></span></label><div class="alarm-delete" onclick="deleteAlarm(event, ${a.id})">🗑</div></div>`;
+        }).join('');
+    }
+    function setupAlarmTicks() {
+        setInterval(() => {
+            const now = new Date();
+            const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+            if (s !== 0) return;
+
+            STATE.alarms.filter(a => a.enabled && a.time).forEach(a => {
+                const [ah, am] = a.time.split(':').map(Number);
+                if (ah !== h || am !== m) return;
+                const dayOfWeek = now.getDay().toString();
+                if (!a.days || a.days === '' || a.days.includes(dayOfWeek)) {
+                    sendSystemNotification("Alarm: " + a.label, formatTime(a.time));
+                    try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA==').play(); } catch (e) { }
+                }
+            });
+        }, 1000);
+    }
+    // ===================== ROADMAP =====================
+    function openRoadmapModal() { document.getElementById('roadmapTitle').value = ''; document.getElementById('roadmapDesc').value = ''; document.getElementById('roadmapTarget').value = ''; document.getElementById('roadmapModal').classList.add('open'); }
+    function renderRoadmaps() {
+        const el = document.getElementById('roadmapList');
+        if (STATE.roadmaps.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">🗺️</div><p>Create your first roadmap</p></div>';
+        el.innerHTML = STATE.roadmaps.map(r => {
+            const steps = STATE.steps.filter(s => s.roadmapId === r.id); const done = steps.filter(s => s.completed).length; const pct = steps.length ? Math.round(done / steps.length * 100) : 0;
+            return `<div class="roadmap-item" onclick="openRoadmapDetail(${r.id})"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="roadmap-title">${r.title}</div><div class="roadmap-desc">${r.desc || r.category}</div></div><span class="pill pill-accent">${r.category}</span></div><div class="roadmap-progress"><div class="roadmap-progress-fill" style="width:${pct}%;background:${r.color}"></div></div><div class="roadmap-meta"><span class="roadmap-steps-count">${done}/${steps.length} steps ${pct}%</span>${r.target ? `<span style="font-size:11px;color:var(--text3)">🎯 ${fmtDisplay(r.target)}</span>` : ''}</div></div>`;
+        }).join('');
+    }
+    function openRoadmapDetail(id) { STATE.activeRoadmap = id; const r = STATE.roadmaps.find(r => r.id === id); document.getElementById('roadmapList-view').style.display = 'none'; const detail = document.getElementById('roadmapDetail-view'); detail.style.display = 'block'; renderRoadmapDetail(r); }
+    function renderRoadmapDetail(r) {
+        const steps = STATE.steps.filter(s => s.roadmapId === r.id).sort((a, b) => a.order - b.order); const done = steps.filter(s => s.completed).length; const pct = steps.length ? Math.round(done / steps.length * 100) : 0;
+        document.getElementById('roadmapDetail-view').innerHTML = `
+    <div class="back-btn" onclick="navTo('roadmap')">← Back to Roadmaps</div>
+    <div class="card" style="border-color:${r.color}20;background:${r.color}0a"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><div><div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800">${r.title}</div><div style="font-size:13px;color:var(--text2);margin-top:2px">${r.desc || ''}</div></div><span class="pill pill-accent">${pct}%</span></div><div class="roadmap-progress" style="height:6px"><div class="roadmap-progress-fill" style="width:${pct}%;background:${r.color}"></div></div><div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:11px;color:var(--text2)">${done}/${steps.length} milestones</span>${r.target ? `<span style="font-size:11px;color:var(--text3)">Target: ${fmtDisplay(r.target)}</span>` : ''}</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div class="section-title">Milestones</div><button class="btn-add" onclick="openStepModal(${r.id})">+ Step</button></div>
+    ${steps.length === 0 ? '<div class="empty-state"><div class="empty-icon">🏁</div><p>Add your first milestone</p></div>' : `<div class="step-timeline"><div class="step-line"></div>${steps.map((s, i) => `<div class="step-item"><div class="step-dot ${s.completed ? 'done' : i === done ? 'active' : ''}" onclick="toggleStep(event, ${s.id},${r.id})"></div><div class="step-content ${s.completed ? 'done' : ''}"><div style="display:flex;justify-content:space-between"><div class="step-content-title">${s.title}</div><span onclick="deleteStep(event, ${s.id},${r.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div>${s.desc ? `<div class="step-content-desc">${s.desc}</div>` : ''}${s.date ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">📅 ${fmtDisplay(s.date)}</div>` : ''}</div></div>`).join('')}</div>`}
+    <div style="margin-top:16px"><button onclick="deleteRoadmap(event, ${r.id})" style="width:100%;padding:12px;border-radius:var(--radius-sm);border:1px solid rgba(245,100,124,.3);background:rgba(245,100,124,.08);color:var(--red);font-size:13px;cursor:pointer">Delete Roadmap</button></div>`;
+    }
+    function openStepModal(roadmapId) {
+        const r = STATE.roadmaps.find(r => r.id === roadmapId);
+        if (navigator.onLine && r && r.pendingSync) return toast('⏳ Waiting for cloud sync. Try again in a second!');
+        document.getElementById('stepTitle').value = ''; document.getElementById('stepDesc').value = ''; document.getElementById('stepDate').value = ''; document.getElementById('stepModal').dataset.roadmapId = roadmapId; document.getElementById('stepModal').classList.add('open');
+    }
+
+
+    // ===================== ATTENDANCE =====================
+    function openAttendanceModal() { document.getElementById('attSubject').value = ''; document.getElementById('attendanceModal').classList.add('open'); }
+    function renderAttendance() {
+        const el = document.getElementById('attendanceList');
+        if (!STATE.attendance.length) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><p>No classes added yet</p></div>';
+        el.innerHTML = STATE.attendance.map(a => {
+            const total = a.attended + a.missed; const pct = total > 0 ? ((a.attended / total) * 100).toFixed(1) : 0;
+            return `<div class="att-card"><div class="att-header"><div class="att-title">${a.subject}</div><div class="att-pct">${pct}%</div></div><div class="att-bar-bg"><div class="att-bar-fill" style="width:${pct}%"></div></div><div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text2)"><span>✅ ${a.attended} Attended &nbsp;|&nbsp; ❌ ${a.missed} Missed</span><span>Last Update: ${a.lastUpdated || 'Never'}</span></div><div class="att-controls"><button class="att-btn attend" onclick="markAtt(event, ${a.id}, true)">+ Attended</button><button class="att-btn miss" onclick="markAtt(event, ${a.id}, false)">+ Missed</button></div><div style="text-align:right; margin-top:12px;"><span onclick="delAtt(event, ${a.id})" style="font-size:16px; color:var(--text3); cursor:pointer; padding:4px;">🗑</span></div></div>`;
+        }).join('');
+    }
+
+    // ===================== ACADEMIC =====================
+    function openAcademicModal() {
+        document.getElementById('academicModalTitle').textContent = 'New Academic Event';
+        document.getElementById('acadSubject').value = ''; document.getElementById('acadTopic').value = ''; document.getElementById('acadDesc').value = ''; document.getElementById('acadNote').value = '';
+        delete document.getElementById('academicModal').dataset.editId; document.getElementById('academicModal').classList.add('open');
+    }
+    function openAcademicModalById(id) {
+        const a = STATE.academic.find(x => x.id === id); if (!a) return;
+        document.getElementById('academicModalTitle').textContent = 'Edit Academic Event';
+        document.getElementById('acadSubject').value = a.subject; document.getElementById('acadType').value = a.type;
+        document.getElementById('acadDate').value = a.date || ''; document.getElementById('acadTopic').value = a.topic || '';
+        document.getElementById('acadDesc').value = a.desc || ''; document.getElementById('acadNote').value = a.note || '';
+        document.getElementById('academicModal').dataset.editId = a.id; document.getElementById('academicModal').classList.add('open');
+    }
+    function renderAcademic() {
+        const el = document.getElementById('academicList');
+        if (!STATE.academic.length) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎓</div><p>No upcoming exams or projects</p></div>';
+        const sorted = [...STATE.academic].sort((a, b) => new Date(a.date || '9999') - new Date(b.date || '9999'));
+        el.innerHTML = sorted.map(a => `
+    <div class="acad-card" onclick="openAcademicModalById(${a.id})">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="acad-type">${a.type}</div>
+            <span onclick="delAcademic(event, ${a.id})" style="color:var(--text3); font-size:16px; cursor:pointer; padding:4px;">🗑</span>
+        </div>
+        <div class="acad-title">${a.subject}</div>
+        ${a.date ? `<div class="acad-detail">📅 <b>Date:</b> ${new Date(a.date).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}</div>` : ''}
+        ${a.topic ? `<div class="acad-detail">🎯 <b>Topic:</b> ${a.topic}</div>` : ''}
+        ${a.desc ? `<div class="acad-detail">📝 <b>Desc:</b> ${a.desc}</div>` : ''}
+        ${a.note ? `<div class="acad-detail" style="margin-top:6px; font-style:italic; border-top:1px solid var(--border); padding-top:6px">Note: ${a.note}</div>` : ''}
+    </div>`).join('');
+    }
+
+    // ===================== NOTES (Google Keep style) =====================
+    const NOTE_COLORS = ['', '#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64'];
+    let noteChecklistMode = false;
+    let noteChecklistItems = [];
+    let noteColor = '';
+    let notesView = 'active'; // active | archived | trashed
+
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+    function openNoteModal(id) {
+        const modal = document.getElementById('noteModal');
+        if (id) {
+            const n = STATE.notes.find(x => x.id === id);
+            if (!n) return;
+            modal.dataset.editId = n.id;
+            document.getElementById('noteTitle').value = n.title || '';
+            document.getElementById('noteBody').value = n.body || '';
+            noteChecklistMode = !!n.checklist;
+            noteChecklistItems = n.checklist ? JSON.parse(JSON.stringify(n.checklist)) : [];
+            noteColor = n.color || '';
+        } else {
+            delete modal.dataset.editId;
+            document.getElementById('noteTitle').value = '';
+            document.getElementById('noteBody').value = '';
+            noteChecklistMode = false;
+            noteChecklistItems = [];
+            noteColor = '';
+        }
+        renderNoteChecklistEditor();
+        renderNoteColorPicker();
+        modal.classList.add('open');
+    }
+
+    function toggleNoteMode() { noteChecklistMode = !noteChecklistMode; renderNoteChecklistEditor(); }
+
+    function addNoteChecklistItem() {
+        const input = document.getElementById('noteChecklistInput');
+        const text = input.value.trim();
+        if (!text) return;
+        noteChecklistItems.push({ text, done: false });
+        input.value = '';
+        renderNoteChecklistEditor();
+    }
+    function removeNoteChecklistItem(idx) { noteChecklistItems.splice(idx, 1); renderNoteChecklistEditor(); }
+    function toggleNoteChecklistItemEditor(idx) { noteChecklistItems[idx].done = !noteChecklistItems[idx].done; renderNoteChecklistEditor(); }
+
+    function renderNoteChecklistEditor() {
+        document.getElementById('noteBody').style.display = noteChecklistMode ? 'none' : 'block';
+        document.getElementById('noteChecklistEditor').style.display = noteChecklistMode ? 'block' : 'none';
+        document.getElementById('noteChecklistItemsList').innerHTML = noteChecklistItems.map((it, i) => `
+            <div class="checklist-row">
+                <input type="checkbox" ${it.done ? 'checked' : ''} onchange="toggleNoteChecklistItemEditor(${i})">
+                <span class="${it.done ? 'done' : ''}">${escapeHtml(it.text)}</span>
+                <span class="remove-x" onclick="removeNoteChecklistItem(${i})">✕</span>
+            </div>`).join('');
+        document.getElementById('noteModeBtn').textContent = noteChecklistMode ? '📝 Switch to Text' : '☑️ Switch to Checklist';
+    }
+
+    function renderNoteColorPicker() {
+        document.getElementById('noteColorPicker').innerHTML = NOTE_COLORS.map(c => `
+            <div class="color-swatch ${c === noteColor ? 'selected' : ''}"
+                 style="background:${c || 'var(--surface2)'}"
+                 onclick="pickNoteColor('${c}')"></div>`).join('');
+    }
+    function pickNoteColor(c) { noteColor = c; renderNoteColorPicker(); }
+
+    function saveNote() {
+        const title = document.getElementById('noteTitle').value.trim();
+        const body = document.getElementById('noteBody').value.trim();
+        if (!title && !body && !noteChecklistItems.length) return toast('Note is empty!');
+        const modal = document.getElementById('noteModal');
+        const editId = modal.dataset.editId ? Number(modal.dataset.editId) : null;
+        const now = new Date().toISOString();
+        const checklist = noteChecklistMode ? JSON.parse(JSON.stringify(noteChecklistItems)) : null;
+
+        if (editId) {
+            const n = STATE.notes.find(x => x.id === editId);
+            if (!n) return;
+            n.title = title; n.body = noteChecklistMode ? '' : body;
+            n.checklist = checklist; n.color = noteColor; n.updatedAt = now;
+            renderNotes(); closeModal('noteModal'); save();
+            ofetch('update_note.php', { id: editId, title: n.title, body: n.body, checklist: n.checklist, color: n.color, pinned: n.pinned, archived: n.archived, trashed: n.trashed, updatedAt: now });
+        } else {
+            const tempId = Date.now();
+            const nData = { id: tempId, title, body: noteChecklistMode ? '' : body, checklist, color: noteColor || null, pinned: false, archived: false, trashed: false, updatedAt: now };
+            STATE.notes.unshift(nData);
+            renderNotes(); closeModal('noteModal'); save();
+            toast('Note saved 📝');
+            ofetch('add_note.php', nData, d => {
+                const n = STATE.notes.find(x => x.id === tempId);
+                if (n) n.id = d.id;
+                renderNotes(); save();
+            });
+        }
+    }
+
+    function toggleNotePin(e, id) {
+        e.stopPropagation();
+        const n = STATE.notes.find(x => x.id === id); if (!n) return;
+        n.pinned = !n.pinned;
+        renderNotes(); save();
+        ofetch('update_note.php', { id, pinned: n.pinned });
+    }
+    function toggleNoteArchive(e, id) {
+        e.stopPropagation();
+        const n = STATE.notes.find(x => x.id === id); if (!n) return;
+        n.archived = !n.archived; n.pinned = false;
+        renderNotes(); save();
+        toast(n.archived ? 'Note archived 🗄' : 'Note unarchived');
+        ofetch('update_note.php', { id, archived: n.archived, pinned: n.pinned });
+    }
+    function toggleNoteTrash(e, id) {
+        e.stopPropagation();
+        const n = STATE.notes.find(x => x.id === id); if (!n) return;
+        n.trashed = !n.trashed; n.pinned = false; n.archived = false;
+        renderNotes(); save();
+        toast(n.trashed ? 'Moved to trash 🗑' : 'Note restored ♻️');
+        ofetch('update_note.php', { id, trashed: n.trashed, pinned: n.pinned, archived: n.archived });
+    }
+    function deleteNoteForever(e, id) {
+        e.stopPropagation();
+        if (!confirm('Delete this note permanently? This cannot be undone.')) return;
+        STATE.notes = STATE.notes.filter(x => x.id !== id);
+        renderNotes(); save();
+        toast('Note deleted');
+        ofetch('delete_note.php', { id });
+    }
+    function toggleChecklistItemInline(e, noteId, idx) {
+        e.stopPropagation();
+        const n = STATE.notes.find(x => x.id === noteId); if (!n || !n.checklist) return;
+        n.checklist[idx].done = !n.checklist[idx].done;
+        renderNotes(); save();
+        ofetch('update_note.php', { id: noteId, checklist: n.checklist });
+    }
+
+    function setNotesView(v) {
+        notesView = v;
+        document.querySelectorAll('.notes-tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('notesTab-' + v).classList.add('active');
+        renderNotes();
+    }
+
+    function renderNotes() {
+        const el = document.getElementById('notesGrid');
+        if (!el) return;
+        const q = (document.getElementById('noteSearch')?.value || '').toLowerCase();
+        let list = STATE.notes.filter(n => {
+            if (notesView === 'active') return !n.archived && !n.trashed;
+            if (notesView === 'archived') return n.archived && !n.trashed;
+            return n.trashed;
+        });
+        if (q) list = list.filter(n => (n.title || '').toLowerCase().includes(q) || (n.body || '').toLowerCase().includes(q) || (n.checklist || []).some(c => c.text.toLowerCase().includes(q)));
+        list = [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+
+        if (!list.length) {
+            const msg = notesView === 'trashed' ? 'Trash is empty' : notesView === 'archived' ? 'No archived notes' : 'No notes yet — tap + Note to add one';
+            el.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><p>${msg}</p></div>`;
+            return;
+        }
+
+        el.innerHTML = list.map(n => {
+            const checklistHtml = n.checklist ? `<div class="note-checklist">${n.checklist.map((c, i) => `<div class="checklist-row" onclick="toggleChecklistItemInline(event,${n.id},${i})"><input type="checkbox" ${c.done ? 'checked' : ''} readonly><span class="${c.done ? 'done' : ''}">${escapeHtml(c.text)}</span></div>`).join('')}</div>` : '';
+            const bodyHtml = n.body ? `<div class="note-body">${escapeHtml(n.body)}</div>` : '';
+            const actions = n.trashed
+                ? `<span onclick="toggleNoteTrash(event,${n.id})" title="Restore">♻️</span><span onclick="deleteNoteForever(event,${n.id})" title="Delete forever">🗑</span>`
+                : `<span onclick="toggleNotePin(event,${n.id})" title="Pin">${n.pinned ? '📌' : '📍'}</span><span onclick="toggleNoteArchive(event,${n.id})" title="Archive">🗄</span><span onclick="toggleNoteTrash(event,${n.id})" title="Trash">🗑</span>`;
+            return `<div class="note-card" style="${n.color ? `background:${n.color}22;border-color:${n.color}66` : ''}" onclick="${n.trashed ? '' : `openNoteModal(${n.id})`}">
+                ${n.pinned ? '<div class="note-pin-badge">📌</div>' : ''}
+                ${n.title ? `<div class="note-title">${escapeHtml(n.title)}</div>` : ''}
+                ${bodyHtml}${checklistHtml}
+                <div class="note-actions">${actions}</div>
+            </div>`;
+        }).join('');
+    }
+
+    // ===================== SLEEP TRACKER =====================
+    function computeSleepDuration(bed, wake) {
+        const [bh, bm] = bed.split(':').map(Number);
+        const [wh, wm] = wake.split(':').map(Number);
+        let diff = (wh * 60 + wm) - (bh * 60 + bm);
+        if (diff <= 0) diff += 24 * 60;
+        return diff;
+    }
+    function sleepQuality(mins, bedtime) {
+        const hours = mins / 60;
+        const bh = Number(bedtime.split(':')[0]);
+        const isLate = bh >= 0 && bh < 4; // bedtime between 12am–4am counts as a late night
+        let label, tag;
+        if (hours < 6) { label = 'Too little sleep'; tag = 'low'; }
+        else if (hours > 9.5) { label = 'Too much sleep'; tag = 'high'; }
+        else { label = 'Good sleep'; tag = 'good'; }
+        if (isLate) label += ' • Late bedtime';
+        return { label, tag, isLate, hours };
+    }
+
+    function openSleepModal() {
+        document.getElementById('sleepDate').value = fmtDate(new Date());
+        document.getElementById('sleepBed').value = '23:00';
+        document.getElementById('sleepWake').value = '07:00';
+        document.getElementById('sleepModal').classList.add('open');
+    }
+
+    function saveSleepLog() {
+        const date = document.getElementById('sleepDate').value;
+        const bedtime = document.getElementById('sleepBed').value;
+        const wake = document.getElementById('sleepWake').value;
+        if (!date || !bedtime || !wake) return toast('Fill in all fields!');
+        const durationMins = computeSleepDuration(bedtime, wake);
+        const tempId = Date.now();
+        const sData = { id: tempId, date, bedtime, wake, durationMins };
+        STATE.sleepLogs.push(sData);
+        renderSleep(); closeModal('sleepModal'); save();
+        toast('Sleep logged 😴');
+        ofetch('add_sleep.php', sData, d => {
+            const s = STATE.sleepLogs.find(x => x.id === tempId);
+            if (s) s.id = d.id;
+            renderSleep(); save();
+        });
+    }
+    function deleteSleepLog(id) {
+        STATE.sleepLogs = STATE.sleepLogs.filter(x => x.id !== id);
+        renderSleep(); save();
+        toast('Entry deleted');
+        ofetch('delete_sleep.php', { id });
+    }
+
+    function renderSleepChart(containerId, entries, maxHours) {
+        maxHours = maxHours || 12;
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (!entries.length) { el.innerHTML = '<div class="empty-state" style="padding:16px 0"><p style="font-size:13px">No data yet</p></div>'; return; }
+        const barW = entries.length > 14 ? '3px' : '10%';
+        el.innerHTML = `<div class="sleep-chart">
+            <div class="sleep-ideal-line" style="bottom:${Math.min(95, (8 / maxHours) * 100)}%"></div>
+            ${entries.map(e => {
+            const pct = Math.min(100, (e.hours / maxHours) * 100);
+            const color = e.tag === 'good' ? 'var(--accent2)' : e.tag === 'low' ? 'var(--accent4)' : 'var(--accent3)';
+            return `<div class="sleep-bar-col" title="${e.date}: ${e.hours.toFixed(1)}h — ${e.label}">
+                    <div class="sleep-bar" style="height:${pct}%; background:${color}; width:${barW}"></div>
+                    ${entries.length <= 14 ? `<div class="sleep-bar-label">${e.dateLabel}</div>` : ''}
+                </div>`;
+        }).join('')}
+        </div>`;
+    }
+
+    function renderSleep() {
+        if (!document.getElementById('sleepMeterCard')) return;
+        const sorted = [...STATE.sleepLogs].sort((a, b) => a.date.localeCompare(b.date));
+        const withQuality = sorted.map(e => ({ ...e, ...sleepQuality(e.durationMins, e.bedtime), dateLabel: fmtDisplay(e.date) }));
+        const last7 = withQuality.slice(-7);
+        const last30 = withQuality.slice(-30);
+        const avg = arr => arr.length ? (arr.reduce((s, e) => s + e.hours, 0) / arr.length) : 0;
+
+        const latest = withQuality[withQuality.length - 1];
+        const meterEl = document.getElementById('sleepMeterCard');
+        if (!latest) {
+            meterEl.innerHTML = '<div class="empty-state"><div class="empty-icon">😴</div><p>Log your first night to see your sleep meter</p></div>';
+        } else {
+            const color = latest.tag === 'good' ? 'var(--accent2)' : latest.tag === 'low' ? 'var(--accent4)' : 'var(--accent3)';
+            meterEl.innerHTML = `<div class="stat-card">
+                <div style="font-size:13px;color:var(--text2)">Last logged night (${fmtDisplay(latest.date)})</div>
+                <div style="font-size:30px;font-weight:800;margin:6px 0;">${latest.hours.toFixed(1)}h</div>
+                <div style="color:${color};font-weight:700">${latest.label}</div>
+                <div style="font-size:12px;color:var(--text2);margin-top:6px">🛏 ${latest.bedtime} → ⏰ ${latest.wake}</div>
+            </div>`;
+        }
+
+        document.getElementById('sleepAvgWeek').textContent = last7.length ? avg(last7).toFixed(1) + 'h' : '—';
+        document.getElementById('sleepAvgMonth').textContent = last30.length ? avg(last30).toFixed(1) + 'h' : '—';
+        document.getElementById('sleepLateCount').textContent = last7.filter(e => e.isLate).length;
+
+        renderSleepChart('sleepWeekChart', last7, 12);
+        renderSleepChart('sleepMonthChart', last30, 12);
+
+        const listEl = document.getElementById('sleepList');
+        if (listEl) {
+            if (!withQuality.length) { listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">😴</div><p>No sleep logs yet</p></div>'; }
+            else {
+                const color = e => e.tag === 'good' ? 'var(--accent2)' : e.tag === 'low' ? 'var(--accent4)' : 'var(--accent3)';
+                listEl.innerHTML = [...withQuality].reverse().map(e => `<div class="card" style="display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <div style="font-weight:700">${fmtDisplay(e.date)}</div>
+                        <div style="font-size:12px;color:var(--text2)">🛏 ${e.bedtime} → ⏰ ${e.wake} · ${e.hours.toFixed(1)}h</div>
+                        <div style="font-size:12px;color:${color(e)}">${e.label}</div>
+                    </div>
+                    <span onclick="deleteSleepLog(${e.id})" style="color:var(--text3);cursor:pointer;font-size:16px">🗑</span>
+                </div>`).join('');
+            }
+        }
+    }
+
+    // ===================== MODALS & COLOR PICKERS =====================
+    document.querySelectorAll('.modal-overlay').forEach(m => { m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); }); });
+    function initColorPickers() {
+        const pickers = { plan: 'planColorPicker', counter: 'counterColorPicker', roadmap: 'roadmapColorPicker' };
+        Object.entries(pickers).forEach(([key, id]) => {
+            const el = document.getElementById(id); if (!el) return;
+            el.innerHTML = COLORS.map(c => `<div class="color-opt ${c === selectedColors[key] ? 'selected' : ''}" style="background:${c}" onclick="selectColor('${key}','${c}',this)"></div>`).join('');
+        });
+    }
+    function selectColor(key, color, el) { selectedColors[key] = color; el.parentElement.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected')); el.classList.add('selected'); }
+    const reminderTimers = {};
+    function scheduleReminderToast(task) {
+        if (reminderTimers[task.id]) clearTimeout(reminderTimers[task.id]);
+        if (!task.reminder) return;
+        const diff = new Date(task.reminder) - new Date();
+        if (diff > 0 && diff < 86400000) {
+            reminderTimers[task.id] = setTimeout(() => sendSystemNotification("Task Reminder", task.title), diff);
+        }
+    }
+    function rescheduleAllReminders() {
+        STATE.tasks.forEach(t => { if (t.reminder && !t.completed) scheduleReminderToast(t); });
+    }
+    // ===================== NOTIFICATIONS =====================
+    function requestNotificationPermission() {
+        if ("Notification" in window) {
+            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                Notification.requestPermission();
+            }
+        }
+    }
+
+    function sendSystemNotification(title, bodyText) {
+        // Fallback to in-app toast regardless
+        toast(`🔔 ${title} ${bodyText ? '- ' + bodyText : ''}`);
+
+        // Try to send actual system notification
+        if ("Notification" in window && Notification.permission === "granted") {
+            try {
+                // Mobile browsers and PWAs prefer ServiceWorker notifications
+                if (navigator.serviceWorker) {
+                    navigator.serviceWorker.ready.then(function (registration) {
+                        registration.showNotification(title, { body: bodyText, vibrate: [200, 100, 200] });
+                    }).catch(function () {
+                        new Notification(title, { body: bodyText });
+                    });
+                } else {
+                    new Notification(title, { body: bodyText });
+                }
+            } catch (e) {
+                console.log("Notification failed", e);
+            }
+        }
+    }
+
+    // ===================== STANDBY MODE LOGIC =====================
+    let standbyClockInterval, standbyPomoInterval;
+    let pomoTimeLeft = 25 * 60;
+    let isPomoRunning = false;
+
+    function openStandby() {
+        document.getElementById('zenStandby').style.display = 'flex';
+        // Request Fullscreen and Landscape lock for Android WebViews
+        try {
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+            if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => { });
+        } catch (e) { }
+        switchStandbyMode('clock');
+    }
+
+    function exitStandby() {
+        document.getElementById('zenStandby').style.display = 'none';
+        clearInterval(standbyClockInterval); clearInterval(standbyPomoInterval);
+        try {
+            if (document.exitFullscreen) document.exitFullscreen();
+            if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+        } catch (e) { }
+    }
+
+    function setStandbyTheme(themeClass, el) {
+        document.getElementById('zenStandby').className = themeClass;
+        document.querySelectorAll('.zen-theme-dot').forEach(d => { d.classList.remove('active'); d.style.borderColor = 'transparent'; });
+        el.classList.add('active'); el.style.borderColor = '#fff';
+    }
+
+    function switchStandbyMode(mode) {
+        document.getElementById('nav-clock').classList.remove('active');
+        document.getElementById('nav-pomo').classList.remove('active');
+        document.getElementById('nav-' + mode).classList.add('active');
+
+        if (mode === 'clock') {
+            document.getElementById('zenClock').style.display = 'flex';
+            document.getElementById('zenPomo').style.display = 'none';
+            clearInterval(standbyClockInterval);
+            standbyClockInterval = setInterval(updateStandbyClock, 1000);
+            updateStandbyClock();
+        } else {
+            document.getElementById('zenClock').style.display = 'none';
+            document.getElementById('zenPomo').style.display = 'flex';
+            clearInterval(standbyClockInterval);
+            updatePomoDisplay();
+        }
+    }
+
+    function updateStandbyClock() {
+        const d = new Date();
+        document.getElementById('zenTimeDisplay').textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        document.getElementById('zenSecDisplay').textContent = String(d.getSeconds()).padStart(2, '0');
+        document.getElementById('zenDateDisplay').textContent = d.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' });
+    }
+
+    function togglePomodoro() {
+        isPomoRunning = !isPomoRunning;
+        document.getElementById('zenPomoBtn').textContent = isPomoRunning ? 'Pause' : 'Start';
+        if (isPomoRunning) {
+            standbyPomoInterval = setInterval(() => {
+                if (pomoTimeLeft > 0) { pomoTimeLeft--; updatePomoDisplay(); }
+                else { resetPomodoro(); toast('Focus Session Complete! 🍅'); try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA==').play(); } catch (e) { } }
+            }, 1000);
+        } else { clearInterval(standbyPomoInterval); }
+    }
+
+    function resetPomodoro() {
+        isPomoRunning = false; clearInterval(standbyPomoInterval);
+        document.getElementById('zenPomoBtn').textContent = 'Start';
+        pomoTimeLeft = 25 * 60; updatePomoDisplay();
+    }
+
+    function updatePomoDisplay() {
+        const m = Math.floor(pomoTimeLeft / 60); const s = pomoTimeLeft % 60;
+        document.getElementById('zenPomoDisplay').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+        // Update SVG Ring (Circumference of r=45 is ~282.7)
+        const C = 282.74;
+        const offset = C - (pomoTimeLeft / (25 * 60)) * C;
+        document.getElementById('zenPomoRing').style.strokeDasharray = C;
+        document.getElementById('zenPomoRing').style.strokeDashoffset = offset;
+    }
+</script>
+<script src="app.js"></script>
+<script>
+    // This runs after app.js is fully loaded
+    initTheme();
+</script>
+</body>
+
+</html>
