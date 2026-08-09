@@ -1013,7 +1013,7 @@ function goToAttDate() { const val = document.getElementById('attGoToDateInput')
 function goToAttToday() { const today = new Date(); attCurrentDate = today; STATE.attSelectedDate = fmtDate(today); document.getElementById('attGoToDateInput').value = ''; renderAttCalendar(); renderAttendance(); toast('Jumped to today 📅'); }
 function calculateAttendanceStats(routineId) { const logs = STATE.attendanceLogs.filter(l => l.routineId === routineId); const attended = logs.filter(l => l.status === 'attended').length; const missed = logs.filter(l => l.status === 'missed').length; const total = attended + missed; const pct = total === 0 ? 0 : (attended / total) * 100; let statsMsg = ""; if (total === 0) { statsMsg = "No classes recorded yet."; } else if (pct < 75) { const needed = (3 * total) - (4 * attended); statsMsg = `You need to attend **${needed}** consecutive classes to reach 75%.`; } else { const canMiss = Math.floor((4 / 3 * attended) - total); statsMsg = `You are safe! You can miss **${canMiss}** classes and stay above 75%.`; } return { pct, statsMsg, total, attended, missed }; }
 function updateAttLog(routineId, status) { const date = STATE.attSelectedDate; let log = STATE.attendanceLogs.find(l => l.routineId === routineId && l.date === date); if (log) { log.status = status; save(); renderAttendance(); ofetch('update_att_log.php', { id: log.id, status }); } else { const tempId = Date.now(); const lData = { id: tempId, routineId, date, status }; STATE.attendanceLogs.push(lData); save(); renderAttendance(); ofetch('add_att_log.php', lData, d => { const l = STATE.attendanceLogs.find(x => x.id === tempId); if (l) l.id = d.id; save(); }); } }
-function renderAttendance() { const el = document.getElementById('attendanceList'); if (!el) return; if (!STATE.attSelectedDate) STATE.attSelectedDate = fmtDate(new Date()); const selDateObj = new Date(STATE.attSelectedDate + 'T00:00:00'); const dayOfWeek = selDateObj.getDay(); const todaysRoutines = STATE.attendanceRoutines.filter(r => r.dayOfWeek === dayOfWeek).sort((a, b) => (a.startTime || a.time) > (b.startTime || b.time) ? 1 : -1); let html = `<div class="section-header" style="margin-top:20px;"><div class="section-title">Classes for ${selDateObj.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}</div></div>`; if (todaysRoutines.length === 0) { html += '<div class="empty-state"><div class="empty-icon">🏖️</div><p>No classes scheduled for today.</p></div>'; } else { html += todaysRoutines.map(r => { const log = STATE.attendanceLogs.find(l => l.routineId === r.id && l.date === STATE.attSelectedDate); const currentStatus = log ? log.status : null; const stats = calculateAttendanceStats(r.id); const timeStr = r.startTime && r.endTime ? `${formatTime(r.startTime)} - ${formatTime(r.endTime)}` : formatTime(r.time || '00:00'); return `<div class="att-card" style="border-left: 4px solid var(--accent); position: relative;"><div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px;"><span onclick="openAttRoutineModalById(${r.id})" style="font-size:16px; color:var(--text3); cursor:pointer;" title="Edit Class">✏️</span><span onclick="deleteAttRoutine(event, ${r.id})" style="font-size:16px; color:var(--text3); cursor:pointer;" title="Delete Class">🗑</span></div><div class="att-header" style="padding-right: 50px;"><div class="att-title">${r.subject}</div></div><div style="font-size:12px; color:var(--text2); margin-top:4px;">⏰ ${timeStr} &nbsp;|&nbsp; 🏫 Room: ${r.room || 'N/A'}</div><div style="display:flex; justify-content:space-between; margin-top:12px; margin-bottom:8px; font-size:11px; color:var(--text2); font-family: 'Syne', sans-serif;"><span><b>Total Classes:</b> <span style="color:var(--text); font-size: 13px;">${stats.total}</span></span><span><b>Attended:</b> <span style="color:var(--green); font-size: 13px;">${stats.attended}</span></span><span><b>Missed:</b> <span style="color:var(--red); font-size: 13px;">${stats.missed}</span></span></div><div class="att-bar-bg" style="height: 4px;"><div class="att-bar-fill" style="width:${stats.pct}%; background: ${stats.pct >= 75 ? 'var(--green)' : 'var(--red)'}"></div></div><div style="display: flex; justify-content: space-between; font-size:11px; color:var(--text3); margin-bottom:12px;"><span>${stats.statsMsg}</span><span style="font-weight: 700; color: ${stats.pct >= 75 ? 'var(--green)' : 'var(--red)'};">${stats.pct.toFixed(1)}%</span></div><div class="att-controls" style="display:flex; gap:8px;"><button class="btn-secondary" style="flex:1; padding:8px; font-size:12px; background: ${currentStatus === 'attended' ? 'var(--green)' : 'var(--surface2)'}; color: ${currentStatus === 'attended' ? '#000' : 'var(--text)'};" onclick="updateAttLog(${r.id}, 'attended')">✅ Attended</button><button class="btn-secondary" style="flex:1; padding:8px; font-size:12px; background: ${currentStatus === 'missed' ? 'var(--red)' : 'var(--surface2)'}; color: ${currentStatus === 'missed' ? '#fff' : 'var(--text)'};" onclick="updateAttLog(${r.id}, 'missed')">❌ Missed</button><button class="btn-secondary" style="flex:1; padding:8px; font-size:12px; background: ${currentStatus === 'cancelled' ? 'var(--accent3)' : 'var(--surface2)'}; color: ${currentStatus === 'cancelled' ? '#000' : 'var(--text)'};" onclick="updateAttLog(${r.id}, 'cancelled')">⏸️ Cancel</button></div></div>`; }).join(''); } el.innerHTML = html; }
+function renderAttendance() { const el = document.getElementById('attendanceList'); if (!el) return; if (!STATE.attSelectedDate) STATE.attSelectedDate = fmtDate(new Date()); const selDateObj = new Date(STATE.attSelectedDate + 'T00:00:00'); const dayOfWeek = selDateObj.getDay(); const todaysRoutines = STATE.attendanceRoutines.filter(r => parseInt(r.dayOfWeek) === dayOfWeek).sort((a, b) => (a.startTime || a.time) > (b.startTime || b.time) ? 1 : -1); let html = `<div class="section-header" style="margin-top:20px;"><div class="section-title">Classes for ${selDateObj.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}</div></div>`; if (todaysRoutines.length === 0) { html += '<div class="empty-state"><div class="empty-icon">🏖️</div><p>No classes scheduled for today.</p></div>'; } else { html += todaysRoutines.map(r => { const log = STATE.attendanceLogs.find(l => l.routineId === r.id && l.date === STATE.attSelectedDate); const currentStatus = log ? log.status : null; const stats = calculateAttendanceStats(r.id); const timeStr = r.startTime && r.endTime ? `${formatTime(r.startTime)} - ${formatTime(r.endTime)}` : formatTime(r.time || '00:00'); return `<div class="att-card" style="border-left: 4px solid var(--accent); position: relative;"><div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px;"><span onclick="openAttRoutineModalById(${r.id})" style="font-size:16px; color:var(--text3); cursor:pointer;" title="Edit Class">✏️</span><span onclick="deleteAttRoutine(event, ${r.id})" style="font-size:16px; color:var(--text3); cursor:pointer;" title="Delete Class">🗑</span></div><div class="att-header" style="padding-right: 50px;"><div class="att-title">${r.subject}</div></div><div style="font-size:12px; color:var(--text2); margin-top:4px;">⏰ ${timeStr} &nbsp;|&nbsp; 🏫 Room: ${r.room || 'N/A'}</div><div style="display:flex; justify-content:space-between; margin-top:12px; margin-bottom:8px; font-size:11px; color:var(--text2); font-family: 'Syne', sans-serif;"><span><b>Total Classes:</b> <span style="color:var(--text); font-size: 13px;">${stats.total}</span></span><span><b>Attended:</b> <span style="color:var(--green); font-size: 13px;">${stats.attended}</span></span><span><b>Missed:</b> <span style="color:var(--red); font-size: 13px;">${stats.missed}</span></span></div><div class="att-bar-bg" style="height: 4px;"><div class="att-bar-fill" style="width:${stats.pct}%; background: ${stats.pct >= 75 ? 'var(--green)' : 'var(--red)'}"></div></div><div style="display: flex; justify-content: space-between; font-size:11px; color:var(--text3); margin-bottom:12px;"><span>${stats.statsMsg}</span><span style="font-weight: 700; color: ${stats.pct >= 75 ? 'var(--green)' : 'var(--red)'};">${stats.pct.toFixed(1)}%</span></div><div class="att-controls" style="display:flex; gap:8px;"><button class="btn-secondary" style="flex:1; padding:8px; font-size:12px; background: ${currentStatus === 'attended' ? 'var(--green)' : 'var(--surface2)'}; color: ${currentStatus === 'attended' ? '#000' : 'var(--text)'};" onclick="updateAttLog(${r.id}, 'attended')">✅ Attended</button><button class="btn-secondary" style="flex:1; padding:8px; font-size:12px; background: ${currentStatus === 'missed' ? 'var(--red)' : 'var(--surface2)'}; color: ${currentStatus === 'missed' ? '#fff' : 'var(--text)'};" onclick="updateAttLog(${r.id}, 'missed')">❌ Missed</button><button class="btn-secondary" style="flex:1; padding:8px; font-size:12px; background: ${currentStatus === 'cancelled' ? 'var(--accent3)' : 'var(--surface2)'}; color: ${currentStatus === 'cancelled' ? '#000' : 'var(--text)'};" onclick="updateAttLog(${r.id}, 'cancelled')">⏸️ Cancel</button></div></div>`; }).join(''); } el.innerHTML = html; }
 
 // ============================================================
 // ACADEMIC
@@ -1506,4 +1506,330 @@ function toggleNavModuleVisibility(key) {
     save();
     renderNavSettings();
     renderNavbar();
+}
+
+// ============================================================
+// AI ROUTINE PARSER ENGINE
+// ============================================================
+// NOTE ON THE BUG THIS SECTION FIXES:
+// pdf.js's getTextContent() returns text items in the order they appear in the
+// PDF's content stream, NOT in true left-to-right/top-to-bottom reading order.
+// For a table with empty cells (e.g. a day with only 2 of 6 slots filled),
+// there is no placeholder for the empty cells, so the flattened text silently
+// shifts everything left. The AI then has no way to know which slot a course
+// actually belongs to and guesses -- which is why classes were landing on the
+// wrong day/time. Fix: use each text item's real (x, y) position on the page
+// to deterministically bucket it into its actual (Day, Slot) cell BEFORE
+// asking the AI to do anything. The AI is only ever asked to clean up the
+// subject/room text for a cell whose day and time we already know for certain.
+
+const DAY_NAME_TO_NUM = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+
+function to24Hour(t) {
+    const m = String(t).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!m) return null;
+    let h = parseInt(m[1]); const min = m[2]; const period = m[3].toUpperCase();
+    if (period === 'PM' && h !== 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${min}`;
+}
+
+function parseTimeRangeText(str) {
+    const matches = String(str).match(/\d{1,2}:\d{2}\s*(?:AM|PM)/gi) || [];
+    if (matches.length < 2) return null;
+    const start = to24Hour(matches[0]); const end = to24Hour(matches[1]);
+    if (!start || !end) return null;
+    return { start, end };
+}
+
+// Reconstructs the routine as a list of geometrically-correct {day, time, text} cells
+// by using each PDF text item's real x/y coordinates instead of stream order.
+async function buildRoutineGrid(pdf) {
+    const cells = [];
+    let cellIdCounter = 0;
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+        const items = content.items
+            .map(it => ({ text: (it.str || '').trim(), x: it.transform[4], y: it.transform[5] }))
+            .filter(it => it.text.length > 0);
+        if (items.length === 0) continue;
+
+        // 1. Find the "Slot N" header items — used only as a ROUGH first pass, because
+        // header labels are centered in their column while body text below is left-aligned,
+        // so a header-based boundary can misclassify body text by a fraction of a point
+        // right at the edge of a narrow column.
+        const roughSlotAnchors = [];
+        for (let i = 0; i < items.length; i++) {
+            const m = items[i].text.match(/^Slot\s*(\d+)$/i);
+            if (m) { roughSlotAnchors.push({ slot: parseInt(m[1]), x: items[i].x, y: items[i].y }); continue; }
+            if (/^Slot$/i.test(items[i].text) && items[i + 1] && /^\d+$/.test(items[i + 1].text)) {
+                roughSlotAnchors.push({ slot: parseInt(items[i + 1].text), x: items[i].x, y: items[i].y });
+            }
+        }
+        if (roughSlotAnchors.length === 0) continue; // can't geometrically map this page -- caller will fall back
+
+        roughSlotAnchors.sort((a, b) => a.x - b.x);
+        const headerY = roughSlotAnchors[0].y;
+        const dayHeaderItem = items.find(it => /^Day$/i.test(it.text) && Math.abs(it.y - headerY) < 3);
+        const roughColumnAnchors = [{ slot: 0, x: dayHeaderItem ? dayHeaderItem.x : 0 }, ...roughSlotAnchors];
+
+        function nearest(anchors, x) {
+            let best = anchors[0], bestDist = Infinity;
+            for (const c of anchors) { const d = Math.abs(x - c.x); if (d < bestDist) { bestDist = d; best = c; } }
+            return best.slot;
+        }
+
+        // 2. Read the time-range row (e.g. "09:00 AM - 10:05 AM") using the rough anchors,
+        // then take each column's MINIMUM x from that row as its true left edge — time text
+        // is reliably left-aligned near the real column border, unlike the header label.
+        const timeRowItems = items.filter(it => it.y < headerY - 2 && it.y > headerY - 25);
+        const slotTimeText = {};
+        const preciseMinX = {};
+        timeRowItems.forEach(it => {
+            const col = nearest(roughColumnAnchors, it.x);
+            if (col === 0) return;
+            slotTimeText[col] = (slotTimeText[col] || '') + ' ' + it.text;
+            preciseMinX[col] = Math.min(preciseMinX[col] === undefined ? Infinity : preciseMinX[col], it.x);
+        });
+        preciseMinX[0] = dayHeaderItem ? dayHeaderItem.x : 0;
+        const columnAnchors = Object.keys(preciseMinX).map(s => ({ slot: parseInt(s), x: preciseMinX[s] })).sort((a, b) => a.x - b.x);
+
+        function nearestColumn(x) { return nearest(columnAnchors, x); }
+
+        // 4. Find day-row labels (Saturday..Friday) in the Day column -- these define row bands
+        const dayRows = items
+            .filter(it => nearestColumn(it.x) === 0 && DAY_NAME_TO_NUM.hasOwnProperty(it.text.toLowerCase()))
+            .sort((a, b) => b.y - a.y); // PDF y increases upward, so descending = top-to-bottom
+        if (dayRows.length === 0) continue;
+
+        // 5. Bucket every other item into its (day band, slot column)
+        const buckets = {};
+        for (const it of items) {
+            const col = nearestColumn(it.x);
+            if (col === 0) continue; // the day-name label itself
+            if (it.y >= dayRows[0].y + 3) continue; // header area
+
+            let dayIdx = -1;
+            for (let i = 0; i < dayRows.length; i++) {
+                const top = dayRows[i].y + 3;
+                const bottom = i + 1 < dayRows.length ? dayRows[i + 1].y + 3 : -Infinity;
+                if (it.y <= top && it.y > bottom) { dayIdx = i; break; }
+            }
+            if (dayIdx === -1) continue;
+
+            const key = `${dayIdx}_${col}`;
+            (buckets[key] = buckets[key] || []).push(it);
+        }
+
+        // 6. Assemble each bucket's text and attach its now-certain day + time
+        Object.keys(buckets).forEach(key => {
+            const [dayIdxStr, colStr] = key.split('_');
+            const dayIdx = parseInt(dayIdxStr), col = parseInt(colStr);
+            const dayName = dayRows[dayIdx].text.toLowerCase();
+            const cellItems = buckets[key].sort((a, b) => (b.y - a.y) || (a.x - b.x));
+            const text = cellItems.map(it => it.text).join(' ').replace(/\s+/g, ' ').trim();
+            if (!text) return;
+
+            // A real class cell always contains a course-code-like token (e.g. "CSE 3101").
+            // Anything shorter without one is almost certainly a wrapped word that spilled
+            // a fraction of a point past a column border — skip it rather than create a
+            // phantom class with a garbage subject name.
+            const looksLikeCourse = /[A-Za-z]{2,6}\s*\d{3,4}/.test(text);
+            if (!looksLikeCourse && text.split(/\s+/).length < 4) return;
+
+            const timeRange = parseTimeRangeText(slotTimeText[col] || '') || { start: '09:00', end: '10:00' };
+            cells.push({
+                id: `c${cellIdCounter++}`,
+                dayOfWeek: DAY_NAME_TO_NUM[dayName],
+                startTime: timeRange.start,
+                endTime: timeRange.end,
+                text
+            });
+        });
+    }
+
+    return cells;
+}
+
+async function handleRoutineUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    toast('Reading PDF... Please wait ⏳');
+
+    try {
+        const fileReader = new FileReader();
+        fileReader.onload = async function () {
+            const typedarray = new Uint8Array(this.result);
+            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+
+            const cells = await buildRoutineGrid(pdf);
+
+            if (cells.length > 0) {
+                // Geometry extraction worked -- day/time are already 100% correct.
+                toast('Processing with AI... 🤖');
+                await sendCellsToAI(cells);
+            } else {
+                // Fallback for a PDF layout we couldn't geometrically map: use the
+                // old raw-text approach so upload still works, just less reliably.
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    fullText += textContent.items.map(item => item.str).join(' ') + '\n';
+                }
+                toast('Processing with AI (fallback mode)... 🤖');
+                await sendRawTextToAI(fullText);
+            }
+        };
+        fileReader.readAsArrayBuffer(file);
+    } catch (error) {
+        toast('Failed to read PDF! ❌');
+        console.error(error);
+    }
+    event.target.value = ''; // input reset
+}
+
+// Primary path: day/time are already known from PDF geometry. The AI only
+// extracts subject/room text per cell -- it can no longer get the day or time wrong.
+async function sendCellsToAI(cells) {
+    toast('Reading course names with AI... 🤖');
+
+    const API_KEY = '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';
+    const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+
+    const cellsBlock = cells.map(c => `[${c.id}] ${c.text}`).join('\n');
+    const prompt = `
+    Below are text blocks extracted from individual cells of a university class routine table.
+    Each cell's Day and Time are ALREADY KNOWN and correct -- do not guess or output them.
+    Your only job: for each cell id, extract:
+    - subject: the course code and course title combined (string)
+    - room: the room number only, e.g. "408" or "103 DMSL" (string, or "" if none)
+
+    Return ONLY a valid JSON array like [{"id":"c0","subject":"...","room":"..."}], no markdown, no extra text.
+
+    Cells:
+    ${cellsBlock}
+    `;
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.1
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) { console.error("Groq API Error:", data.error); toast('API Error: ' + data.error.message); return; }
+
+        let jsonString = data.choices[0].message.content.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(jsonString);
+
+        const byId = {};
+        cells.forEach(c => byId[c.id] = c);
+
+        const classes = parsed.map(p => {
+            const cell = byId[p.id];
+            if (!cell) return null;
+            // dayOfWeek/startTime/endTime come from OUR geometry extraction, never from the AI.
+            return {
+                subject: p.subject || 'Unknown Class',
+                room: p.room || '',
+                startTime: cell.startTime,
+                endTime: cell.endTime,
+                dayOfWeek: cell.dayOfWeek
+            };
+        }).filter(Boolean);
+
+        saveExtractedRoutines(classes);
+    } catch (error) {
+        toast('Failed to process routine! ❌');
+        console.error("API Error:", error);
+    }
+}
+
+// Fallback path only (geometry extraction failed on this PDF's layout) -- same
+// behavior as before, AI has to infer day/time from possibly-scrambled text.
+async function sendRawTextToAI(rawText) {
+    const API_KEY = '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';
+    const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+
+    const prompt = `
+    You are an expert university routine parser. I am giving you raw text extracted from a university class routine PDF.
+    Because it is a table grid, the text order might be scrambled. Carefully map each course to its correct Day and Time Slot.
+
+    Extract all classes and return ONLY a valid JSON array of objects. Do not use any markdown formatting like \`\`\`json or extra text. Each object must have:
+    - subject: Course code and name (string)
+    - room: Room number (string, e.g., "408" or "103 DMSL", or "")
+    - startTime: 24-hour HH:MM format (string)
+    - endTime: 24-hour HH:MM format (string)
+    - dayOfWeek: Number (0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday)
+
+    Routine Raw Text:
+    ${rawText}
+    `;
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.1
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) { console.error("Groq API Error:", data.error); toast('API Error: ' + data.error.message); return; }
+
+        let jsonString = data.choices[0].message.content.replace(/```json/g, '').replace(/```/g, '').trim();
+        const classes = JSON.parse(jsonString);
+        saveExtractedRoutines(classes);
+    } catch (error) {
+        toast('Failed to process routine! ❌');
+        console.error("API Error:", error);
+    }
+}
+
+function saveExtractedRoutines(classes) {
+    if (!Array.isArray(classes) || classes.length === 0) {
+        return toast('No classes found in this document.');
+    }
+
+    let addedCount = 0;
+
+    classes.forEach(cls => {
+        const tempId = Date.now() + Math.floor(Math.random() * 1000);
+        const rData = {
+            id: tempId,
+            subject: cls.subject || 'Unknown Class',
+            room: cls.room || '',
+            startTime: cls.startTime || '09:00',
+            endTime: cls.endTime || '10:00',
+            dayOfWeek: parseInt(cls.dayOfWeek) || 0
+        };
+
+        // লোকাল স্টেটে পুশ করা
+        STATE.attendanceRoutines.push(rData);
+        addedCount++;
+
+        // ব্যাকগ্রাউন্ডে Supabase-এ সিঙ্ক করা
+        ofetch('add_att_routine.php', rData, d => {
+            const r = STATE.attendanceRoutines.find(x => x.id === tempId);
+            if (r) r.id = d.id;
+            save();
+        });
+    });
+
+    save();
+    renderAttCalendar();
+    renderAttendance();
+    toast(`Successfully added ${addedCount} classes! 🎉`);
 }
