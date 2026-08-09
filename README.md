@@ -18,6 +18,7 @@ It started as a personal project and has slowly grown into something I actually 
 - **Vault** — drag-and-drop file storage for stuff you want quick access to without digging through your phone's file manager.
 - **Customizable dashboard** — the home screen is made of widgets you can show, hide, and reorder, including ones you can pin to a specific account, counter, or note.
 - **Dark and light themes** — because staring at a bright white dashboard at 1am is not it.
+AI ROUTINE SYNC FROM PDF
 
 ## ☁️ How the sync works
 
