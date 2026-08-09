@@ -12,6 +12,7 @@
     <title>Life Easy</title>
     <!-- Try the official CDN first (Best for Cloudflare Pages) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
     <!-- If the CDN fails or you are completely offline in WebView, load the local file -->
     <script>
@@ -2006,7 +2007,14 @@
             <div class="screen" id="screen-attendance">
                 <div class="section-header">
                     <div class="section-title">Attendance Tracker</div>
-                    <button class="btn-add" onclick="openAttRoutineModal()">+ Add Routine</button>
+                    <!-- নতুন AI Upload বাটন এবং Add Routine বাটন -->
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="file" id="routineUploadInput" accept=".pdf" style="display:none"
+                            onchange="handleRoutineUpload(event)">
+                        <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
+                            onclick="document.getElementById('routineUploadInput').click()">📄 AI Upload</button>
+                        <button class="btn-add" onclick="openAttRoutineModal()">+ Add Routine</button>
+                    </div>
                 </div>
 
                 <!-- Independent Attendance Calendar -->
