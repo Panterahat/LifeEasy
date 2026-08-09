@@ -248,3 +248,274 @@ body {
     gap: 12px;
     margin-bottom: 20px;
 }
+
+/* =========================================================
+   6. NOTES (Google Keep style)
+   ========================================================= */
+.notes-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.notes-tab {
+    background: none;
+    border: none;
+    padding: 8px 4px;
+    margin-right: 10px;
+    color: var(--text2);
+    font-size: 14px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+
+.notes-tab.active {
+    color: var(--text);
+    font-weight: 700;
+    border-bottom: 2px solid var(--accent);
+}
+
+.notes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.note-card {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    cursor: pointer;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+}
+
+.note-pin-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.note-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    padding-right: 20px;
+    word-break: break-word;
+}
+
+.note-body {
+    font-size: 13px;
+    color: var(--text2);
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-bottom: 8px;
+}
+
+.note-checklist {
+    margin-bottom: 8px;
+}
+
+.checklist-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding: 3px 0;
+}
+
+.checklist-row input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.checklist-row .done {
+    text-decoration: line-through;
+    color: var(--text3);
+}
+
+.checklist-row .remove-x {
+    margin-left: auto;
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.note-actions {
+    margin-top: auto;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 8px;
+    font-size: 15px;
+    opacity: 0.75;
+}
+
+.color-swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    cursor: pointer;
+}
+
+.color-swatch.selected {
+    border-color: var(--text);
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* =========================================================
+   7. SLEEP TRACKER CHART
+   ========================================================= */
+.sleep-chart {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 140px;
+    padding-top: 10px;
+}
+
+.sleep-bar-col {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 4px;
+}
+
+.sleep-bar {
+    width: 70%;
+    min-height: 2px;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.3s ease;
+}
+
+.sleep-bar-label {
+    font-size: 9px;
+    color: var(--text3);
+    margin-top: 4px;
+    white-space: nowrap;
+}
+
+.sleep-ideal-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px dashed var(--text3);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* =========================================================
+   GRAND NOTE EDITOR UPGRADE
+   ========================================================= */
+#noteModal .modal {
+    max-width: 850px;
+    width: 100%;
+    /* Use 100% height for mobile instead of 90vh to prevent keyboard push-out */
+    height: 100%;
+    max-height: 100%;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    transition: all 0.3s ease;
+}
+
+.note-grand-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(10px);
+}
+
+.note-grand-body {
+    flex: 1;
+    overflow-y: auto;
+    /* Reduced horizontal padding so text doesn't feel squished on phones */
+    padding: 20px 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+#noteTitle {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    border: none;
+    background: transparent;
+    padding: 0 0 12px 0;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    outline: none;
+}
+
+#noteBody {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--text);
+    outline: none;
+    resize: none;
+    font-family: 'DM Sans', sans-serif;
+}
+
+.note-grand-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    /* CRITICAL FIX: Forces elements to wrap to a new line on small screens */
+    flex-wrap: wrap;
+}
+
+/* =========================================================
+   MOBILE OVERRIDES FOR NOTE STUDIO
+   ========================================================= */
+@media (max-width: 480px) {
+    .note-grand-footer>div {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .note-grand-footer button {
+        flex: 1;
+        /* Makes Cancel/Save buttons take equal width when stacked */
+        padding: 12px !important;
+        font-size: 14px;
+    }
+
+    #noteColorPicker .color-swatch {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+.note-meta-stats {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}

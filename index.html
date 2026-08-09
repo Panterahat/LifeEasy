@@ -9,7 +9,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="LifeEasy">
-    <script src="vendor/supabase.js"></script>
+    <!-- Try the official CDN first (Best for Cloudflare Pages) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- If the CDN fails or you are completely offline in WebView, load the local file -->
+    <script>
+        if (typeof window.supabase === 'undefined') {
+            document.write('<script src="vendor/supabase.js"><\/script>');
+        }
+    </script>
     <title>Life Easy</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap"
@@ -863,6 +871,8 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
+            align-items: stretch;
+            /* FIX: Makes all cards in a row the same height */
         }
 
         .counter-card {
@@ -871,6 +881,13 @@
             border-radius: var(--radius);
             padding: 16px;
             text-align: center;
+            display: flex;
+            /* FIX: Activates flexible layout inside the card */
+            flex-direction: column;
+            height: 100%;
+            min-width: 0;
+            /* FIX: Prevents the card from stretching horizontally */
+            justify-content: space-between;
         }
 
         .counter-name {
@@ -879,20 +896,32 @@
             margin-bottom: 8px;
             text-transform: uppercase;
             letter-spacing: .5px;
+            white-space: nowrap;
+            /* FIX: Stops text from wrapping to a new line */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            /* FIX: Adds "..." if the name is too long */
         }
 
         .counter-val {
             font-family: 'Syne', sans-serif;
-            font-size: 48px;
             font-weight: 800;
             line-height: 1;
+            margin: auto 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: clamp(28px, 8vw, 48px);
+            /* FIX: Shrinks number on small screens */
+            padding: 10px 0;
         }
 
         .counter-controls {
             display: flex;
             gap: 8px;
             justify-content: center;
-            margin-top: 12px;
+            margin-top: auto;
+            /* FIX: Pushes buttons firmly to the bottom */
         }
 
         .c-btn {
@@ -1666,6 +1695,34 @@
             border-color: #fff;
             transform: scale(1.2);
         }
+
+        @media (min-width: 768px) {
+            #screen-attendance.active {
+                display: grid;
+                grid-template-columns: 600px 1fr;
+                grid-template-rows: auto 1fr;
+                gap: 24px;
+                align-items: start;
+            }
+
+            #screen-attendance .section-header {
+                grid-column: 1 / -1;
+            }
+
+            #screen-attendance .calendar-wrapper {
+                grid-column: 1;
+            }
+
+            #screen-attendance #attendanceList {
+                grid-column: 2;
+                margin-top: 0;
+            }
+
+            #screen-attendance .date-jump-card {
+                grid-column: 1;
+                grid-row: 3;
+            }
+        }
     </style>
 </head>
 
@@ -1779,63 +1836,8 @@
                 <div class="greeting" id="greeting">Good morning 👋</div>
                 <div class="greeting-sub" id="greetingSub">Here's your day at a glance</div>
 
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon">✅</div>
-                        <div class="stat-num" id="dashTasks">0</div>
-                        <div class="stat-label">Pending Tasks</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">📅</div>
-                        <div class="stat-num" id="dashPlans">0</div>
-                        <div class="stat-label">Today's Events</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">🔢</div>
-                        <div class="stat-num" id="dashCounters">0</div>
-                        <div class="stat-label">Counters</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">💰</div>
-                        <div class="stat-num" id="dashMoney">0</div>
-                        <div class="stat-label">Money Records</div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="section-header">
-                        <div class="section-title">Today's Schedule</div>
-                    </div>
-                    <div class="today-list" id="dashTodayList">
-                        <div class="empty-state" style="padding:20px 0">
-                            <div class="empty-icon">📅</div>
-                            <p>No events today</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="section-header">
-                        <div class="section-title">Upcoming Tasks</div>
-                    </div>
-                    <div id="dashTaskList">
-                        <div class="empty-state" style="padding:20px 0">
-                            <div class="empty-icon">✅</div>
-                            <p>All clear!</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="section-header">
-                        <div class="section-title">Data Backup</div>
-                    </div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                        <button class="btn-secondary" onclick="exportData()">💾 Export JSON</button>
-                        <button class="btn-secondary" onclick="document.getElementById('importFile').click()">📂 Import
-                            JSON</button>
-                    </div>
-                    <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+                <div id="dashWidgetZone" style="display: flex; flex-direction: column;">
+                    <!-- Lego Widgets injected dynamically here -->
                 </div>
             </div>
 
@@ -1872,6 +1874,21 @@
                             <option value="dark" selected>Dark Mode</option>
                         </select>
                     </div>
+                </div>
+
+                <!-- ADD THIS NEW CARD -->
+                <div class="card">
+                    <div class="section-title" style="margin-bottom:15px;">Customize Navigation</div>
+                    <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Rearrange your menu or hide
+                        modules you don't use.</p>
+                    <div id="navSettingsList"></div>
+                </div>
+
+                <div class="card">
+                    <div class="section-title" style="margin-bottom:15px;">Dashboard Widgets</div>
+                    <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Rearrange or hide modules on your
+                        home screen.</p>
+                    <div id="dashSettingsList"></div>
                 </div>
 
                 <div class="card">
@@ -1988,7 +2005,32 @@
             <div class="screen" id="screen-attendance">
                 <div class="section-header">
                     <div class="section-title">Attendance Tracker</div>
+                    <button class="btn-add" onclick="openAttRoutineModal()">+ Add Routine</button>
                 </div>
+
+                <!-- Independent Attendance Calendar -->
+                <div class="calendar-wrapper">
+                    <div class="calendar-header">
+                        <button onclick="prevAttMonth()">◀</button>
+                        <div id="attCalendarMonthYear">Month Year</div>
+                        <button onclick="nextAttMonth()">▶</button>
+                    </div>
+                    <div class="calendar-grid-header">
+                        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                    </div>
+                    <div class="calendar-grid" id="attCalendarGrid"></div>
+                </div>
+
+                <div class="card date-jump-card"
+                    style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
+                    <input type="date" id="attGoToDateInput" class="input" style="flex: 1;">
+                    <button class="btn-secondary" onclick="goToAttToday()"
+                        style="padding: 10px 16px; flex: 0 0 auto;">Today</button>
+                    <button class="btn-primary" onclick="goToAttDate()"
+                        style="padding: 10px 16px; flex: 0 0 auto;">Go</button>
+                </div>
+
+                <!-- Stats and Classes for Selected Date -->
                 <div id="attendanceList"></div>
             </div>
 
@@ -2027,11 +2069,11 @@
 
                     <!--
 
-            BUG FIX: "Back to Accounts" button now calls hideTransactionDetail()
+        BUG FIX: "Back to Accounts" button now calls hideTransactionDetail()
 
-            which correctly swaps the views instead of doing nothing.
+        which correctly swaps the views instead of doing nothing.
 
-        -->
+    -->
 
                     <div onclick="hideTransactionDetail()" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;
 
@@ -2072,61 +2114,90 @@
 
             <!-- End of screen-expenses — make sure this is INSIDE <div class="content"> -->
 
+            <!-- NOTES -->
+            <div class="screen" id="screen-notes">
+                <div class="section-header">
+                    <div class="section-title">Notes</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
+                            onclick="openWhiteboardModal()">+ Whiteboard</button>
+                        <button class="btn-add" onclick="openNoteModal()">+ Note</button>
+                    </div>
+                </div>
+
+                <input class="input" id="noteSearch" placeholder="🔎 Search notes..."
+                    style="width:100%;margin-bottom:12px;padding:10px;border-radius:var(--radius-sm)"
+                    oninput="renderNotes()">
+
+                <!-- TAG FILTER BAR WITH ADD BUTTON -->
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    <div class="filter-tabs" id="noteTagsFilter" style="margin-bottom: 0; flex: 1;">
+                        <div class="filter-tab active" onclick="setNoteTagFilter('all')">All</div>
+                    </div>
+                    <button class="btn-secondary" onclick="promptAddNewTag()"
+                        style="padding: 6px 12px; font-size: 12px; white-space: nowrap;">+ Tag</button>
+                </div>
+
+                <div class="notes-tabs">
+                    <button class="notes-tab active" id="notesTab-active"
+                        onclick="setNotesView('active')">Notes</button>
+                    <button class="notes-tab" id="notesTab-archived" onclick="setNotesView('archived')">Archive</button>
+                    <button class="notes-tab" id="notesTab-trashed" onclick="setNotesView('trashed')">Trash</button>
+                </div>
+
+                <div class="notes-grid" id="notesGrid"></div>
+            </div>
+
+            <!-- SLEEP TRACKER -->
+            <div class="screen" id="screen-sleep">
+                <div class="section-header">
+                    <div class="section-title">Sleep Tracker</div>
+                    <button class="btn-add" onclick="openSleepModal()">+ Log Sleep</button>
+                </div>
+
+                <div id="sleepMeterCard" style="margin-bottom:16px"></div>
+
+                <div class="stats-grid" style="margin-bottom:16px">
+                    <div class="stat-card">
+                        <div style="font-size:12px;color:var(--text2)">7-day avg</div>
+                        <div style="font-size:20px;font-weight:800" id="sleepAvgWeek">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <div style="font-size:12px;color:var(--text2)">30-day avg</div>
+                        <div style="font-size:20px;font-weight:800" id="sleepAvgMonth">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <div style="font-size:12px;color:var(--text2)">Avg Bedtime (7d)</div>
+                        <div style="font-size:20px;font-weight:800" id="sleepAvgBed">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <div style="font-size:12px;color:var(--text2)">Avg Wake (7d)</div>
+                        <div style="font-size:20px;font-weight:800" id="sleepAvgWake">—</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-title" style="font-size:14px;margin-bottom:10px">Weekly Overview</div>
+                    <div id="sleepWeekChart"></div>
+                </div>
+
+                <div class="card">
+                    <div class="section-title" style="font-size:14px;margin-bottom:10px">Monthly Overview</div>
+                    <div id="sleepMonthChart"></div>
+                </div>
+
+                <div class="section-title" style="font-size:14px;margin:16px 0 10px">History</div>
+                <div id="sleepList"></div>
+            </div>
+
         </div><!-- /content -->
 
         <!-- FLOATING ACTION BUTTON (FAB) -->
         <div class="fab" onclick="handleFabClick()">+</div>
 
         <!-- BOTTOM NAV -->
-        <nav class="bottom-nav">
-            <div class="nav-item active" onclick="navTo('dash')">
-                <div class="nav-icon">🏠</div>
-                <div class="nav-label">Home</div>
-            </div>
-            <div class="nav-item" onclick="navTo('planner')">
-                <div class="nav-icon">📅</div>
-                <div class="nav-label">Planner</div>
-            </div>
-            <div class="nav-item" onclick="navTo('tasks')">
-                <div class="nav-icon">✅</div>
-                <div class="nav-label">Tasks</div>
-            </div>
-            <div class="nav-item" onclick="navTo('counter')">
-                <div class="nav-icon">🔢</div>
-                <div class="nav-label">Counter</div>
-            </div>
-            <div class="nav-item" onclick="navTo('money')">
-                <div class="nav-icon">💰</div>
-                <div class="nav-label">Money</div>
-            </div>
-            <div class="nav-item" onclick="navTo('alarms')">
-                <div class="nav-icon">⏰</div>
-                <div class="nav-label">Alarms</div>
-            </div>
-            <div class="nav-item" onclick="navTo('roadmap')">
-                <div class="nav-icon">🗺️</div>
-                <div class="nav-label">Roadmap</div>
-            </div>
-            <div class="nav-item" onclick="navTo('attendance')">
-                <div class="nav-icon">📊</div>
-                <div class="nav-label">Attend</div>
-            </div>
-            <div class="nav-item" onclick="navTo('academic')">
-                <div class="nav-icon">🎓</div>
-                <div class="nav-label">School</div>
-            </div>
-            <div class="nav-item" onclick="navTo('vault')">
-                <div class="nav-icon">🔒</div>
-                <div class="nav-label">Vault</div>
-            </div>
-            <div class="nav-item" onclick="navTo('expenses')">
-                <div class="nav-icon">💸</div>
-                <div class="nav-label">Expenses</div>
-            </div>
-            <div class="nav-item" onclick="navTo('settings')">
-                <div class="nav-icon">⚙️</div>
-                <div class="nav-label">Settings</div>
-            </div>
+        <nav class="bottom-nav" id="mainBottomNav">
+            <!-- Items injected dynamically by app.js -->
         </nav>
     </div><!-- /app -->
 
@@ -2183,6 +2254,17 @@
                 <div class="form-row"><label class="label">Date</label><input class="input" type="date" id="planDate">
                 </div>
             </div>
+
+            <div class="form-row">
+                <label class="label">Repeat</label>
+                <select class="input" id="planRecurrence">
+                    <option value="none">Does not repeat</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </div>
+
             <div class="form-row"><label class="label">Color</label>
                 <div class="color-picker" id="planColorPicker"></div>
             </div>
@@ -2312,16 +2394,169 @@
         </div>
     </div>
 
-    <!-- ATTENDANCE MODAL -->
-    <div class="modal-overlay" id="attendanceModal">
+    <!-- ATTENDANCE ROUTINE MODAL -->
+    <div class="modal-overlay" id="attRoutineModal">
         <div class="modal">
             <div class="modal-handle"></div>
-            <div class="modal-title">Add Class</div>
-            <div class="form-row"><label class="label">Subject Name *</label><input class="input" id="attSubject"
-                    placeholder="e.g. Computer Networks"></div>
-            <div class="modal-footer"><button class="btn-secondary"
-                    onclick="closeModal('attendanceModal')">Cancel</button><button class="btn-primary"
-                    onclick="saveAttendance()">Add Class</button></div>
+            <div class="modal-title" id="attRoutineModalTitle">Add Weekly Class Routine</div>
+            <div class="form-row"><label class="label">Class Name *</label><input class="input" id="attRoutineSubject"
+                    placeholder="e.g. Data Structures"></div>
+            <div class="form-grid">
+                <div class="form-row"><label class="label">Room Number</label><input class="input" id="attRoutineRoom"
+                        placeholder="e.g. 301"></div>
+                <div class="form-row">
+                    <label class="label">Day of the Week</label>
+                    <select class="input" id="attRoutineDay">
+                        <option value="0">Sunday</option>
+                        <option value="1">Monday</option>
+                        <option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option>
+                        <option value="4">Thursday</option>
+                        <option value="5">Friday</option>
+                        <option value="6">Saturday</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-grid" style="margin-top: 14px;">
+                <div class="form-row"><label class="label">Start Time</label><input class="input" type="time"
+                        id="attRoutineStartTime"></div>
+                <div class="form-row"><label class="label">End Time</label><input class="input" type="time"
+                        id="attRoutineEndTime"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('attRoutineModal')">Cancel</button>
+                <button class="btn-primary" onclick="saveAttRoutine()">Save Routine</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GRAND NOTE MODAL -->
+    <div class="modal-overlay" id="noteModal">
+        <div class="modal" id="noteModalContainer">
+            <div class="note-grand-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:20px;">📝</span>
+                    <span class="modal-title" style="margin:0; font-size:16px;">Note Studio</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button class="btn-secondary" id="noteModeBtn" onclick="toggleNoteMode()"
+                        style="padding:6px 12px; font-size:12px;">☑️ Checklist</button>
+                    <button class="btn-secondary" onclick="closeModal('noteModal')"
+                        style="padding:6px 12px; font-size:12px;">✕</button>
+                </div>
+            </div>
+
+            <div class="note-grand-body">
+                <input class="input" id="noteTitle" placeholder="Untitled Note..." oninput="updateNoteStats()">
+
+                <!-- CHECKBOX TAGS SELECTOR -->
+                <label class="label" style="margin-bottom:6px;">Select Tags</label>
+                <div id="noteModalTagSelector" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 16px;">
+                    <!-- Tags load here dynamically -->
+                </div>
+
+                <textarea class="input" id="noteBody" placeholder="Start typing your thoughts here..."
+                    oninput="updateNoteStats()"></textarea>
+
+                <div id="noteChecklistEditor" style="display:none; flex:1;">
+                    <div id="noteChecklistItemsList"></div>
+                    <div style="display:flex; gap:8px; margin-top:12px;">
+                        <input class="input" id="noteChecklistInput" placeholder="Add new checklist item..."
+                            style="flex:1"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();addNoteChecklistItem();}">
+                        <button class="btn-add" onclick="addNoteChecklistItem()">+ Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="note-grand-footer">
+                <div style="display:flex; align-items:center; gap:16px;">
+                    <div id="noteColorPicker" style="display:flex; gap:6px;"></div>
+                    <span class="note-meta-stats" id="noteWordCount">0 words · 0 chars</span>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
+                    <button class="btn-primary" onclick="saveNote()" style="padding:10px 24px;">Save Note</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLEEP MODAL -->
+    <div class="modal-overlay" id="sleepModal">
+        <div class="modal">
+            <div class="modal-handle"></div>
+            <div class="modal-title">Log Sleep</div>
+            <div class="form-row"><label class="label">Date (morning you woke up)</label>
+                <input class="input" type="date" id="sleepDate">
+            </div>
+            <div class="form-row"><label class="label">Bedtime</label>
+                <input class="input" type="time" id="sleepBed">
+            </div>
+            <div class="form-row"><label class="label">Wake time</label>
+                <input class="input" type="time" id="sleepWake">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('sleepModal')">Cancel</button>
+                <button class="btn-primary" onclick="saveSleepLog()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WHITEBOARD NOTE MODAL -->
+    <div class="modal-overlay" id="whiteboardModal">
+        <div class="modal"
+            style="max-width:98vw; width:98vw; height:92vh; max-height:92vh; padding:0; display:flex; flex-direction:column; overflow:hidden; border-radius:16px;">
+            <!-- Toolbar -->
+            <div
+                style="padding:12px 20px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; z-index:10;">
+                <input id="wbTitle" class="input" placeholder="Whiteboard Title..."
+                    style="width:200px; font-weight:700; padding:6px 10px;">
+
+                <!-- Drawing Tools (Fixed Default Color) -->
+                <div
+                    style="display:flex; gap:6px; align-items:center; background:var(--surface); padding:4px 8px; border-radius:8px; border:1px solid var(--border);">
+                    <button class="btn-secondary" id="wbToolPen"
+                        style="padding:4px 10px; font-size:12px; background:var(--accent); color:#fff;"
+                        onclick="setWbTool('pen')">✏️ Pen</button>
+                    <button class="btn-secondary" id="wbToolEraser" style="padding:4px 10px; font-size:12px;"
+                        onclick="setWbTool('eraser')">🧹 Eraser</button>
+                    <button class="btn-secondary" id="wbToolText" style="padding:4px 10px; font-size:12px;"
+                        onclick="setWbTool('text')">🔤 Text</button>
+                    <input type="color" id="wbColor" value="#000000"
+                        style="width:28px; height:28px; border:none; background:none; cursor:pointer;"
+                        title="Pen Color">
+                    <input type="range" id="wbSize" min="2" max="30" value="4" style="width:70px;">
+                </div>
+
+                <!-- Zoom & Pan Controls -->
+                <div
+                    style="display:flex; gap:6px; align-items:center; background:var(--surface); padding:4px 8px; border-radius:8px; border:1px solid var(--border);">
+                    <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(1.2)">🔍
+                        +</button>
+                    <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(0.8)">🔍
+                        -</button>
+                    <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="resetWbView()">↺
+                        Reset View</button>
+                    <span id="wbZoomLevel"
+                        style="font-size:11px; color:var(--text2); min-width:40px; text-align:center;">100%</span>
+                </div>
+
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-secondary" style="padding:6px 12px; font-size:12px;"
+                        onclick="clearWbCanvas()">🗑️ Clear</button>
+                    <button class="btn-primary" style="padding:6px 18px; font-size:12px;"
+                        onclick="saveWhiteboardNote()">Save Board</button>
+                    <button class="btn-secondary" style="padding:6px 12px; font-size:12px;"
+                        onclick="closeModal('whiteboardModal')">✕</button>
+                </div>
+            </div>
+
+            <!-- Canvas Container (Fixed Background) -->
+            <div id="wbContainer"
+                style="flex:1; position:relative; overflow:hidden; background:#ffffff; cursor:crosshair; border-radius:8px; margin-top:4px;">
+                <canvas id="wbCanvas"></canvas>
+            </div>
         </div>
     </div>
 
@@ -2431,606 +2666,6 @@
         </div>
     </div>
 
-    <script>
-        // ===================== STATE & STORAGE =====================
-        const STATE = {
-            // EXISTING FEATURES
-            tasks: [],
-            plans: [],
-            counters: [],
-            money: [],          // Keep this for your Lent/Borrow tracker
-            alarms: [],
-            roadmaps: [],
-            steps: [],
-            attendance: [],
-            academic: [],
-
-            // NEW COST TRACKER FEATURES
-            accounts: [],       // Stores: { id, name, balance }
-            expenses: [],       // Stores: { id, accountId, amount, category, note, date }
-            syncQueue: [],
-            // SETTINGS
-            selectedDate: '',
-            activeRoadmap: null,
-            activeAccountId: null, // Track which account you are viewing
-            taskFilter: 'all',
-            moneyFilter: 'all'
-        };
-        const COLORS = ['#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64'];
-        let selectedColors = { plan: '#7c6ef5', counter: '#7c6ef5', roadmap: '#7c6ef5' };
-        // Add this right after: let selectedColors = { ... };
-
-        let toastTimeout;
-        function toast(message) {
-            const toastEl = document.getElementById('toast');
-            toastEl.textContent = message;
-            toastEl.classList.add('show');
-            clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => {
-                toastEl.classList.remove('show');
-            }, 3000);
-        }
-
-        function fmtDate(d) {
-            const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0');
-            return `${y}-${m}-${day}`;
-        }
-        function fmtDisplay(dateStr) {
-            const d = new Date(dateStr + 'T00:00:00'); return d.toLocaleDateString('en', { month: 'short', day: 'numeric' });
-        }
-
-        // NEW Server-Side Load Function
-        // NEW Server-Side Load Function
-        // ===================== INIT =====================
-        // Add this to make sure the app syncs automatically when internet returns
-        window.addEventListener('DOMContentLoaded', () => {
-            // 1. LOAD OFFLINE DATA FIRST!
-            const cachedData = localStorage.getItem('proflow_state');
-            if (cachedData) {
-                try {
-                    const parsed = JSON.parse(cachedData);
-                    Object.assign(STATE, parsed); // Hydrate state immediately
-                    renderAll(); // Draw the UI instantly
-                } catch (e) { }
-            }
-
-            setTimeout(() => {
-                document.getElementById('splash').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('splash').style.display = 'none';
-                    document.getElementById('app').style.display = 'flex';
-                }, 500);
-
-                // 2. Drain any offline sync queue first, THEN pull fresh data — avoids racing with load()
-                processSyncQueue().then(load).then(rescheduleAllReminders);   // ← chain it on
-                const today = new Date();
-                STATE.selectedDate = fmtDate(today);   // always today on load, don't fall back to cache
-                document.getElementById('planDate').value = STATE.selectedDate;
-                document.getElementById('planTime').value = `${String(today.getHours()).padStart(2, '0')}:00`;
-                document.getElementById('taskDue').value = fmtDate(today);
-                updateGreeting();
-                renderCalendar();
-                renderAll();
-                setupAlarmTicks();
-                rescheduleAllReminders();   // ← and once immediately, using cached data
-            }, 1400);
-        });
-
-        function renderAll() {
-            renderTasks();
-            renderPlanner();
-            renderCounters();
-            renderMoney();
-            renderAlarms();
-            renderRoadmaps();
-            renderAttendance();
-            renderAcademic();
-            renderDashboard();
-            renderVault(); // <--- ADD THIS LINE
-            initColorPickers();
-        }
-        // settings////////////////////////////////////////////
-
-        // Initialize theme on app load
-        // Call initTheme inside your DOMContentLoaded event
-
-        // ===================== NAVIGATION & FAB =====================
-        let currentScreen = 'dash';
-        function navTo(screen) {
-            // 1. Hide all screens
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-
-            // 2. Show the selected screen
-            const targetScreen = document.getElementById('screen-' + screen);
-            if (targetScreen) targetScreen.classList.add('active');
-
-            // 3. Highlight the correct nav item
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-
-            // Find the nav-item that matches this screen and highlight it
-            const navItems = Array.from(document.querySelectorAll('.nav-item'));
-            const activeNav = navItems.find(item => item.getAttribute('onclick') && item.getAttribute('onclick').includes(screen));
-            if (activeNav) activeNav.classList.add('active');
-
-            currentScreen = screen;
-
-            // Logic-specific triggers
-            if (screen === 'roadmap') {
-                document.getElementById('roadmapList-view').style.display = 'block';
-                document.getElementById('roadmapDetail-view').style.display = 'none';
-                STATE.activeRoadmap = null;
-            }
-            // ADD THIS BLOCK: Reset expense view when navigating away
-            if (screen !== 'expenses') {
-                STATE.activeAccountId = null;
-                const dv = document.getElementById('transactionDetailView');
-                if (dv) dv.style.display = 'none';
-            }
-            if (screen === 'dash') renderDashboard();
-            // Add this inside your existing navTo function's trigger block
-            if (screen === 'expenses') {
-                renderExpenses();
-            }
-
-            // Expenses and Vault already have their own contextual "+" buttons
-            // (+ Account / + Add Funds / + Expense, and the drop-zone itself) —
-            // the global FAB has no matching action for them and was falling
-            // back to opening the Task modal, so hide it on those screens.
-            const fab = document.querySelector('.fab');
-            if (fab) fab.style.display = (screen === 'expenses' || screen === 'vault' || screen === 'settings') ? 'none' : 'flex';
-        }
-
-        function handleFabClick() {
-            if (currentScreen === 'tasks') openTaskModal();
-            else if (currentScreen === 'planner') openPlannerModal();
-            else if (currentScreen === 'counter') openCounterModal();
-            else if (currentScreen === 'money') openMoneyModal();
-            else if (currentScreen === 'alarms') openAlarmModal();
-            else if (currentScreen === 'roadmap') openRoadmapModal();
-            else if (currentScreen === 'attendance') openAttendanceModal();
-            else if (currentScreen === 'academic') openAcademicModal();
-            else openTaskModal();
-        }
-
-        function updateGreeting() {
-            const h = new Date().getHours(); const g = h < 12 ? 'Good morning 👋' : h < 17 ? 'Good afternoon ☀️' : 'Good evening 🌙';
-            document.getElementById('greeting').textContent = g;
-            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            document.getElementById('greetingSub').textContent = `${days[new Date().getDay()]} — let's get things done`;
-            document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' });
-        }
-
-        // ===================== JSON EXPORT / IMPORT =====================
-
-        // ===================== DASHBOARD =====================
-        function renderDashboard() {
-            const active = STATE.tasks.filter(t => !t.completed).length; const todayStr = fmtDate(new Date()); const todayPlans = STATE.plans.filter(p => p.date === todayStr);
-            document.getElementById('dashTasks').textContent = active; document.getElementById('dashPlans').textContent = todayPlans.length;
-            document.getElementById('dashCounters').textContent = STATE.counters.length; document.getElementById('dashMoney').textContent = STATE.money.filter(m => !m.settled).length;
-
-            const list = document.getElementById('dashTodayList');
-            if (todayPlans.length === 0) { list.innerHTML = '<div class="empty-state" style="padding:16px 0"><div class="empty-icon">📅</div><p>No events today</p></div>'; }
-            else { list.innerHTML = todayPlans.sort((a, b) => a.time > b.time ? 1 : -1).slice(0, 5).map(p => `<div class="today-item"><div class="today-dot" style="background:${p.color || 'var(--accent)'}"></div><div class="today-time">${p.time}</div><div class="today-text">${p.title}</div></div>`).join(''); }
-
-            const taskEl = document.getElementById('dashTaskList');
-            const upcoming = STATE.tasks.filter(t => !t.completed).slice(0, 3);
-            if (upcoming.length === 0) { taskEl.innerHTML = '<div class="empty-state" style="padding:16px 0"><div class="empty-icon">✅</div><p>All clear!</p></div>'; }
-            else { taskEl.innerHTML = upcoming.map(t => `<div class="task-item" style="margin-bottom:8px"><div class="priority-dot p${t.priority}" style="margin-top:6px"></div><div class="task-body"><div class="task-title">${t.title}</div><div class="task-due">${t.category} ${t.due ? '· ' + fmtDisplay(t.due) : ''}</div></div></div>`).join(''); }
-        }
-
-        // ===================== FULL CALENDAR & PLANNER =====================
-        let calCurrentDate = new Date();
-        function renderCalendar() {
-            const grid = document.getElementById('calendarGrid'); const monthYear = document.getElementById('calendarMonthYear'); grid.innerHTML = '';
-            const year = calCurrentDate.getFullYear(); const month = calCurrentDate.getMonth();
-            monthYear.textContent = new Date(year, month).toLocaleDateString('en', { month: 'long', year: 'numeric' });
-
-            const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const prevMonthDays = new Date(year, month, 0).getDate();
-            for (let i = firstDay - 1; i >= 0; i--) grid.appendChild(createCalDay(year, month - 1, prevMonthDays - i, true));
-            for (let i = 1; i <= daysInMonth; i++) grid.appendChild(createCalDay(year, month, i, false));
-            const totalCells = firstDay + daysInMonth; const remaining = (Math.ceil(totalCells / 7) * 7) - totalCells;
-            for (let i = 1; i <= remaining; i++) grid.appendChild(createCalDay(year, month + 1, i, true));
-        }
-
-        function createCalDay(y, m, d, isOtherMonth) {
-            const dateObj = new Date(y, m, d); const dateStr = fmtDate(dateObj);
-            const el = document.createElement('div'); el.className = 'cal-day';
-            if (isOtherMonth) el.classList.add('other-month');
-            if (dateStr === fmtDate(new Date())) el.classList.add('today');
-            if (dateStr === STATE.selectedDate) el.classList.add('selected');
-            el.textContent = dateObj.getDate();
-            if (STATE.plans.some(p => p.date === dateStr) || STATE.academic.some(a => a.date === dateStr)) { const dot = document.createElement('div'); dot.className = 'cal-dot'; el.appendChild(dot); }
-            el.onclick = () => { STATE.selectedDate = dateStr; calCurrentDate = new Date(y, m, d); document.getElementById('planDate').value = dateStr; renderCalendar(); renderPlanner(); };
-            return el;
-        }
-
-        function prevMonth() { calCurrentDate.setMonth(calCurrentDate.getMonth() - 1); renderCalendar(); }
-        function nextMonth() { calCurrentDate.setMonth(calCurrentDate.getMonth() + 1); renderCalendar(); }
-
-        function openPlannerModal() { document.getElementById('planTitle').value = ''; document.getElementById('planDesc').value = ''; document.getElementById('planDate').value = STATE.selectedDate; document.getElementById('plannerModal').classList.add('open'); }
-
-        function renderPlanner() {
-            const el = document.getElementById('plannerEvents');
-            const selDateObj = new Date(STATE.selectedDate + 'T00:00:00');
-            const selDisplay = selDateObj.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
-            let html = `<div class="section-header"><div class="section-title">Events on ${selDisplay}</div></div>`;
-
-            const selPlans = STATE.plans.filter(p => p.date === STATE.selectedDate).sort((a, b) => a.time > b.time ? 1 : -1);
-            if (selPlans.length === 0) {
-                html += `<div style="text-align:center; color:var(--text3); font-size:13px; margin-bottom:24px;">No events scheduled for this day.</div>`;
-            } else {
-                html += selPlans.map(p => `
-            <div class="time-slot">
-              <div class="time-label">${formatTime(p.time)}</div>
-              <div class="time-line" style="background:${p.color}"></div>
-              <div class="time-events" style="flex:1">
-                <div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${p.color}" onclick="togglePlan(event, ${p.id})">
-                  <div class="event-title">${p.title}</div>
-                  ${p.desc ? `<div class="event-desc">${p.desc}</div>` : ''}
-                  <div style="display:flex;justify-content:space-between;margin-top:4px">
-                    <span style="font-size:10px;color:var(--text3)">${p.completed ? '✓ Done' : '⏰ ' + p.time}</span>
-                    <span onclick="deletePlan(event, ${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px">🗑</span>
-                  </div>
-                </div>
-              </div>
-            </div>`).join('');
-            }
-
-            /* UPCOMING 60 DAYS LIST */
-            html += `<div class="section-header" style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
-                    <div class="section-title">Upcoming (Next 2 Months)</div>
-                 </div>`;
-            const todayObj = new Date(); todayObj.setHours(0, 0, 0, 0);
-            const twoMonths = new Date(todayObj); twoMonths.setDate(todayObj.getDate() + 60);
-
-            let allUpcoming = [];
-            STATE.plans.forEach(p => { const d = new Date(p.date + 'T00:00:00'); if (d >= todayObj && d <= twoMonths) allUpcoming.push({ ...p, isAcad: false }); });
-            STATE.academic.forEach(a => { if (!a.date) return; const d = new Date(a.date + 'T00:00:00'); if (d >= todayObj && d <= twoMonths) allUpcoming.push({ ...a, title: a.subject, isAcad: true }); });
-
-            allUpcoming.sort((a, b) => { const da = new Date(a.date + 'T' + (a.time || '00:00')); const db = new Date(b.date + 'T' + (b.time || '00:00')); return da - db; });
-
-            if (allUpcoming.length === 0) { html += `<div style="text-align:center; color:var(--text3); font-size:13px; padding-bottom:20px;">No upcoming events.</div>`; }
-            else {
-                let lastDate = '';
-                allUpcoming.forEach(e => {
-                    if (e.date !== lastDate) {
-                        const disp = new Date(e.date + 'T00:00:00').toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' });
-                        html += `<div style="font-size:11px; font-weight:700; color:var(--accent); margin:16px 0 8px 0; text-transform:uppercase; letter-spacing:1px;">${disp}</div>`;
-                        lastDate = e.date;
-                    }
-                    if (e.isAcad) {
-                        html += `<div class="event-block" style="border-color:var(--accent3); margin-bottom:8px; cursor:pointer;" onclick="navTo('academic'); openAcademicModalById(${e.id})">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="font-size:10px; color:var(--accent3); font-weight:600; text-transform:uppercase;">🎓 ${e.type}</div>
-                            <span onclick="delAcademic(event, ${e.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span>
-                        </div>
-                        <div class="event-title">${e.subject}</div>
-                        ${e.topic ? `<div class="event-desc">${e.topic}</div>` : ''}
-                    </div>`;
-                    } else {
-                        html += `<div class="event-block ${e.completed ? 'done' : ''}" style="border-color:${e.color}; margin-bottom:8px;" onclick="togglePlan(event, ${e.id})">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div class="event-title">${e.title}</div>
-                            <div style="display:flex; gap:8px; align-items:center;">
-                                <div style="font-size:10px; color:var(--text3)">⏰ ${formatTime(e.time)}</div>
-                                <span onclick="deletePlan(event, ${e.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span>
-                            </div>
-                        </div>
-                    </div>`;
-                    }
-                });
-            }
-            el.innerHTML = html;
-        }
-
-        function formatTime(t) { const [h, m] = t.split(':'); const hr = parseInt(h); return `${hr > 12 ? hr - 12 : hr === 0 ? 12 : hr}:${m}${hr >= 12 ? 'pm' : 'am'}`; }
-
-        // ===================== TASKS =====================
-        function openTaskModal() {
-            document.getElementById('taskModalTitle').textContent = 'New Task'; document.getElementById('taskTitle').value = ''; document.getElementById('taskDesc').value = ''; document.getElementById('taskDue').value = fmtDate(new Date()); document.getElementById('taskReminder').value = '';
-            delete document.getElementById('taskModal').dataset.editId; document.getElementById('taskModal').classList.add('open');
-        }
-        function openTaskModalById(id) {
-            const t = STATE.tasks.find(x => x.id === id); if (!t) return;
-            document.getElementById('taskModalTitle').textContent = 'Edit Task'; document.getElementById('taskTitle').value = t.title; document.getElementById('taskDesc').value = t.description || ''; document.getElementById('taskCategory').value = t.category || 'Work'; document.getElementById('taskPriority').value = t.priority || 0; document.getElementById('taskDue').value = t.due || ''; document.getElementById('taskReminder').value = t.reminder || '';
-            document.getElementById('taskModal').dataset.editId = t.id; document.getElementById('taskModal').classList.add('open');
-        }
-        // NEW Server-Side Save Task Function
-        // OFFLINE-FIRST: SAVE / EDIT TASK
-        function setTaskFilter(f, el) { STATE.taskFilter = f; document.querySelectorAll('#taskFilters .filter-tab').forEach(t => t.classList.remove('active')); el.classList.add('active'); renderTasks(); }
-        function renderTasks() {
-            let tasks = [...STATE.tasks];
-            if (STATE.taskFilter === 'active') tasks = tasks.filter(t => !t.completed); else if (STATE.taskFilter === 'done') tasks = tasks.filter(t => t.completed); else if (STATE.taskFilter === 'high') tasks = tasks.filter(t => t.priority === 2 && !t.completed); else if (STATE.taskFilter === 'work') tasks = tasks.filter(t => t.category === 'Work'); else if (STATE.taskFilter === 'personal') tasks = tasks.filter(t => t.category === 'Personal');
-            const el = document.getElementById('taskList');
-            if (tasks.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No tasks here</p></div>';
-            el.innerHTML = tasks.map(t => `
-        <div class="task-item ${t.completed ? 'done' : ''}" onclick="openTaskModalById(${t.id})" style="cursor:pointer;">
-          <div class="task-check ${t.completed ? 'checked' : ''}" onclick="toggleTask(event, ${t.id})"></div>
-          <div class="task-body">
-            <div class="task-title">${t.title}</div>
-            <div class="task-meta">
-              <span class="priority-dot p${t.priority}"></span><span class="pill pill-accent" style="font-size:10px;padding:2px 7px">${t.category}</span>
-              ${t.due ? `<span class="task-due">📅 ${fmtDisplay(t.due)}</span>` : ''} ${t.priority === 2 ? '<span style="font-size:11px;color:var(--red)">🔴 High</span>' : ''}
-            </div>
-          </div>
-          <div class="task-delete" onclick="deleteTask(event, ${t.id})">🗑</div>
-        </div>`).join('');
-        }
-        // OFFLINE-FIRST: TOGGLE TASK CHECKMARK
-        // OFFLINE-FIRST: DELETE TASK
-        // ===================== COUNTERS =====================
-        function openCounterModal() { document.getElementById('counterName').value = ''; document.getElementById('counterStep').value = '1'; document.getElementById('counterStart').value = '0'; document.getElementById('counterModal').classList.add('open'); }
-        function renderCounters() {
-            const el = document.getElementById('counterGrid');
-            if (STATE.counters.length === 0) return el.innerHTML = '<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">🔢</div><p>Create your first counter</p></div>';
-            el.innerHTML = STATE.counters.map(c => `
-        <div class="counter-card">
-          <div class="counter-name">${c.name}</div>
-          <div class="counter-val" style="color:${c.color}">${c.value}</div>
-          <div class="counter-controls"><button class="c-btn c-btn-minus" onclick="adjustCounter(${c.id},-1)">−</button><button class="c-btn c-btn-reset" onclick="resetCounter(${c.id})">↺</button><button class="c-btn c-btn-plus" onclick="adjustCounter(${c.id},1)">+</button></div>
-          <div class="counter-step">step: ${c.step}</div>
-          <div style="font-size:11px; color:var(--text2); margin-top:8px;">Last Update: ${c.lastUpdated || 'Never'}</div>
-          <div style="text-align:right;margin-top:8px"><span onclick="deleteCounter(event, ${c.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div>
-        </div>`).join('');
-        }
-        // ===================== MONEY =====================
-        function openMoneyModal() { document.getElementById('moneyPerson').value = ''; document.getElementById('moneyAmount').value = ''; document.getElementById('moneyNote').value = ''; document.getElementById('moneyDue').value = ''; document.getElementById('moneyModal').classList.add('open'); }
-        function setMoneyFilter(f, el) { STATE.moneyFilter = f; document.querySelectorAll('#screen-money .filter-tab').forEach(t => t.classList.remove('active')); el.classList.add('active'); renderMoney(); }
-        function renderMoney() {
-            let records = [...STATE.money];
-            if (STATE.moneyFilter === 'lent') records = records.filter(m => m.type === 'lent'); else if (STATE.moneyFilter === 'borrowed') records = records.filter(m => m.type === 'borrowed'); else if (STATE.moneyFilter === 'pending') records = records.filter(m => !m.settled); else if (STATE.moneyFilter === 'settled') records = records.filter(m => m.settled);
-            const lentTotal = STATE.money.filter(m => m.type === 'lent' && !m.settled)
-                .reduce((s, m) => s + parseFloat(m.amount || 0), 0);
-            const owedTotal = STATE.money.filter(m => m.type === 'borrowed' && !m.settled)
-                .reduce((s, m) => s + parseFloat(m.amount || 0), 0);
-            document.getElementById('totalLent').textContent = '$' + lentTotal.toFixed(2);
-            document.getElementById('totalOwed').textContent = '$' + owedTotal.toFixed(2);
-            const el = document.getElementById('moneyList');
-            if (records.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>No records found</p></div>';
-            el.innerHTML = records.map(m => `
-        <div class="money-item ${m.settled ? 'money-settled' : ''}">
-          <div class="money-avatar ${m.type}">${m.person[0].toUpperCase()}</div>
-          <div class="money-info"><div class="money-name">${m.person} ${m.settled ? '<span class="pill pill-green" style="font-size:9px">Settled</span>' : ''}</div><div class="money-note">${m.note || (m.type === 'lent' ? 'You lent' : 'You borrowed')} ${m.due ? '· Due ' + fmtDisplay(m.due) : ''}</div></div>
-          <div style="text-align:right"><div class="money-amount ${m.type}">${m.type === 'lent' ? '+' : '-'}$${parseFloat(m.amount).toFixed(2)}</div>${!m.settled ? `<button class="settle-btn" onclick="settleMoney(event, ${m.id})">Settle</button>` : ''}<div onclick="deleteMoney(event, ${m.id})" style="font-size:16px;color:var(--text3);cursor:pointer;margin-top:4px;padding:4px;">🗑</div></div>
-        </div>`).join('');
-        }
-        // ===================== ALARMS =====================
-        function openAlarmModal() { document.getElementById('alarmTime').value = ''; document.getElementById('alarmLabel').value = ''; document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected')); document.getElementById('alarmModal').classList.add('open'); }
-        function toggleDay(el) { el.classList.toggle('selected'); }
-        function renderAlarms() {
-            const el = document.getElementById('alarmList');
-            if (STATE.alarms.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏰</div><p>No alarms set</p></div>';
-            el.innerHTML = STATE.alarms.map(a => {
-                const [h, m] = a.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
-                const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']; const daysStr = a.days ? a.days.split('').map(d => dayNames[parseInt(d)]).join(' ') : 'Once';
-                return `<div class="alarm-item ${!a.enabled ? 'money-settled' : ''}"><div style="flex:1"><div class="alarm-time">${String(displayH).padStart(2, '0')}:${String(m).padStart(2, '0')}<span class="alarm-time-ampm">${ampm}</span></div><div class="alarm-label">${a.label}</div><div class="alarm-days">${daysStr}</div></div><label class="alarm-toggle"><input type="checkbox" ${a.enabled ? 'checked' : ''} onchange="toggleAlarm(event, ${a.id})"><span class="toggle-slider"></span></label><div class="alarm-delete" onclick="deleteAlarm(event, ${a.id})">🗑</div></div>`;
-            }).join('');
-        }
-        function setupAlarmTicks() {
-            setInterval(() => {
-                const now = new Date();
-                const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
-                if (s !== 0) return;
-
-                STATE.alarms.filter(a => a.enabled && a.time).forEach(a => {
-                    const [ah, am] = a.time.split(':').map(Number);
-                    if (ah !== h || am !== m) return;
-                    const dayOfWeek = now.getDay().toString();
-                    if (!a.days || a.days === '' || a.days.includes(dayOfWeek)) {
-                        sendSystemNotification("Alarm: " + a.label, formatTime(a.time));
-                        try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA==').play(); } catch (e) { }
-                    }
-                });
-            }, 1000);
-        }
-        // ===================== ROADMAP =====================
-        function openRoadmapModal() { document.getElementById('roadmapTitle').value = ''; document.getElementById('roadmapDesc').value = ''; document.getElementById('roadmapTarget').value = ''; document.getElementById('roadmapModal').classList.add('open'); }
-        function renderRoadmaps() {
-            const el = document.getElementById('roadmapList');
-            if (STATE.roadmaps.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">🗺️</div><p>Create your first roadmap</p></div>';
-            el.innerHTML = STATE.roadmaps.map(r => {
-                const steps = STATE.steps.filter(s => s.roadmapId === r.id); const done = steps.filter(s => s.completed).length; const pct = steps.length ? Math.round(done / steps.length * 100) : 0;
-                return `<div class="roadmap-item" onclick="openRoadmapDetail(${r.id})"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="roadmap-title">${r.title}</div><div class="roadmap-desc">${r.desc || r.category}</div></div><span class="pill pill-accent">${r.category}</span></div><div class="roadmap-progress"><div class="roadmap-progress-fill" style="width:${pct}%;background:${r.color}"></div></div><div class="roadmap-meta"><span class="roadmap-steps-count">${done}/${steps.length} steps ${pct}%</span>${r.target ? `<span style="font-size:11px;color:var(--text3)">🎯 ${fmtDisplay(r.target)}</span>` : ''}</div></div>`;
-            }).join('');
-        }
-        function openRoadmapDetail(id) { STATE.activeRoadmap = id; const r = STATE.roadmaps.find(r => r.id === id); document.getElementById('roadmapList-view').style.display = 'none'; const detail = document.getElementById('roadmapDetail-view'); detail.style.display = 'block'; renderRoadmapDetail(r); }
-        function renderRoadmapDetail(r) {
-            const steps = STATE.steps.filter(s => s.roadmapId === r.id).sort((a, b) => a.order - b.order); const done = steps.filter(s => s.completed).length; const pct = steps.length ? Math.round(done / steps.length * 100) : 0;
-            document.getElementById('roadmapDetail-view').innerHTML = `
-        <div class="back-btn" onclick="navTo('roadmap')">← Back to Roadmaps</div>
-        <div class="card" style="border-color:${r.color}20;background:${r.color}0a"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><div><div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800">${r.title}</div><div style="font-size:13px;color:var(--text2);margin-top:2px">${r.desc || ''}</div></div><span class="pill pill-accent">${pct}%</span></div><div class="roadmap-progress" style="height:6px"><div class="roadmap-progress-fill" style="width:${pct}%;background:${r.color}"></div></div><div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:11px;color:var(--text2)">${done}/${steps.length} milestones</span>${r.target ? `<span style="font-size:11px;color:var(--text3)">Target: ${fmtDisplay(r.target)}</span>` : ''}</div></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div class="section-title">Milestones</div><button class="btn-add" onclick="openStepModal(${r.id})">+ Step</button></div>
-        ${steps.length === 0 ? '<div class="empty-state"><div class="empty-icon">🏁</div><p>Add your first milestone</p></div>' : `<div class="step-timeline"><div class="step-line"></div>${steps.map((s, i) => `<div class="step-item"><div class="step-dot ${s.completed ? 'done' : i === done ? 'active' : ''}" onclick="toggleStep(event, ${s.id},${r.id})"></div><div class="step-content ${s.completed ? 'done' : ''}"><div style="display:flex;justify-content:space-between"><div class="step-content-title">${s.title}</div><span onclick="deleteStep(event, ${s.id},${r.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div>${s.desc ? `<div class="step-content-desc">${s.desc}</div>` : ''}${s.date ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">📅 ${fmtDisplay(s.date)}</div>` : ''}</div></div>`).join('')}</div>`}
-        <div style="margin-top:16px"><button onclick="deleteRoadmap(event, ${r.id})" style="width:100%;padding:12px;border-radius:var(--radius-sm);border:1px solid rgba(245,100,124,.3);background:rgba(245,100,124,.08);color:var(--red);font-size:13px;cursor:pointer">Delete Roadmap</button></div>`;
-        }
-        function openStepModal(roadmapId) {
-            const r = STATE.roadmaps.find(r => r.id === roadmapId);
-            if (navigator.onLine && r && r.pendingSync) return toast('⏳ Waiting for cloud sync. Try again in a second!');
-            document.getElementById('stepTitle').value = ''; document.getElementById('stepDesc').value = ''; document.getElementById('stepDate').value = ''; document.getElementById('stepModal').dataset.roadmapId = roadmapId; document.getElementById('stepModal').classList.add('open');
-        }
-
-
-        // ===================== ATTENDANCE =====================
-        function openAttendanceModal() { document.getElementById('attSubject').value = ''; document.getElementById('attendanceModal').classList.add('open'); }
-        function renderAttendance() {
-            const el = document.getElementById('attendanceList');
-            if (!STATE.attendance.length) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><p>No classes added yet</p></div>';
-            el.innerHTML = STATE.attendance.map(a => {
-                const total = a.attended + a.missed; const pct = total > 0 ? ((a.attended / total) * 100).toFixed(1) : 0;
-                return `<div class="att-card"><div class="att-header"><div class="att-title">${a.subject}</div><div class="att-pct">${pct}%</div></div><div class="att-bar-bg"><div class="att-bar-fill" style="width:${pct}%"></div></div><div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text2)"><span>✅ ${a.attended} Attended &nbsp;|&nbsp; ❌ ${a.missed} Missed</span><span>Last Update: ${a.lastUpdated || 'Never'}</span></div><div class="att-controls"><button class="att-btn attend" onclick="markAtt(event, ${a.id}, true)">+ Attended</button><button class="att-btn miss" onclick="markAtt(event, ${a.id}, false)">+ Missed</button></div><div style="text-align:right; margin-top:12px;"><span onclick="delAtt(event, ${a.id})" style="font-size:16px; color:var(--text3); cursor:pointer; padding:4px;">🗑</span></div></div>`;
-            }).join('');
-        }
-
-        // ===================== ACADEMIC =====================
-        function openAcademicModal() {
-            document.getElementById('academicModalTitle').textContent = 'New Academic Event';
-            document.getElementById('acadSubject').value = ''; document.getElementById('acadTopic').value = ''; document.getElementById('acadDesc').value = ''; document.getElementById('acadNote').value = '';
-            delete document.getElementById('academicModal').dataset.editId; document.getElementById('academicModal').classList.add('open');
-        }
-        function openAcademicModalById(id) {
-            const a = STATE.academic.find(x => x.id === id); if (!a) return;
-            document.getElementById('academicModalTitle').textContent = 'Edit Academic Event';
-            document.getElementById('acadSubject').value = a.subject; document.getElementById('acadType').value = a.type;
-            document.getElementById('acadDate').value = a.date || ''; document.getElementById('acadTopic').value = a.topic || '';
-            document.getElementById('acadDesc').value = a.desc || ''; document.getElementById('acadNote').value = a.note || '';
-            document.getElementById('academicModal').dataset.editId = a.id; document.getElementById('academicModal').classList.add('open');
-        }
-        function renderAcademic() {
-            const el = document.getElementById('academicList');
-            if (!STATE.academic.length) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎓</div><p>No upcoming exams or projects</p></div>';
-            const sorted = [...STATE.academic].sort((a, b) => new Date(a.date || '9999') - new Date(b.date || '9999'));
-            el.innerHTML = sorted.map(a => `
-        <div class="acad-card" onclick="openAcademicModalById(${a.id})">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div class="acad-type">${a.type}</div>
-                <span onclick="delAcademic(event, ${a.id})" style="color:var(--text3); font-size:16px; cursor:pointer; padding:4px;">🗑</span>
-            </div>
-            <div class="acad-title">${a.subject}</div>
-            ${a.date ? `<div class="acad-detail">📅 <b>Date:</b> ${new Date(a.date).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}</div>` : ''}
-            ${a.topic ? `<div class="acad-detail">🎯 <b>Topic:</b> ${a.topic}</div>` : ''}
-            ${a.desc ? `<div class="acad-detail">📝 <b>Desc:</b> ${a.desc}</div>` : ''}
-            ${a.note ? `<div class="acad-detail" style="margin-top:6px; font-style:italic; border-top:1px solid var(--border); padding-top:6px">Note: ${a.note}</div>` : ''}
-        </div>`).join('');
-        }
-
-        // ===================== MODALS & COLOR PICKERS =====================
-        document.querySelectorAll('.modal-overlay').forEach(m => { m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); }); });
-        function initColorPickers() {
-            const pickers = { plan: 'planColorPicker', counter: 'counterColorPicker', roadmap: 'roadmapColorPicker' };
-            Object.entries(pickers).forEach(([key, id]) => {
-                const el = document.getElementById(id); if (!el) return;
-                el.innerHTML = COLORS.map(c => `<div class="color-opt ${c === selectedColors[key] ? 'selected' : ''}" style="background:${c}" onclick="selectColor('${key}','${c}',this)"></div>`).join('');
-            });
-        }
-        function selectColor(key, color, el) { selectedColors[key] = color; el.parentElement.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected')); el.classList.add('selected'); }
-        const reminderTimers = {};
-        function scheduleReminderToast(task) {
-            if (reminderTimers[task.id]) clearTimeout(reminderTimers[task.id]);
-            if (!task.reminder) return;
-            const diff = new Date(task.reminder) - new Date();
-            if (diff > 0 && diff < 86400000) {
-                reminderTimers[task.id] = setTimeout(() => sendSystemNotification("Task Reminder", task.title), diff);
-            }
-        }
-        function rescheduleAllReminders() {
-            STATE.tasks.forEach(t => { if (t.reminder && !t.completed) scheduleReminderToast(t); });
-        }
-        // ===================== NOTIFICATIONS =====================
-        function requestNotificationPermission() {
-            if ("Notification" in window) {
-                if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-                    Notification.requestPermission();
-                }
-            }
-        }
-
-        function sendSystemNotification(title, bodyText) {
-            // Fallback to in-app toast regardless
-            toast(`🔔 ${title} ${bodyText ? '- ' + bodyText : ''}`);
-
-            // Try to send actual system notification
-            if ("Notification" in window && Notification.permission === "granted") {
-                try {
-                    // Mobile browsers and PWAs prefer ServiceWorker notifications
-                    if (navigator.serviceWorker) {
-                        navigator.serviceWorker.ready.then(function (registration) {
-                            registration.showNotification(title, { body: bodyText, vibrate: [200, 100, 200] });
-                        }).catch(function () {
-                            new Notification(title, { body: bodyText });
-                        });
-                    } else {
-                        new Notification(title, { body: bodyText });
-                    }
-                } catch (e) {
-                    console.log("Notification failed", e);
-                }
-            }
-        }
-
-        // ===================== STANDBY MODE LOGIC =====================
-        let standbyClockInterval, standbyPomoInterval;
-        let pomoTimeLeft = 25 * 60;
-        let isPomoRunning = false;
-
-        function openStandby() {
-            document.getElementById('zenStandby').style.display = 'flex';
-            // Request Fullscreen and Landscape lock for Android WebViews
-            try {
-                if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
-                if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => { });
-            } catch (e) { }
-            switchStandbyMode('clock');
-        }
-
-        function exitStandby() {
-            document.getElementById('zenStandby').style.display = 'none';
-            clearInterval(standbyClockInterval); clearInterval(standbyPomoInterval);
-            try {
-                if (document.exitFullscreen) document.exitFullscreen();
-                if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
-            } catch (e) { }
-        }
-
-        function setStandbyTheme(themeClass, el) {
-            document.getElementById('zenStandby').className = themeClass;
-            document.querySelectorAll('.zen-theme-dot').forEach(d => { d.classList.remove('active'); d.style.borderColor = 'transparent'; });
-            el.classList.add('active'); el.style.borderColor = '#fff';
-        }
-
-        function switchStandbyMode(mode) {
-            document.getElementById('nav-clock').classList.remove('active');
-            document.getElementById('nav-pomo').classList.remove('active');
-            document.getElementById('nav-' + mode).classList.add('active');
-
-            if (mode === 'clock') {
-                document.getElementById('zenClock').style.display = 'flex';
-                document.getElementById('zenPomo').style.display = 'none';
-                clearInterval(standbyClockInterval);
-                standbyClockInterval = setInterval(updateStandbyClock, 1000);
-                updateStandbyClock();
-            } else {
-                document.getElementById('zenClock').style.display = 'none';
-                document.getElementById('zenPomo').style.display = 'flex';
-                clearInterval(standbyClockInterval);
-                updatePomoDisplay();
-            }
-        }
-
-        function updateStandbyClock() {
-            const d = new Date();
-            document.getElementById('zenTimeDisplay').textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-            document.getElementById('zenSecDisplay').textContent = String(d.getSeconds()).padStart(2, '0');
-            document.getElementById('zenDateDisplay').textContent = d.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' });
-        }
-
-        function togglePomodoro() {
-            isPomoRunning = !isPomoRunning;
-            document.getElementById('zenPomoBtn').textContent = isPomoRunning ? 'Pause' : 'Start';
-            if (isPomoRunning) {
-                standbyPomoInterval = setInterval(() => {
-                    if (pomoTimeLeft > 0) { pomoTimeLeft--; updatePomoDisplay(); }
-                    else { resetPomodoro(); toast('Focus Session Complete! 🍅'); try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA==').play(); } catch (e) { } }
-                }, 1000);
-            } else { clearInterval(standbyPomoInterval); }
-        }
-
-        function resetPomodoro() {
-            isPomoRunning = false; clearInterval(standbyPomoInterval);
-            document.getElementById('zenPomoBtn').textContent = 'Start';
-            pomoTimeLeft = 25 * 60; updatePomoDisplay();
-        }
-
-        function updatePomoDisplay() {
-            const m = Math.floor(pomoTimeLeft / 60); const s = pomoTimeLeft % 60;
-            document.getElementById('zenPomoDisplay').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-
-            // Update SVG Ring (Circumference of r=45 is ~282.7)
-            const C = 282.74;
-            const offset = C - (pomoTimeLeft / (25 * 60)) * C;
-            document.getElementById('zenPomoRing').style.strokeDasharray = C;
-            document.getElementById('zenPomoRing').style.strokeDashoffset = offset;
-        }
-    </script>
     <script src="app.js"></script>
     <script>
         // This runs after app.js is fully loaded
