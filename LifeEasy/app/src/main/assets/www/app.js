@@ -152,6 +152,11 @@ async function executeSupabaseOperation(endpoint, payload) {
         default: throw new Error(`Unmapped endpoint: ${endpoint}`);
     }
 
+    // CRITICAL FIX: Restore the user_id that was accidentally erased by the switch statement
+    if (sessionData?.session?.user && action !== 'delete') {
+        data.user_id = sessionData.session.user.id;
+    }
+
     let query = supabaseClient.from(table);
     let response;
 
@@ -198,10 +203,15 @@ async function processSyncQueue() {
                 ok++;
                 if (item.endpoint.startsWith('add_') && d.id) {
                     const tempId = item.payload.id; idMap[tempId] = d.id;
-                    for (const key of ['tasks', 'plans', 'counters', 'money', 'alarms', 'roadmaps', 'steps', 'attendanceRoutines', 'attendanceLogs', 'academic', 'accounts', 'expenses']) {
+                    for (const key of ['tasks', 'plans', 'counters', 'money', 'alarms', 'roadmaps', 'steps', 'attendanceRoutines', 'attendanceLogs', 'academic', 'accounts', 'expenses', 'notes', 'sleepLogs']) {
                         const arr = STATE[key];
                         if (Array.isArray(arr)) { const rec = arr.find(x => x.id === tempId); if (rec) { rec.id = d.id; rec.pendingSync = false; } }
                     }
+
+                    // FIX: Reconcile pinned dashboard widgets with the new Real ID
+                    if (STATE.dashConfig.accountId == tempId) STATE.dashConfig.accountId = String(d.id);
+                    if (STATE.dashConfig.counterId == tempId) STATE.dashConfig.counterId = String(d.id);
+                    if (STATE.dashConfig.noteId == tempId) STATE.dashConfig.noteId = String(d.id);
                 }
             } else { throw new Error("Sync operation failed"); }
         } catch (err) {
@@ -221,12 +231,64 @@ function showSyncBadge() {
     if (!b) {
         b = document.createElement('div'); b.id = 'syncBadge'; b.title = 'Pending offline changes – will sync when online'; b.innerHTML = '📶 <span id="syncCount"></span>';
         Object.assign(b.style, { position: 'fixed', top: '10px', right: '10px', background: 'var(--accent3)', color: '#fff', fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', zIndex: '99999', cursor: 'pointer', transition: '0.3s' });
-        b.onclick = processSyncQueue; document.body.appendChild(b);
+
+        b.onclick = showSyncDetails; // Trigger Inspector instead of silent retry
+
+        document.body.appendChild(b);
     }
     const cnt = (STATE.syncQueue || []).length; document.getElementById('syncCount').textContent = cnt > 0 ? ` ${cnt} pending` : ''; b.style.display = 'flex';
 }
 function hideSyncBadge() { const b = document.getElementById('syncBadge'); if (b) b.style.display = 'none'; }
+// ============================================================
+// SYNC INSPECTOR UI
+// ============================================================
+function showSyncDetails() {
+    if (!STATE.syncQueue || STATE.syncQueue.length === 0) return toast('All data is synced! ☁️');
 
+    let html = '<div style="max-height:50vh; overflow-y:auto; margin-bottom:16px;">';
+
+    STATE.syncQueue.forEach((item) => {
+        // Beautify the endpoint name (e.g. add_task.php -> ADD TASK)
+        const action = item.endpoint.replace('.php', '').replace(/_/g, ' ').toUpperCase();
+
+        // Try to grab the most recognizable name/title from the payload
+        const itemName = item.payload.title || item.payload.name || item.payload.subject || (item.payload.amount ? '$' + item.payload.amount : '') || 'Item Data';
+
+        html += `
+        <div style="background:var(--surface2); border:1px solid var(--border); padding:12px; border-radius:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-size:10px; color:var(--text3); font-weight:700;">${action}</div>
+                <div style="font-size:14px; font-weight:600; color:var(--text); margin-top:2px;">${escapeHtml(itemName.toString())}</div>
+                ${item.retries ? `<div style="font-size:11px; color:var(--red); margin-top:4px;">Failed retries: ${item.retries}/3</div>` : '<div style="font-size:11px; color:var(--accent3); margin-top:4px;">Pending Sync...</div>'}
+            </div>
+        </div>`;
+    });
+    html += '</div>';
+
+    // Inject the Modal Dynamically
+    let m = document.getElementById('syncDetailsModal');
+    if (!m) {
+        m = document.createElement('div');
+        m.id = 'syncDetailsModal';
+        m.className = 'modal-overlay';
+        m.innerHTML = `
+            <div class="modal">
+                <div class="modal-handle"></div>
+                <div class="modal-title">Sync Queue Inspector</div>
+                <div id="syncDetailsContent"></div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeModal('syncDetailsModal')">Close</button>
+                    <button class="btn-primary" onclick="closeModal('syncDetailsModal'); toast('Forcing Sync...'); processSyncQueue();">Force Retry</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(m);
+        m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+    }
+
+    document.getElementById('syncDetailsContent').innerHTML = html;
+    m.classList.add('open');
+}
 async function load() {
     try {
         const saved = localStorage.getItem('proflow_state');
@@ -817,12 +879,29 @@ function renderTasks() {
 // ============================================================
 // COUNTERS
 // ============================================================
-function saveCounter() { const name = document.getElementById('counterName').value.trim(); if (!name) return toast('Enter a name'); const cData = { name, value: parseInt(document.getElementById('counterStart').value) || 0, step: parseInt(document.getElementById('counterStep').value) || 1, color: selectedColors.counter }; const tempId = Date.now(); cData.id = tempId; STATE.counters.push(cData); renderCounters(); closeModal('counterModal'); save(); toast('Counter created 🔢'); ofetch('add_counter.php', cData, d => { const c = STATE.counters.find(x => x.id === tempId); if (c) c.id = d.id; renderCounters(); save(); }); }
+function saveCounter() {
+    const name = document.getElementById('counterName').value.trim();
+    if (!name) return toast('Enter a name');
+    const cData = { name, value: parseInt(document.getElementById('counterStart').value) || 0, step: parseInt(document.getElementById('counterStep').value) || 1, color: selectedColors.counter };
+    const tempId = Date.now();
+    cData.id = tempId;
+    STATE.counters.push(cData);
+    renderCounters();
+    closeModal('counterModal');
+    save();
+    toast('Counter created 🔢');
+    ofetch('add_counter.php', cData, d => {
+        const c = STATE.counters.find(x => x.id === tempId);
+        if (c) c.id = d.id;
+        if (STATE.dashConfig.counterId == tempId) STATE.dashConfig.counterId = String(d.id); // Reconcile Pin
+        renderCounters(); renderDashboard(); save();
+    });
+} // <--- THIS WAS THE FATAL MISSING BRACKET
+
 function adjustCounter(id, dir) { const c = STATE.counters.find(x => x.id === id); if (!c) return; c.value += dir * c.step; c.lastUpdated = new Date().toISOString(); renderCounters(); save(); ofetch('update_counter.php', { id, value: c.value }); }
 function resetCounter(id) { const c = STATE.counters.find(x => x.id === id); if (!c) return; c.value = 0; c.lastUpdated = new Date().toISOString(); renderCounters(); save(); ofetch('update_counter.php', { id, value: 0 }); }
 function deleteCounter(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this counter?')) return; STATE.counters = STATE.counters.filter(x => x.id !== id); renderCounters(); save(); toast('Counter deleted 🗑️'); ofetch('delete_counter.php', { id }); }
 function openCounterModal() { document.getElementById('counterName').value = ''; document.getElementById('counterStep').value = '1'; document.getElementById('counterStart').value = '0'; document.getElementById('counterModal').classList.add('open'); }
-
 // Helper to calculate relative time (e.g., "13.5 days ago")
 function timeSince(dateString) {
     if (!dateString) return 'Never';
@@ -951,10 +1030,27 @@ function renderAcademic() { const el = document.getElementById('academicList'); 
 function getAccountBalance(accountId) { const acc = STATE.accounts.find(a => a.id == accountId); const opening = parseFloat(acc ? acc.balance : 0) || 0; const txSum = STATE.expenses.filter(e => e.accountId == accountId).reduce((s, e) => s - (parseFloat(e.amount) || 0), 0); return opening + txSum; }
 function renderExpenses() { if (!STATE.activeAccountId) { const mv = document.getElementById('expensesMainView'); const dv = document.getElementById('transactionDetailView'); if (mv) mv.style.display = 'block'; if (dv) dv.style.display = 'none'; } const el = document.getElementById('accountDisplay'); if (!el) return; if (!STATE.accounts || STATE.accounts.length === 0) { el.innerHTML = `<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">💳</div><p>No accounts yet.<br>Tap <strong>+ Account</strong> to create one.</p></div>`; return; } el.innerHTML = STATE.accounts.map(acc => { const txCount = STATE.expenses.filter(e => e.accountId == acc.id).length; const bal = getAccountBalance(acc.id); return `<div onclick="openAccountDetail(${acc.id})" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;cursor:pointer;transition:all 0.2s;min-width:0;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Account</div><div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${acc.name}</div><div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};">$${bal.toFixed(2)}</div><div style="font-size:10px;color:var(--text3);margin-top:8px;">${txCount} transaction${txCount !== 1 ? 's' : ''}</div></div>`; }).join(''); }
 function openAccountModal() { const m = document.getElementById('accountModal'); if (!m) return; document.getElementById('accountName').value = ''; document.getElementById('accountInitial').value = '0'; m.classList.add('open'); }
-function saveAccount() { const name = document.getElementById('accountName').value.trim(); const balance = parseFloat(document.getElementById('accountInitial').value) || 0; if (!name) return toast('Please enter an account name'); const tempId = Date.now(); const accData = { id: tempId, name, balance, pendingSync: true }; STATE.accounts.push(accData); renderExpenses(); closeModal('accountModal'); save(); toast('Account created! 💳'); ofetch('add_account.php', { id: tempId, name, balance }, d => { const a = STATE.accounts.find(x => x.id === tempId); if (a) { a.id = d.id; a.pendingSync = false; } renderExpenses(); closeModal('accountModal'); renderDashboard(); save(); }); }
+function saveAccount() {
+    const name = document.getElementById('accountName').value.trim();
+    const balance = parseFloat(document.getElementById('accountInitial').value) || 0;
+    if (!name) return toast('Please enter an account name');
+    const tempId = Date.now();
+    const accData = { id: tempId, name, balance, pendingSync: true };
+    STATE.accounts.push(accData);
+    renderExpenses();
+    closeModal('accountModal');
+    save();
+    toast('Account created! 💳');
+    ofetch('add_account.php', { id: tempId, name, balance }, d => {
+        const a = STATE.accounts.find(x => x.id === tempId);
+        if (a) { a.id = d.id; a.pendingSync = false; }
+        if (STATE.dashConfig.accountId == tempId) STATE.dashConfig.accountId = String(d.id); // Reconcile Pin
+        renderExpenses(); closeModal('accountModal'); renderDashboard(); save();
+    });
+} // <--- THIS WAS THE FATAL MISSING BRACKET
+
 function openAccountDetail(id) { STATE.activeAccountId = id; const acc = STATE.accounts.find(a => a.id == id); if (!acc) return; document.getElementById('expensesMainView').style.display = 'none'; document.getElementById('transactionDetailView').style.display = 'block'; document.getElementById('accountNameTitle').innerHTML = `${acc.name} <span onclick="deleteAccount(${acc.id})" style="font-size:16px;cursor:pointer;color:var(--red);margin-left:12px;padding:4px;" title="Delete Account">🗑️</span>`; renderTransactions(id); }
-function hideTransactionDetail() { STATE.activeAccountId = null; document.getElementById('transactionDetailView').style.display = 'none'; document.getElementById('expensesMainView').style.display = 'block'; renderExpenses(); }
-function openTransactionModal() { const acc = STATE.accounts.find(a => a.id == STATE.activeAccountId); if (navigator.onLine && acc && acc.pendingSync) return toast('⏳ Waiting for cloud sync. Try again in a second!'); const m = document.getElementById('transactionModal'); if (!m) return toast('Modal not found!'); document.getElementById('transAmount').value = ''; document.getElementById('transNote').value = ''; document.getElementById('transCategory').value = 'Food'; m.classList.add('open'); }
+function hideTransactionDetail() { STATE.activeAccountId = null; document.getElementById('transactionDetailView').style.display = 'none'; document.getElementById('expensesMainView').style.display = 'block'; renderExpenses(); } function openTransactionModal() { const acc = STATE.accounts.find(a => a.id == STATE.activeAccountId); if (navigator.onLine && acc && acc.pendingSync) return toast('⏳ Waiting for cloud sync. Try again in a second!'); const m = document.getElementById('transactionModal'); if (!m) return toast('Modal not found!'); document.getElementById('transAmount').value = ''; document.getElementById('transNote').value = ''; document.getElementById('transCategory').value = 'Food'; m.classList.add('open'); }
 function openAddFundModal() { const acc = STATE.accounts.find(a => a.id == STATE.activeAccountId); if (navigator.onLine && acc && acc.pendingSync) return toast('⏳ Waiting for cloud sync. Try again in a second!'); const m = document.getElementById('addFundModal'); if (!m) return toast('Fund modal not found!'); document.getElementById('fundAmount').value = ''; document.getElementById('fundNote').value = ''; m.classList.add('open'); }
 function saveAddFund() { const amount = parseFloat(document.getElementById('fundAmount').value); const note = document.getElementById('fundNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = now.toISOString().split('T')[0]; const timeStr = now.toTimeString().slice(0, 5); const storedAmount = -Math.abs(amount); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount: storedAmount, category: 'Deposit', note: note || 'Added Funds', date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('addFundModal'); toast('Funds added! 💰'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
 function saveTransaction() { const amount = parseFloat(document.getElementById('transAmount').value); const category = document.getElementById('transCategory').value; const note = document.getElementById('transNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = now.toISOString().split('T')[0]; const timeStr = now.toTimeString().slice(0, 5); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount, category, note, date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('transactionModal'); toast('Saved! ✅'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
@@ -1144,7 +1240,8 @@ function saveNote() {
         ofetch('add_note.php', nData, d => {
             const n = STATE.notes.find(x => x.id === tempId);
             if (n) n.id = d.id;
-            renderNotes(); save();
+            if (STATE.dashConfig.noteId == tempId) STATE.dashConfig.noteId = String(d.id); // Reconcile Pin
+            renderNotes(); renderDashboard(); save();
         });
     }
 }
