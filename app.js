@@ -152,6 +152,11 @@ async function executeSupabaseOperation(endpoint, payload) {
         default: throw new Error(`Unmapped endpoint: ${endpoint}`);
     }
 
+    // CRITICAL FIX: Restore the user_id that was accidentally erased by the switch statement
+    if (sessionData?.session?.user && action !== 'delete') {
+        data.user_id = sessionData.session.user.id;
+    }
+
     let query = supabaseClient.from(table);
     let response;
 
@@ -198,7 +203,7 @@ async function processSyncQueue() {
                 ok++;
                 if (item.endpoint.startsWith('add_') && d.id) {
                     const tempId = item.payload.id; idMap[tempId] = d.id;
-                    for (const key of ['tasks', 'plans', 'counters', 'money', 'alarms', 'roadmaps', 'steps', 'attendanceRoutines', 'attendanceLogs', 'academic', 'accounts', 'expenses']) {
+                    for (const key of ['tasks', 'plans', 'counters', 'money', 'alarms', 'roadmaps', 'steps', 'attendanceRoutines', 'attendanceLogs', 'academic', 'accounts', 'expenses', 'notes', 'sleepLogs']) {
                         const arr = STATE[key];
                         if (Array.isArray(arr)) { const rec = arr.find(x => x.id === tempId); if (rec) { rec.id = d.id; rec.pendingSync = false; } }
                     }

@@ -414,3 +414,108 @@ body {
     opacity: 0.5;
     pointer-events: none;
 }
+
+/* =========================================================
+   GRAND NOTE EDITOR UPGRADE
+   ========================================================= */
+#noteModal .modal {
+    max-width: 850px;
+    width: 100%;
+    /* Use 100% height for mobile instead of 90vh to prevent keyboard push-out */
+    height: 100%;
+    max-height: 100%;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    transition: all 0.3s ease;
+}
+
+.note-grand-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(10px);
+}
+
+.note-grand-body {
+    flex: 1;
+    overflow-y: auto;
+    /* Reduced horizontal padding so text doesn't feel squished on phones */
+    padding: 20px 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+#noteTitle {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    border: none;
+    background: transparent;
+    padding: 0 0 12px 0;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    outline: none;
+}
+
+#noteBody {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--text);
+    outline: none;
+    resize: none;
+    font-family: 'DM Sans', sans-serif;
+}
+
+.note-grand-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    /* CRITICAL FIX: Forces elements to wrap to a new line on small screens */
+    flex-wrap: wrap;
+}
+
+/* =========================================================
+   MOBILE OVERRIDES FOR NOTE STUDIO
+   ========================================================= */
+@media (max-width: 480px) {
+    .note-grand-footer>div {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .note-grand-footer button {
+        flex: 1;
+        /* Makes Cancel/Save buttons take equal width when stacked */
+        padding: 12px !important;
+        font-size: 14px;
+    }
+
+    #noteColorPicker .color-swatch {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+.note-meta-stats {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
