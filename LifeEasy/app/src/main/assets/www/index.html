@@ -12,6 +12,7 @@
     <title>Life Easy</title>
     <!-- Try the official CDN first (Best for Cloudflare Pages) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
     <!-- If the CDN fails or you are completely offline in WebView, load the local file -->
     <script>
@@ -21,8 +22,8 @@
     </script>
     <title>Life Easy</title>
     <link
-        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap"
-        rel="stylesheet">
+            href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap"
+            rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script>
         // Set theme immediately to prevent flashing
@@ -812,7 +813,7 @@
         }
 
         .task-check.checked::after {
-            content: '✓';
+            content: 'âœ“';
             font-size: 12px;
             color: #fff;
             font-weight: 700;
@@ -1729,354 +1730,439 @@
 
 <body>
 
-    <div id="authModal" class="auth-overlay">
-        <div class="auth-box">
-            <div class="auth-tabs">
-                <button id="tabLogin" class="active" onclick="switchAuthTab('login')">Login</button>
-                <button id="tabRegister" onclick="switchAuthTab('register')">Sign Up</button>
-            </div>
+<div id="authModal" class="auth-overlay">
+    <div class="auth-box">
+        <div class="auth-tabs">
+            <button id="tabLogin" class="active" onclick="switchAuthTab('login')">Login</button>
+            <button id="tabRegister" onclick="switchAuthTab('register')">Sign Up</button>
+        </div>
 
-            <form id="loginForm" onsubmit="handleAuth(event, 'login.php')">
-                <h2>Welcome Back</h2>
-                <input type="text" id="loginUsername" placeholder="Username" required>
-                <input type="password" id="loginPassword" placeholder="Password" required>
-                <p id="loginError" class="error-msg"></p>
-                <button type="submit" class="auth-submit">Log In</button>
-            </form>
+        <form id="loginForm" onsubmit="handleAuth(event, 'login.php')">
+            <h2>Welcome Back</h2>
+            <input type="text" id="loginUsername" placeholder="Username" required>
+            <input type="password" id="loginPassword" placeholder="Password" required>
+            <p id="loginError" class="error-msg"></p>
+            <button type="submit" class="auth-submit">Log In</button>
+        </form>
 
-            <form id="registerForm" style="display: none;" onsubmit="handleAuth(event, 'register.php')">
-                <h2>Create Account</h2>
-                <input type="text" id="regUsername" placeholder="Choose a Username" required>
-                <input type="password" id="regPassword" placeholder="Create a Password" required>
-                <p id="regError" class="error-msg"></p>
-                <button type="submit" class="auth-submit">Sign Up</button>
-            </form>
+        <form id="registerForm" style="display: none;" onsubmit="handleAuth(event, 'register.php')">
+            <h2>Create Account</h2>
+            <input type="text" id="regUsername" placeholder="Choose a Username" required>
+            <input type="password" id="regPassword" placeholder="Create a Password" required>
+            <p id="regError" class="error-msg"></p>
+            <button type="submit" class="auth-submit">Sign Up</button>
+        </form>
+    </div>
+</div>
+
+<!-- SPLASH -->
+<div id="splash">
+    <div class="logo">Life<span>Easy</span></div>
+    <div class="tagline">Your productivity, elevated</div>
+    <div class="bar">
+        <div class="bar-fill"></div>
+    </div>
+</div>
+
+<!-- ================= STANDBY MODE ================= -->
+<div id="zenStandby" class="theme-void">
+    <button class="zen-close" onclick="exitStandby()">âœ• Close</button>
+
+    <div class="zen-nav">
+        <span id="nav-clock" class="active" onclick="switchStandbyMode('clock')">Clock</span>
+        <span id="nav-pomo" onclick="switchStandbyMode('pomo')">Pomodoro</span>
+    </div>
+
+    <!-- Clock Component -->
+    <div class="zen-clock-container" id="zenClock">
+        <div class="zen-time-row">
+            <div class="zen-time" id="zenTimeDisplay">00:00</div>
+            <div class="zen-sec" id="zenSecDisplay">00</div>
+        </div>
+        <div class="zen-date" id="zenDateDisplay">Monday, January 1</div>
+    </div>
+
+    <!-- Pomodoro Component -->
+    <div class="zen-pomo-container" id="zenPomo">
+        <svg class="zen-ring-svg" viewBox="0 0 100 100">
+            <circle class="zen-ring-bg" cx="50" cy="50" r="45"></circle>
+            <circle class="zen-ring-prog" id="zenPomoRing" cx="50" cy="50" r="45"></circle>
+        </svg>
+        <div class="zen-pomo-label">Focus Time</div>
+        <div class="zen-pomo-time" id="zenPomoDisplay">25:00</div>
+        <div class="zen-controls">
+            <button class="zen-btn" id="zenPomoBtn" onclick="togglePomodoro()">Start</button>
+            <button class="zen-btn" onclick="resetPomodoro()">Reset</button>
         </div>
     </div>
 
-    <!-- SPLASH -->
-    <div id="splash">
-        <div class="logo">Life<span>Easy</span></div>
-        <div class="tagline">Your productivity, elevated</div>
-        <div class="bar">
-            <div class="bar-fill"></div>
-        </div>
+    <!-- Theme Switcher -->
+    <div class="zen-themes">
+        <div class="zen-theme-dot active" style="background:#000; border-color:#fff;"
+             onclick="setStandbyTheme('theme-void', this)"></div>
+        <div class="zen-theme-dot" style="background:linear-gradient(135deg, #302b63, #24243e);"
+             onclick="setStandbyTheme('theme-aurora', this)"></div>
+        <div class="zen-theme-dot" style="background:linear-gradient(135deg, #4a1c1c, #2b0f0f);"
+             onclick="setStandbyTheme('theme-sunset', this)"></div>
+        <div class="zen-theme-dot" style="background:linear-gradient(135deg, #091f15, #05100a);"
+             onclick="setStandbyTheme('theme-forest', this)"></div>
     </div>
+</div>
 
-    <!-- ================= STANDBY MODE ================= -->
-    <div id="zenStandby" class="theme-void">
-        <button class="zen-close" onclick="exitStandby()">✕ Close</button>
+<!-- APP -->
+<div id="app" style="display:none">
+    <!-- TOP BAR -->
+    <div class="topbar">
+        <div class="topbar-title">Life<span>Easy</span></div>
+        <div class="topbar-right" style="display: flex; gap: 10px; align-items: center;">
+            <div class="topbar-date" id="topbarDate"></div>
 
-        <div class="zen-nav">
-            <span id="nav-clock" class="active" onclick="switchStandbyMode('clock')">Clock</span>
-            <span id="nav-pomo" onclick="switchStandbyMode('pomo')">Pomodoro</span>
-        </div>
-
-        <!-- Clock Component -->
-        <div class="zen-clock-container" id="zenClock">
-            <div class="zen-time-row">
-                <div class="zen-time" id="zenTimeDisplay">00:00</div>
-                <div class="zen-sec" id="zenSecDisplay">00</div>
-            </div>
-            <div class="zen-date" id="zenDateDisplay">Monday, January 1</div>
-        </div>
-
-        <!-- Pomodoro Component -->
-        <div class="zen-pomo-container" id="zenPomo">
-            <svg class="zen-ring-svg" viewBox="0 0 100 100">
-                <circle class="zen-ring-bg" cx="50" cy="50" r="45"></circle>
-                <circle class="zen-ring-prog" id="zenPomoRing" cx="50" cy="50" r="45"></circle>
-            </svg>
-            <div class="zen-pomo-label">Focus Time</div>
-            <div class="zen-pomo-time" id="zenPomoDisplay">25:00</div>
-            <div class="zen-controls">
-                <button class="zen-btn" id="zenPomoBtn" onclick="togglePomodoro()">Start</button>
-                <button class="zen-btn" onclick="resetPomodoro()">Reset</button>
-            </div>
-        </div>
-
-        <!-- Theme Switcher -->
-        <div class="zen-themes">
-            <div class="zen-theme-dot active" style="background:#000; border-color:#fff;"
-                onclick="setStandbyTheme('theme-void', this)"></div>
-            <div class="zen-theme-dot" style="background:linear-gradient(135deg, #302b63, #24243e);"
-                onclick="setStandbyTheme('theme-aurora', this)"></div>
-            <div class="zen-theme-dot" style="background:linear-gradient(135deg, #4a1c1c, #2b0f0f);"
-                onclick="setStandbyTheme('theme-sunset', this)"></div>
-            <div class="zen-theme-dot" style="background:linear-gradient(135deg, #091f15, #05100a);"
-                onclick="setStandbyTheme('theme-forest', this)"></div>
-        </div>
-    </div>
-
-    <!-- APP -->
-    <div id="app" style="display:none">
-        <!-- TOP BAR -->
-        <div class="topbar">
-            <div class="topbar-title">Life<span>Easy</span></div>
-            <div class="topbar-right" style="display: flex; gap: 10px; align-items: center;">
-                <div class="topbar-date" id="topbarDate"></div>
-
-                <button onclick="navTo('settings')"
-                    style="background:none; border:none; color:var(--text2); font-size:18px; cursor:pointer;">⚙️</button>
-                <button
+            <button onclick="navTo('settings')"
+                    style="background:none; border:none; color:var(--text2); font-size:18px; cursor:pointer;">âš™ï¸</button>
+            <button
                     style="background:rgba(124,110,245,0.15); color:var(--accent); border:1px solid rgba(124,110,245,0.3); padding:6px 12px; border-radius:8px; font-weight:600; cursor:pointer;"
-                    onclick="openStandby()">🕰️ Standby</button>
+                    onclick="openStandby()">ðŸ•°ï¸ Standby</button>
 
-                <button id="logoutBtn" onclick="logoutUser()" class="logout-btn"
+            <button id="logoutBtn" onclick="logoutUser()" class="logout-btn"
                     style="background:rgba(245, 100, 124, 0.15); color:var(--red); border:1px solid rgba(245, 100, 124, 0.3); padding:6px 12px; border-radius:8px; font-weight:600; cursor:pointer; transition: 0.2s;">
-                    Log Out
-                </button>
+                Log Out
+            </button>
+        </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+        <!-- DASHBOARD -->
+        <div class="screen active" id="screen-dash">
+            <div class="greeting" id="greeting">Good morning ðŸ‘‹</div>
+            <div class="greeting-sub" id="greetingSub">Here's your day at a glance</div>
+
+            <div id="dashWidgetZone" style="display: flex; flex-direction: column;">
+                <!-- Lego Widgets injected dynamically here -->
             </div>
         </div>
 
-        <!-- CONTENT -->
-        <div class="content">
-
-            <!-- DASHBOARD -->
-            <div class="screen active" id="screen-dash">
-                <div class="greeting" id="greeting">Good morning 👋</div>
-                <div class="greeting-sub" id="greetingSub">Here's your day at a glance</div>
-
-                <div id="dashWidgetZone" style="display: flex; flex-direction: column;">
-                    <!-- Lego Widgets injected dynamically here -->
+        <!-- PERSONAL VAULT SCREEN -->
+        <div class="screen" id="screen-vault">
+            <div class="section-header">
+                <div class="section-title">Personal Vault</div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
+                            onclick="openCreateFolderModal()">ðŸ“ + Folder</button>
+                    <button class="btn-add" onclick="document.getElementById('fileInput').click()">â¬† Upload
+                        File</button>
                 </div>
             </div>
 
-            <!-- personal vault -->
-            <div class="screen" id="screen-vault">
-                <div class="section-header">
-                    <div class="section-title">Personal Vault</div>
-                </div>
-
-                <div id="dropZone" class="card"
-                    style="border: 2px dashed var(--accent); text-align: center; padding: 40px; cursor: pointer;"
-                    onclick="document.getElementById('fileInput').click()">
-                    <p>Drag & Drop files here or <strong>click to select</strong></p>
-                    <input type="file" id="fileInput" style="display:none">
-                </div>
-
-                <div id="vaultFiles" class="card">
-                </div>
+            <!-- Navigation Breadcrumbs -->
+            <div id="vaultBreadcrumb"
+                 style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text2);">
+                    <span style="cursor: pointer; color: var(--accent);" onclick="navigateVaultFolder(null)">ðŸ
+                        Root</span>
             </div>
 
-            <!-- settings -->
+            <!-- Drag & Drop Upload Box -->
+            <div id="dropZone" class="card"
+                 style="border: 2px dashed var(--accent); text-align: center; padding: 24px; cursor: pointer; margin-bottom: 16px;"
+                 onclick="document.getElementById('fileInput').click()">
+                <p style="margin: 0; font-size: 13px;">Drag &amp; Drop files here or <strong
+                        style="color:var(--accent);">click to browse</strong></p>
+                <input type="file" id="fileInput" style="display:none" multiple>
+            </div>
 
-            <div class="screen" id="screen-settings">
-                <div class="section-header">
-                    <div class="section-title">Settings</div>
+            <!-- Folders Grid -->
+            <div id="vaultFolders" class="stats-grid" style="margin-bottom: 16px;"></div>
+
+            <!-- Files Container -->
+            <div class="section-title" style="font-size: 14px; margin-bottom: 10px;">Files</div>
+            <div id="vaultFiles"></div>
+        </div>
+
+        <!-- ==================== VAULT MODALS ==================== -->
+
+        <!-- CREATE FOLDER MODAL -->
+        <div class="modal-overlay" id="vaultFolderModal">
+            <div class="modal">
+                <div class="modal-handle"></div>
+                <div class="modal-title">New Folder</div>
+                <div class="form-row">
+                    <label class="label">Folder Name *</label>
+                    <input class="input" id="vaultFolderName" placeholder="e.g. CSE3101 Slides, Assignments">
                 </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeModal('vaultFolderModal')">Cancel</button>
+                    <button class="btn-primary" onclick="saveVaultFolder()">Create Folder</button>
+                </div>
+            </div>
+        </div>
 
-                <div class="card">
-                    <div class="section-title" style="margin-bottom:15px;">Appearance</div>
-                    <div class="form-row">
-                        <label class="label">Theme Mode</label>
-                        <select class="input" id="themeSelect" onchange="toggleTheme(this.value)">
-                            <option value="light">Light Mode</option>
-                            <option value="dark" selected>Dark Mode</option>
-                        </select>
+        <!-- MOVE FILE MODAL -->
+        <div class="modal-overlay" id="vaultMoveModal">
+            <div class="modal">
+                <div class="modal-handle"></div>
+                <div class="modal-title">Move File</div>
+                <div class="form-row">
+                    <label class="label">Select Destination</label>
+                    <select class="input" id="vaultMoveFolderSelect">
+                        <option value="">ðŸ  Root (No Folder)</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeModal('vaultMoveModal')">Cancel</button>
+                    <button class="btn-primary" onclick="confirmMoveVaultFile()">Move File</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- IN-APP FILE VIEWER MODAL -->
+        <div class="modal-overlay" id="vaultViewerModal">
+            <div class="modal"
+                 style="max-width: 95vw; width: 95vw; height: 92vh; max-height: 92vh; padding: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 16px;">
+                <div
+                        style="padding: 12px 20px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                    <div id="vaultViewerTitle"
+                         style="font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">
+                        File Preview</div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <a id="vaultViewerDownloadBtn" href="#" download target="_blank" class="btn-secondary"
+                           style="padding: 6px 12px; font-size: 12px; text-decoration: none;">â¬‡ Download</a>
+                        <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
+                                onclick="closeModal('vaultViewerModal')">âœ• Close</button>
                     </div>
                 </div>
-
-                <!-- ADD THIS NEW CARD -->
-                <div class="card">
-                    <div class="section-title" style="margin-bottom:15px;">Customize Navigation</div>
-                    <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Rearrange your menu or hide
-                        modules you don't use.</p>
-                    <div id="navSettingsList"></div>
+                <div id="vaultViewerBody"
+                     style="flex: 1; position: relative; background: #111; overflow: auto; display: flex; align-items: center; justify-content: center;">
+                    <!-- File dynamically rendered here -->
                 </div>
+            </div>
+        </div>
 
-                <div class="card">
-                    <div class="section-title" style="margin-bottom:15px;">Dashboard Widgets</div>
-                    <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Rearrange or hide modules on your
-                        home screen.</p>
-                    <div id="dashSettingsList"></div>
+        <!-- settings -->
+
+        <div class="screen" id="screen-settings">
+            <div class="section-header">
+                <div class="section-title">Settings</div>
+            </div>
+
+            <div class="card">
+                <div class="section-title" style="margin-bottom:15px;">Appearance</div>
+                <div class="form-row">
+                    <label class="label">Theme Mode</label>
+                    <select class="input" id="themeSelect" onchange="toggleTheme(this.value)">
+                        <option value="light">Light Mode</option>
+                        <option value="dark" selected>Dark Mode</option>
+                    </select>
                 </div>
+            </div>
 
-                <div class="card">
-                    <div class="section-title">About Developer</div>
-                    <p style="font-size: 13px; color: var(--text2);">LifeEasy v1.0.0</p>
-                    <!-- Keep only the Visit Dev Site button -->
-                    <button class="btn-secondary" style="margin-top:10px;"
+            <!-- ADD THIS NEW CARD -->
+            <div class="card">
+                <div class="section-title" style="margin-bottom:15px;">Customize Navigation</div>
+                <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Rearrange your menu or hide
+                    modules you don't use.</p>
+                <div id="navSettingsList"></div>
+            </div>
+
+            <div class="card">
+                <div class="section-title" style="margin-bottom:15px;">Dashboard Widgets</div>
+                <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Rearrange or hide modules on your
+                    home screen.</p>
+                <div id="dashSettingsList"></div>
+            </div>
+
+            <div class="card">
+                <div class="section-title">About Developer</div>
+                <p style="font-size: 13px; color: var(--text2);">LifeEasy v1.0.0</p>
+                <!-- Keep only the Visit Dev Site button -->
+                <button class="btn-secondary" style="margin-top:10px;"
                         onclick="window.open('https://raverahat.com', '_blank')">Visit Dev
-                        Site</button>
-                </div>
+                    Site</button>
+            </div>
+        </div>
+
+        <!-- DAILY PLANNER (Full Calendar) -->
+        <div class="screen" id="screen-planner">
+            <div class="section-header">
+                <div class="section-title">Monthly Planner</div>
             </div>
 
-            <!-- DAILY PLANNER (Full Calendar) -->
-            <div class="screen" id="screen-planner">
-                <div class="section-header">
-                    <div class="section-title">Monthly Planner</div>
+            <div class="calendar-wrapper">
+                <div class="calendar-header">
+                    <button onclick="prevMonth()">â—€</button>
+                    <div id="calendarMonthYear">Month Year</div>
+                    <button onclick="nextMonth()">â–¶</button>
                 </div>
-
-                <div class="calendar-wrapper">
-                    <div class="calendar-header">
-                        <button onclick="prevMonth()">◀</button>
-                        <div id="calendarMonthYear">Month Year</div>
-                        <button onclick="nextMonth()">▶</button>
-                    </div>
-                    <div class="calendar-grid-header">
-                        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-                    </div>
-                    <div class="calendar-grid" id="calendarGrid"></div>
+                <div class="calendar-grid-header">
+                    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
                 </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
+            </div>
 
-                <div class="card date-jump-card"
-                    style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
-                    <input type="date" id="goToDateInput" class="input" style="flex: 1;">
-                    <button class="btn-secondary" onclick="goToToday()"
+            <div class="card date-jump-card"
+                 style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
+                <input type="date" id="goToDateInput" class="input" style="flex: 1;">
+                <button class="btn-secondary" onclick="goToToday()"
                         style="padding: 10px 16px; flex: 0 0 auto;">Today</button>
-                    <button class="btn-primary" onclick="goToDate()"
+                <button class="btn-primary" onclick="goToDate()"
                         style="padding: 10px 16px; flex: 0 0 auto;">Go</button>
-                </div>
-
-                <div id="plannerEvents"></div>
             </div>
-            <!-- cost tracker -->
-            <!-- TASKS -->
-            <div class="screen" id="screen-tasks">
+
+            <div id="plannerEvents"></div>
+        </div>
+        <!-- cost tracker -->
+        <!-- TASKS -->
+        <div class="screen" id="screen-tasks">
+            <div class="section-header">
+                <div class="section-title">Task Manager</div>
+            </div>
+            <div class="filter-tabs" id="taskFilters">
+                <div class="filter-tab active" data-filter="all" onclick="setTaskFilter('all',this)">All</div>
+                <div class="filter-tab" data-filter="active" onclick="setTaskFilter('active',this)">Active</div>
+                <div class="filter-tab" data-filter="done" onclick="setTaskFilter('done',this)">Done</div>
+                <div class="filter-tab" data-filter="high" onclick="setTaskFilter('high',this)">ðŸ”´ High</div>
+                <div class="filter-tab" data-filter="work" onclick="setTaskFilter('work',this)">Work</div>
+                <div class="filter-tab" data-filter="personal" onclick="setTaskFilter('personal',this)">Personal
+                </div>
+            </div>
+            <div id="taskList"></div>
+        </div>
+
+        <!-- COUNTER -->
+        <div class="screen" id="screen-counter">
+            <div class="section-header">
+                <div class="section-title">Counters</div>
+            </div>
+            <div class="counter-grid" id="counterGrid"></div>
+        </div>
+
+        <!-- MONEY -->
+        <div class="screen" id="screen-money">
+            <div class="section-header">
+                <div class="section-title">Money Tracker</div>
+            </div>
+            <div class="money-summary">
+                <div class="money-card lent">
+                    <div class="mc-label">You Lent</div>
+                    <div class="mc-amount" id="totalLent">$0</div>
+                </div>
+                <div class="money-card borrowed">
+                    <div class="mc-label">You Owe</div>
+                    <div class="mc-amount" id="totalOwed">$0</div>
+                </div>
+            </div>
+            <div class="filter-tabs">
+                <div class="filter-tab active" onclick="setMoneyFilter('all',this)">All</div>
+                <div class="filter-tab" onclick="setMoneyFilter('lent',this)">Lent</div>
+                <div class="filter-tab" onclick="setMoneyFilter('borrowed',this)">Borrowed</div>
+                <div class="filter-tab" onclick="setMoneyFilter('pending',this)">Pending</div>
+                <div class="filter-tab" onclick="setMoneyFilter('settled',this)">Settled</div>
+            </div>
+            <div id="moneyList"></div>
+        </div>
+
+        <!-- ALARMS -->
+        <div class="screen" id="screen-alarms">
+            <div class="section-header">
+                <div class="section-title">Alarms</div>
+            </div>
+            <div id="alarmList"></div>
+        </div>
+
+        <!-- ROADMAP -->
+        <div class="screen" id="screen-roadmap">
+            <div id="roadmapList-view">
                 <div class="section-header">
-                    <div class="section-title">Task Manager</div>
+                    <div class="section-title">Roadmaps</div>
                 </div>
-                <div class="filter-tabs" id="taskFilters">
-                    <div class="filter-tab active" data-filter="all" onclick="setTaskFilter('all',this)">All</div>
-                    <div class="filter-tab" data-filter="active" onclick="setTaskFilter('active',this)">Active</div>
-                    <div class="filter-tab" data-filter="done" onclick="setTaskFilter('done',this)">Done</div>
-                    <div class="filter-tab" data-filter="high" onclick="setTaskFilter('high',this)">🔴 High</div>
-                    <div class="filter-tab" data-filter="work" onclick="setTaskFilter('work',this)">Work</div>
-                    <div class="filter-tab" data-filter="personal" onclick="setTaskFilter('personal',this)">Personal
-                    </div>
-                </div>
-                <div id="taskList"></div>
+                <div id="roadmapList"></div>
             </div>
-
-            <!-- COUNTER -->
-            <div class="screen" id="screen-counter">
-                <div class="section-header">
-                    <div class="section-title">Counters</div>
-                </div>
-                <div class="counter-grid" id="counterGrid"></div>
-            </div>
-
-            <!-- MONEY -->
-            <div class="screen" id="screen-money">
-                <div class="section-header">
-                    <div class="section-title">Money Tracker</div>
-                </div>
-                <div class="money-summary">
-                    <div class="money-card lent">
-                        <div class="mc-label">You Lent</div>
-                        <div class="mc-amount" id="totalLent">$0</div>
-                    </div>
-                    <div class="money-card borrowed">
-                        <div class="mc-label">You Owe</div>
-                        <div class="mc-amount" id="totalOwed">$0</div>
-                    </div>
-                </div>
-                <div class="filter-tabs">
-                    <div class="filter-tab active" onclick="setMoneyFilter('all',this)">All</div>
-                    <div class="filter-tab" onclick="setMoneyFilter('lent',this)">Lent</div>
-                    <div class="filter-tab" onclick="setMoneyFilter('borrowed',this)">Borrowed</div>
-                    <div class="filter-tab" onclick="setMoneyFilter('pending',this)">Pending</div>
-                    <div class="filter-tab" onclick="setMoneyFilter('settled',this)">Settled</div>
-                </div>
-                <div id="moneyList"></div>
-            </div>
-
-            <!-- ALARMS -->
-            <div class="screen" id="screen-alarms">
-                <div class="section-header">
-                    <div class="section-title">Alarms</div>
-                </div>
-                <div id="alarmList"></div>
-            </div>
-
-            <!-- ROADMAP -->
-            <div class="screen" id="screen-roadmap">
-                <div id="roadmapList-view">
-                    <div class="section-header">
-                        <div class="section-title">Roadmaps</div>
-                    </div>
-                    <div id="roadmapList"></div>
-                </div>
-                <div id="roadmapDetail-view" style="display:none"></div>
-            </div>
+            <div id="roadmapDetail-view" style="display:none"></div>
+        </div>
 
 
-            <!-- ATTENDANCE -->
-            <div class="screen" id="screen-attendance">
-                <div class="section-header">
-                    <div class="section-title">Attendance Tracker</div>
+        <!-- ATTENDANCE -->
+        <div class="screen" id="screen-attendance">
+            <div class="section-header">
+                <div class="section-title">Attendance Tracker</div>
+                <!-- à¦¨à¦¤à§à¦¨ AI Upload à¦¬à¦¾à¦Ÿà¦¨ à¦à¦¬à¦‚ Add Routine à¦¬à¦¾à¦Ÿà¦¨ -->
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="file" id="routineUploadInput" accept=".pdf" style="display:none"
+                           onchange="handleRoutineUpload(event)">
+                    <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
+                            onclick="document.getElementById('routineUploadInput').click()">ðŸ“„ AI Upload</button>
                     <button class="btn-add" onclick="openAttRoutineModal()">+ Add Routine</button>
                 </div>
+            </div>
 
-                <!-- Independent Attendance Calendar -->
-                <div class="calendar-wrapper">
-                    <div class="calendar-header">
-                        <button onclick="prevAttMonth()">◀</button>
-                        <div id="attCalendarMonthYear">Month Year</div>
-                        <button onclick="nextAttMonth()">▶</button>
-                    </div>
-                    <div class="calendar-grid-header">
-                        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-                    </div>
-                    <div class="calendar-grid" id="attCalendarGrid"></div>
+            <!-- Independent Attendance Calendar -->
+            <div class="calendar-wrapper">
+                <div class="calendar-header">
+                    <button onclick="prevAttMonth()">â—€</button>
+                    <div id="attCalendarMonthYear">Month Year</div>
+                    <button onclick="nextAttMonth()">â–¶</button>
                 </div>
+                <div class="calendar-grid-header">
+                    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                </div>
+                <div class="calendar-grid" id="attCalendarGrid"></div>
+            </div>
 
-                <div class="card date-jump-card"
-                    style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
-                    <input type="date" id="attGoToDateInput" class="input" style="flex: 1;">
-                    <button class="btn-secondary" onclick="goToAttToday()"
+            <div class="card date-jump-card"
+                 style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
+                <input type="date" id="attGoToDateInput" class="input" style="flex: 1;">
+                <button class="btn-secondary" onclick="goToAttToday()"
                         style="padding: 10px 16px; flex: 0 0 auto;">Today</button>
-                    <button class="btn-primary" onclick="goToAttDate()"
+                <button class="btn-primary" onclick="goToAttDate()"
                         style="padding: 10px 16px; flex: 0 0 auto;">Go</button>
-                </div>
-
-                <!-- Stats and Classes for Selected Date -->
-                <div id="attendanceList"></div>
             </div>
 
-            <!-- ACADEMIC -->
-            <div class="screen" id="screen-academic">
+            <!-- Stats and Classes for Selected Date -->
+            <div id="attendanceList"></div>
+        </div>
+
+        <!-- ACADEMIC -->
+        <div class="screen" id="screen-academic">
+            <div class="section-header">
+                <div class="section-title">Academic Hub</div>
+            </div>
+            <div id="academicList"></div>
+        </div>
+
+
+        <div class="screen" id="screen-expenses">
+
+            <!-- MAIN ACCOUNTS LIST VIEW -->
+
+            <div id="expensesMainView">
+
                 <div class="section-header">
-                    <div class="section-title">Academic Hub</div>
+
+                    <div class="section-title">Accounts &amp; Expenses</div>
+
+                    <!-- BUG FIX: "+ Account" button was missing from this view -->
+
+                    <button class="btn-add" onclick="openAccountModal()">+ Account</button>
+
                 </div>
-                <div id="academicList"></div>
+
+                <div id="accountDisplay" class="stats-grid"></div>
+
             </div>
 
+            <!-- TRANSACTION DETAIL VIEW (shown after tapping an account) -->
 
-            <div class="screen" id="screen-expenses">
+            <div id="transactionDetailView" style="display:none;">
 
-                <!-- MAIN ACCOUNTS LIST VIEW -->
+                <!--
 
-                <div id="expensesMainView">
+    BUG FIX: "Back to Accounts" button now calls hideTransactionDetail()
 
-                    <div class="section-header">
+    which correctly swaps the views instead of doing nothing.
 
-                        <div class="section-title">Accounts &amp; Expenses</div>
+-->
 
-                        <!-- BUG FIX: "+ Account" button was missing from this view -->
-
-                        <button class="btn-add" onclick="openAccountModal()">+ Account</button>
-
-                    </div>
-
-                    <div id="accountDisplay" class="stats-grid"></div>
-
-                </div>
-
-                <!-- TRANSACTION DETAIL VIEW (shown after tapping an account) -->
-
-                <div id="transactionDetailView" style="display:none;">
-
-                    <!--
-
-        BUG FIX: "Back to Accounts" button now calls hideTransactionDetail()
-
-        which correctly swaps the views instead of doing nothing.
-
-    -->
-
-                    <div onclick="hideTransactionDetail()" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+                <div onclick="hideTransactionDetail()" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;
 
                     padding:8px 14px; background:var(--surface2); border-radius:8px;
 
@@ -2084,594 +2170,594 @@
 
                     border:1px solid var(--border); transition:0.2s;">
 
-                        ← Back to Accounts
+                    â† Back to Accounts
 
-                    </div>
+                </div>
 
-                    <div class="section-header">
+                <div class="section-header">
 
-                        <!-- Account name + trash icon injected by openAccountDetail() -->
+                    <!-- Account name + trash icon injected by openAccountDetail() -->
 
-                        <div class="section-title" id="accountNameTitle" style="display:flex; align-items:center;">
-                            Account</div>
+                    <div class="section-title" id="accountNameTitle" style="display:flex; align-items:center;">
+                        Account</div>
 
-                        <div style="display:flex; gap:8px;">
+                    <div style="display:flex; gap:8px;">
 
-                            <button class="btn-add"
+                        <button class="btn-add"
                                 style="background:rgba(93,232,193,0.15); color:var(--green); border:1px solid rgba(93,232,193,0.3);"
                                 onclick="openAddFundModal()">+ Add Funds</button>
 
-                            <button class="btn-add" onclick="openTransactionModal()">+ Expense</button>
-
-                        </div>
+                        <button class="btn-add" onclick="openTransactionModal()">+ Expense</button>
 
                     </div>
 
-                    <div id="transactionList"></div>
-
                 </div>
+
+                <div id="transactionList"></div>
 
             </div>
 
-            <!-- End of screen-expenses — make sure this is INSIDE <div class="content"> -->
+        </div>
 
-            <!-- NOTES -->
-            <div class="screen" id="screen-notes">
-                <div class="section-header">
-                    <div class="section-title">Notes</div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
+        <!-- End of screen-expenses â€” make sure this is INSIDE <div class="content"> -->
+
+        <!-- NOTES -->
+        <div class="screen" id="screen-notes">
+            <div class="section-header">
+                <div class="section-title">Notes</div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
                             onclick="openWhiteboardModal()">+ Whiteboard</button>
-                        <button class="btn-add" onclick="openNoteModal()">+ Note</button>
-                    </div>
+                    <button class="btn-add" onclick="openNoteModal()">+ Note</button>
                 </div>
+            </div>
 
-                <input class="input" id="noteSearch" placeholder="🔎 Search notes..."
-                    style="width:100%;margin-bottom:12px;padding:10px;border-radius:var(--radius-sm)"
-                    oninput="renderNotes()">
+            <input class="input" id="noteSearch" placeholder="ðŸ”Ž Search notes..."
+                   style="width:100%;margin-bottom:12px;padding:10px;border-radius:var(--radius-sm)"
+                   oninput="renderNotes()">
 
-                <!-- TAG FILTER BAR WITH ADD BUTTON -->
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                    <div class="filter-tabs" id="noteTagsFilter" style="margin-bottom: 0; flex: 1;">
-                        <div class="filter-tab active" onclick="setNoteTagFilter('all')">All</div>
-                    </div>
-                    <button class="btn-secondary" onclick="promptAddNewTag()"
+            <!-- TAG FILTER BAR WITH ADD BUTTON -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <div class="filter-tabs" id="noteTagsFilter" style="margin-bottom: 0; flex: 1;">
+                    <div class="filter-tab active" onclick="setNoteTagFilter('all')">All</div>
+                </div>
+                <button class="btn-secondary" onclick="promptAddNewTag()"
                         style="padding: 6px 12px; font-size: 12px; white-space: nowrap;">+ Tag</button>
-                </div>
+            </div>
 
-                <div class="notes-tabs">
-                    <button class="notes-tab active" id="notesTab-active"
+            <div class="notes-tabs">
+                <button class="notes-tab active" id="notesTab-active"
                         onclick="setNotesView('active')">Notes</button>
-                    <button class="notes-tab" id="notesTab-archived" onclick="setNotesView('archived')">Archive</button>
-                    <button class="notes-tab" id="notesTab-trashed" onclick="setNotesView('trashed')">Trash</button>
-                </div>
-
-                <div class="notes-grid" id="notesGrid"></div>
+                <button class="notes-tab" id="notesTab-archived" onclick="setNotesView('archived')">Archive</button>
+                <button class="notes-tab" id="notesTab-trashed" onclick="setNotesView('trashed')">Trash</button>
             </div>
 
-            <!-- SLEEP TRACKER -->
-            <div class="screen" id="screen-sleep">
-                <div class="section-header">
-                    <div class="section-title">Sleep Tracker</div>
-                    <button class="btn-add" onclick="openSleepModal()">+ Log Sleep</button>
-                </div>
-
-                <div id="sleepMeterCard" style="margin-bottom:16px"></div>
-
-                <div class="stats-grid" style="margin-bottom:16px">
-                    <div class="stat-card">
-                        <div style="font-size:12px;color:var(--text2)">7-day avg</div>
-                        <div style="font-size:20px;font-weight:800" id="sleepAvgWeek">—</div>
-                    </div>
-                    <div class="stat-card">
-                        <div style="font-size:12px;color:var(--text2)">30-day avg</div>
-                        <div style="font-size:20px;font-weight:800" id="sleepAvgMonth">—</div>
-                    </div>
-                    <div class="stat-card">
-                        <div style="font-size:12px;color:var(--text2)">Avg Bedtime (7d)</div>
-                        <div style="font-size:20px;font-weight:800" id="sleepAvgBed">—</div>
-                    </div>
-                    <div class="stat-card">
-                        <div style="font-size:12px;color:var(--text2)">Avg Wake (7d)</div>
-                        <div style="font-size:20px;font-weight:800" id="sleepAvgWake">—</div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="section-title" style="font-size:14px;margin-bottom:10px">Weekly Overview</div>
-                    <div id="sleepWeekChart"></div>
-                </div>
-
-                <div class="card">
-                    <div class="section-title" style="font-size:14px;margin-bottom:10px">Monthly Overview</div>
-                    <div id="sleepMonthChart"></div>
-                </div>
-
-                <div class="section-title" style="font-size:14px;margin:16px 0 10px">History</div>
-                <div id="sleepList"></div>
-            </div>
-
-        </div><!-- /content -->
-
-        <!-- FLOATING ACTION BUTTON (FAB) -->
-        <div class="fab" onclick="handleFabClick()">+</div>
-
-        <!-- BOTTOM NAV -->
-        <nav class="bottom-nav" id="mainBottomNav">
-            <!-- Items injected dynamically by app.js -->
-        </nav>
-    </div><!-- /app -->
-
-    <!-- TOAST -->
-    <div id="toast"></div>
-
-    <!-- ==================== MODALS ==================== -->
-
-    <!-- TASK MODAL -->
-    <div class="modal-overlay" id="taskModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title" id="taskModalTitle">New Task</div>
-            <div class="form-row"><label class="label">Title *</label><input class="input" id="taskTitle"
-                    placeholder="What needs to be done?"></div>
-            <div class="form-row"><label class="label">Description</label><textarea class="input" id="taskDesc"
-                    placeholder="Details..."></textarea></div>
-            <div class="form-grid">
-                <div class="form-row"><label class="label">Category</label><select class="input" id="taskCategory">
-                        <option>Work</option>
-                        <option>Personal</option>
-                        <option>Health</option>
-                        <option>Finance</option>
-                        <option>Other</option>
-                    </select></div>
-                <div class="form-row"><label class="label">Priority</label><select class="input" id="taskPriority">
-                        <option value="0">Low</option>
-                        <option value="1">Medium</option>
-                        <option value="2" selected>High</option>
-                    </select></div>
-            </div>
-            <div class="form-row"><label class="label">Due Date</label><input class="input" type="date" id="taskDue">
-            </div>
-            <div class="form-row"><label class="label">Reminder</label><input class="input" type="datetime-local"
-                    id="taskReminder"></div>
-            <div class="modal-footer"><button class="btn-secondary"
-                    onclick="closeModal('taskModal')">Cancel</button><button class="btn-primary"
-                    onclick="saveTask()">Save Task</button></div>
+            <div class="notes-grid" id="notesGrid"></div>
         </div>
-    </div>
 
-    <!-- PLANNER MODAL -->
-    <div class="modal-overlay" id="plannerModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title">Add Event</div>
-            <div class="form-row"><label class="label">Title *</label><input class="input" id="planTitle"
-                    placeholder="Event name"></div>
-            <div class="form-row"><label class="label">Description</label><input class="input" id="planDesc"
-                    placeholder="Notes..."></div>
-            <div class="form-grid">
-                <div class="form-row"><label class="label">Time</label><input class="input" type="time" id="planTime">
+        <!-- SLEEP TRACKER -->
+        <div class="screen" id="screen-sleep">
+            <div class="section-header">
+                <div class="section-title">Sleep Tracker</div>
+                <button class="btn-add" onclick="openSleepModal()">+ Log Sleep</button>
+            </div>
+
+            <div id="sleepMeterCard" style="margin-bottom:16px"></div>
+
+            <div class="stats-grid" style="margin-bottom:16px">
+                <div class="stat-card">
+                    <div style="font-size:12px;color:var(--text2)">7-day avg</div>
+                    <div style="font-size:20px;font-weight:800" id="sleepAvgWeek">â€”</div>
                 </div>
-                <div class="form-row"><label class="label">Date</label><input class="input" type="date" id="planDate">
+                <div class="stat-card">
+                    <div style="font-size:12px;color:var(--text2)">30-day avg</div>
+                    <div style="font-size:20px;font-weight:800" id="sleepAvgMonth">â€”</div>
                 </div>
-            </div>
-
-            <div class="form-row">
-                <label class="label">Repeat</label>
-                <select class="input" id="planRecurrence">
-                    <option value="none">Does not repeat</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly</option>
-                </select>
-            </div>
-
-            <div class="form-row"><label class="label">Color</label>
-                <div class="color-picker" id="planColorPicker"></div>
-            </div>
-            <div class="modal-footer"><button class="btn-secondary"
-                    onclick="closeModal('plannerModal')">Cancel</button><button class="btn-primary"
-                    onclick="savePlan()">Add Event</button></div>
-        </div>
-    </div>
-
-    <!-- COUNTER MODAL -->
-    <div class="modal-overlay" id="counterModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title">New Counter</div>
-            <div class="form-row"><label class="label">Name *</label><input class="input" id="counterName"
-                    placeholder="Counter name"></div>
-            <div class="form-grid">
-                <div class="form-row"><label class="label">Step</label><input class="input" type="number"
-                        id="counterStep" value="1"></div>
-                <div class="form-row"><label class="label">Start Value</label><input class="input" type="number"
-                        id="counterStart" value="0"></div>
-            </div>
-            <div class="form-row"><label class="label">Color</label>
-                <div class="color-picker" id="counterColorPicker"></div>
-            </div>
-            <div class="modal-footer"><button class="btn-secondary"
-                    onclick="closeModal('counterModal')">Cancel</button><button class="btn-primary"
-                    onclick="saveCounter()">Create</button></div>
-        </div>
-    </div>
-
-    <!-- MONEY MODAL -->
-    <div class="modal-overlay" id="moneyModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title">Add Record</div>
-            <div class="form-row"><label class="label">Person's Name *</label><input class="input" id="moneyPerson"
-                    placeholder="Name"></div>
-            <div class="form-grid">
-                <div class="form-row"><label class="label">Amount *</label><input class="input" type="number"
-                        id="moneyAmount" placeholder="0.00"></div>
-                <div class="form-row"><label class="label">Type</label><select class="input" id="moneyType">
-                        <option value="lent">I Lent</option>
-                        <option value="borrowed">I Borrowed</option>
-                    </select></div>
-            </div>
-            <div class="form-row"><label class="label">Note</label><input class="input" id="moneyNote"
-                    placeholder="For what?"></div>
-            <div class="form-row"><label class="label">Due Date (optional)</label><input class="input" type="date"
-                    id="moneyDue"></div>
-            <div class="modal-footer"><button class="btn-secondary"
-                    onclick="closeModal('moneyModal')">Cancel</button><button class="btn-primary"
-                    onclick="saveMoney()">Save</button></div>
-        </div>
-    </div>
-
-    <!-- ALARM MODAL -->
-    <div class="modal-overlay" id="alarmModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title">Set Alarm</div>
-            <div class="form-row"><label class="label">Time *</label><input class="input" type="time" id="alarmTime">
-            </div>
-            <div class="form-row"><label class="label">Label</label><input class="input" id="alarmLabel"
-                    placeholder="Alarm label"></div>
-            <div class="form-row">
-                <label class="label">Repeat</label>
-                <div class="days-selector" id="daySelector">
-                    <div class="day-btn" data-day="0" onclick="toggleDay(this)">Su</div>
-                    <div class="day-btn" data-day="1" onclick="toggleDay(this)">Mo</div>
-                    <div class="day-btn" data-day="2" onclick="toggleDay(this)">Tu</div>
-                    <div class="day-btn" data-day="3" onclick="toggleDay(this)">We</div>
-                    <div class="day-btn" data-day="4" onclick="toggleDay(this)">Th</div>
-                    <div class="day-btn" data-day="5" onclick="toggleDay(this)">Fr</div>
-                    <div class="day-btn" data-day="6" onclick="toggleDay(this)">Sa</div>
+                <div class="stat-card">
+                    <div style="font-size:12px;color:var(--text2)">Avg Bedtime (7d)</div>
+                    <div style="font-size:20px;font-weight:800" id="sleepAvgBed">â€”</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size:12px;color:var(--text2)">Avg Wake (7d)</div>
+                    <div style="font-size:20px;font-weight:800" id="sleepAvgWake">â€”</div>
                 </div>
             </div>
-            <div class="modal-footer"><button class="btn-secondary"
-                    onclick="closeModal('alarmModal')">Cancel</button><button class="btn-primary"
-                    onclick="saveAlarm()">Set Alarm</button></div>
-        </div>
-    </div>
 
-    <!-- ROADMAP MODAL -->
-    <div class="modal-overlay" id="roadmapModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title">New Roadmap</div>
-            <div class="form-row"><label class="label">Title *</label><input class="input" id="roadmapTitle"
-                    placeholder="Goal name"></div>
-            <div class="form-row"><label class="label">Description</label><textarea class="input" id="roadmapDesc"
-                    placeholder="What do you want to achieve?"></textarea></div>
-            <div class="form-grid">
-                <div class="form-row"><label class="label">Category</label><select class="input" id="roadmapCategory">
-                        <option>Career</option>
-                        <option>Learning</option>
-                        <option>Health</option>
-                        <option>Finance</option>
-                        <option>Personal</option>
-                    </select></div>
-                <div class="form-row"><label class="label">Target Date</label><input class="input" type="date"
-                        id="roadmapTarget"></div>
+            <div class="card">
+                <div class="section-title" style="font-size:14px;margin-bottom:10px">Weekly Overview</div>
+                <div id="sleepWeekChart"></div>
             </div>
-            <div class="form-row"><label class="label">Color</label>
-                <div class="color-picker" id="roadmapColorPicker"></div>
-            </div>
-            <div class="modal-footer"><button class="btn-secondary"
-                    onclick="closeModal('roadmapModal')">Cancel</button><button class="btn-primary"
-                    onclick="saveRoadmap()">Create</button></div>
-        </div>
-    </div>
 
-    <!-- STEP MODAL -->
-    <div class="modal-overlay" id="stepModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title">Add Step</div>
-            <div class="form-row"><label class="label">Step Title *</label><input class="input" id="stepTitle"
-                    placeholder="Milestone name"></div>
-            <div class="form-row"><label class="label">Description</label><input class="input" id="stepDesc"
-                    placeholder="Details..."></div>
+            <div class="card">
+                <div class="section-title" style="font-size:14px;margin-bottom:10px">Monthly Overview</div>
+                <div id="sleepMonthChart"></div>
+            </div>
+
+            <div class="section-title" style="font-size:14px;margin:16px 0 10px">History</div>
+            <div id="sleepList"></div>
+        </div>
+
+    </div><!-- /content -->
+
+    <!-- FLOATING ACTION BUTTON (FAB) -->
+    <div class="fab" onclick="handleFabClick()">+</div>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav" id="mainBottomNav">
+        <!-- Items injected dynamically by app.js -->
+    </nav>
+</div><!-- /app -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- TASK MODAL -->
+<div class="modal-overlay" id="taskModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="taskModalTitle">New Task</div>
+        <div class="form-row"><label class="label">Title *</label><input class="input" id="taskTitle"
+                                                                         placeholder="What needs to be done?"></div>
+        <div class="form-row"><label class="label">Description</label><textarea class="input" id="taskDesc"
+                                                                                placeholder="Details..."></textarea></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Category</label><select class="input" id="taskCategory">
+                <option>Work</option>
+                <option>Personal</option>
+                <option>Health</option>
+                <option>Finance</option>
+                <option>Other</option>
+            </select></div>
+            <div class="form-row"><label class="label">Priority</label><select class="input" id="taskPriority">
+                <option value="0">Low</option>
+                <option value="1">Medium</option>
+                <option value="2" selected>High</option>
+            </select></div>
+        </div>
+        <div class="form-row"><label class="label">Due Date</label><input class="input" type="date" id="taskDue">
+        </div>
+        <div class="form-row"><label class="label">Reminder</label><input class="input" type="datetime-local"
+                                                                          id="taskReminder"></div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('taskModal')">Cancel</button><button class="btn-primary"
+                                                                                                   onclick="saveTask()">Save Task</button></div>
+    </div>
+</div>
+
+<!-- PLANNER MODAL -->
+<div class="modal-overlay" id="plannerModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Add Event</div>
+        <div class="form-row"><label class="label">Title *</label><input class="input" id="planTitle"
+                                                                         placeholder="Event name"></div>
+        <div class="form-row"><label class="label">Description</label><input class="input" id="planDesc"
+                                                                             placeholder="Notes..."></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Time</label><input class="input" type="time" id="planTime">
+            </div>
+            <div class="form-row"><label class="label">Date</label><input class="input" type="date" id="planDate">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <label class="label">Repeat</label>
+            <select class="input" id="planRecurrence">
+                <option value="none">Does not repeat</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+            </select>
+        </div>
+
+        <div class="form-row"><label class="label">Color</label>
+            <div class="color-picker" id="planColorPicker"></div>
+        </div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('plannerModal')">Cancel</button><button class="btn-primary"
+                                                                                                      onclick="savePlan()">Add Event</button></div>
+    </div>
+</div>
+
+<!-- COUNTER MODAL -->
+<div class="modal-overlay" id="counterModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">New Counter</div>
+        <div class="form-row"><label class="label">Name *</label><input class="input" id="counterName"
+                                                                        placeholder="Counter name"></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Step</label><input class="input" type="number"
+                                                                          id="counterStep" value="1"></div>
+            <div class="form-row"><label class="label">Start Value</label><input class="input" type="number"
+                                                                                 id="counterStart" value="0"></div>
+        </div>
+        <div class="form-row"><label class="label">Color</label>
+            <div class="color-picker" id="counterColorPicker"></div>
+        </div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('counterModal')">Cancel</button><button class="btn-primary"
+                                                                                                      onclick="saveCounter()">Create</button></div>
+    </div>
+</div>
+
+<!-- MONEY MODAL -->
+<div class="modal-overlay" id="moneyModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Add Record</div>
+        <div class="form-row"><label class="label">Person's Name *</label><input class="input" id="moneyPerson"
+                                                                                 placeholder="Name"></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Amount *</label><input class="input" type="number"
+                                                                              id="moneyAmount" placeholder="0.00"></div>
+            <div class="form-row"><label class="label">Type</label><select class="input" id="moneyType">
+                <option value="lent">I Lent</option>
+                <option value="borrowed">I Borrowed</option>
+            </select></div>
+        </div>
+        <div class="form-row"><label class="label">Note</label><input class="input" id="moneyNote"
+                                                                      placeholder="For what?"></div>
+        <div class="form-row"><label class="label">Due Date (optional)</label><input class="input" type="date"
+                                                                                     id="moneyDue"></div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('moneyModal')">Cancel</button><button class="btn-primary"
+                                                                                                    onclick="saveMoney()">Save</button></div>
+    </div>
+</div>
+
+<!-- ALARM MODAL -->
+<div class="modal-overlay" id="alarmModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Set Alarm</div>
+        <div class="form-row"><label class="label">Time *</label><input class="input" type="time" id="alarmTime">
+        </div>
+        <div class="form-row"><label class="label">Label</label><input class="input" id="alarmLabel"
+                                                                       placeholder="Alarm label"></div>
+        <div class="form-row">
+            <label class="label">Repeat</label>
+            <div class="days-selector" id="daySelector">
+                <div class="day-btn" data-day="0" onclick="toggleDay(this)">Su</div>
+                <div class="day-btn" data-day="1" onclick="toggleDay(this)">Mo</div>
+                <div class="day-btn" data-day="2" onclick="toggleDay(this)">Tu</div>
+                <div class="day-btn" data-day="3" onclick="toggleDay(this)">We</div>
+                <div class="day-btn" data-day="4" onclick="toggleDay(this)">Th</div>
+                <div class="day-btn" data-day="5" onclick="toggleDay(this)">Fr</div>
+                <div class="day-btn" data-day="6" onclick="toggleDay(this)">Sa</div>
+            </div>
+        </div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('alarmModal')">Cancel</button><button class="btn-primary"
+                                                                                                    onclick="saveAlarm()">Set Alarm</button></div>
+    </div>
+</div>
+
+<!-- ROADMAP MODAL -->
+<div class="modal-overlay" id="roadmapModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">New Roadmap</div>
+        <div class="form-row"><label class="label">Title *</label><input class="input" id="roadmapTitle"
+                                                                         placeholder="Goal name"></div>
+        <div class="form-row"><label class="label">Description</label><textarea class="input" id="roadmapDesc"
+                                                                                placeholder="What do you want to achieve?"></textarea></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Category</label><select class="input" id="roadmapCategory">
+                <option>Career</option>
+                <option>Learning</option>
+                <option>Health</option>
+                <option>Finance</option>
+                <option>Personal</option>
+            </select></div>
             <div class="form-row"><label class="label">Target Date</label><input class="input" type="date"
-                    id="stepDate"></div>
-            <div class="modal-footer"><button class="btn-secondary"
-                    onclick="closeModal('stepModal')">Cancel</button><button class="btn-primary"
-                    onclick="saveStep()">Add Step</button></div>
+                                                                                 id="roadmapTarget"></div>
         </div>
-    </div>
-
-    <!-- ATTENDANCE ROUTINE MODAL -->
-    <div class="modal-overlay" id="attRoutineModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title" id="attRoutineModalTitle">Add Weekly Class Routine</div>
-            <div class="form-row"><label class="label">Class Name *</label><input class="input" id="attRoutineSubject"
-                    placeholder="e.g. Data Structures"></div>
-            <div class="form-grid">
-                <div class="form-row"><label class="label">Room Number</label><input class="input" id="attRoutineRoom"
-                        placeholder="e.g. 301"></div>
-                <div class="form-row">
-                    <label class="label">Day of the Week</label>
-                    <select class="input" id="attRoutineDay">
-                        <option value="0">Sunday</option>
-                        <option value="1">Monday</option>
-                        <option value="2">Tuesday</option>
-                        <option value="3">Wednesday</option>
-                        <option value="4">Thursday</option>
-                        <option value="5">Friday</option>
-                        <option value="6">Saturday</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-grid" style="margin-top: 14px;">
-                <div class="form-row"><label class="label">Start Time</label><input class="input" type="time"
-                        id="attRoutineStartTime"></div>
-                <div class="form-row"><label class="label">End Time</label><input class="input" type="time"
-                        id="attRoutineEndTime"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('attRoutineModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveAttRoutine()">Save Routine</button>
-            </div>
+        <div class="form-row"><label class="label">Color</label>
+            <div class="color-picker" id="roadmapColorPicker"></div>
         </div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('roadmapModal')">Cancel</button><button class="btn-primary"
+                                                                                                      onclick="saveRoadmap()">Create</button></div>
     </div>
+</div>
 
-    <!-- GRAND NOTE MODAL -->
-    <div class="modal-overlay" id="noteModal">
-        <div class="modal" id="noteModalContainer">
-            <div class="note-grand-header">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:20px;">📝</span>
-                    <span class="modal-title" style="margin:0; font-size:16px;">Note Studio</span>
-                </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <button class="btn-secondary" id="noteModeBtn" onclick="toggleNoteMode()"
-                        style="padding:6px 12px; font-size:12px;">☑️ Checklist</button>
-                    <button class="btn-secondary" onclick="closeModal('noteModal')"
-                        style="padding:6px 12px; font-size:12px;">✕</button>
-                </div>
-            </div>
-
-            <div class="note-grand-body">
-                <input class="input" id="noteTitle" placeholder="Untitled Note..." oninput="updateNoteStats()">
-
-                <!-- CHECKBOX TAGS SELECTOR -->
-                <label class="label" style="margin-bottom:6px;">Select Tags</label>
-                <div id="noteModalTagSelector" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 16px;">
-                    <!-- Tags load here dynamically -->
-                </div>
-
-                <textarea class="input" id="noteBody" placeholder="Start typing your thoughts here..."
-                    oninput="updateNoteStats()"></textarea>
-
-                <div id="noteChecklistEditor" style="display:none; flex:1;">
-                    <div id="noteChecklistItemsList"></div>
-                    <div style="display:flex; gap:8px; margin-top:12px;">
-                        <input class="input" id="noteChecklistInput" placeholder="Add new checklist item..."
-                            style="flex:1"
-                            onkeydown="if(event.key==='Enter'){event.preventDefault();addNoteChecklistItem();}">
-                        <button class="btn-add" onclick="addNoteChecklistItem()">+ Add</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="note-grand-footer">
-                <div style="display:flex; align-items:center; gap:16px;">
-                    <div id="noteColorPicker" style="display:flex; gap:6px;"></div>
-                    <span class="note-meta-stats" id="noteWordCount">0 words · 0 chars</span>
-                </div>
-                <div style="display:flex; gap:10px;">
-                    <button class="btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
-                    <button class="btn-primary" onclick="saveNote()" style="padding:10px 24px;">Save Note</button>
-                </div>
-            </div>
-        </div>
+<!-- STEP MODAL -->
+<div class="modal-overlay" id="stepModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Add Step</div>
+        <div class="form-row"><label class="label">Step Title *</label><input class="input" id="stepTitle"
+                                                                              placeholder="Milestone name"></div>
+        <div class="form-row"><label class="label">Description</label><input class="input" id="stepDesc"
+                                                                             placeholder="Details..."></div>
+        <div class="form-row"><label class="label">Target Date</label><input class="input" type="date"
+                                                                             id="stepDate"></div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('stepModal')">Cancel</button><button class="btn-primary"
+                                                                                                   onclick="saveStep()">Add Step</button></div>
     </div>
+</div>
 
-    <!-- SLEEP MODAL -->
-    <div class="modal-overlay" id="sleepModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title">Log Sleep</div>
-            <div class="form-row"><label class="label">Date (morning you woke up)</label>
-                <input class="input" type="date" id="sleepDate">
-            </div>
-            <div class="form-row"><label class="label">Bedtime</label>
-                <input class="input" type="time" id="sleepBed">
-            </div>
-            <div class="form-row"><label class="label">Wake time</label>
-                <input class="input" type="time" id="sleepWake">
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('sleepModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveSleepLog()">Save</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- WHITEBOARD NOTE MODAL -->
-    <div class="modal-overlay" id="whiteboardModal">
-        <div class="modal"
-            style="max-width:98vw; width:98vw; height:92vh; max-height:92vh; padding:0; display:flex; flex-direction:column; overflow:hidden; border-radius:16px;">
-            <!-- Toolbar -->
-            <div
-                style="padding:12px 20px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; z-index:10;">
-                <input id="wbTitle" class="input" placeholder="Whiteboard Title..."
-                    style="width:200px; font-weight:700; padding:6px 10px;">
-
-                <!-- Drawing Tools (Fixed Default Color) -->
-                <div
-                    style="display:flex; gap:6px; align-items:center; background:var(--surface); padding:4px 8px; border-radius:8px; border:1px solid var(--border);">
-                    <button class="btn-secondary" id="wbToolPen"
-                        style="padding:4px 10px; font-size:12px; background:var(--accent); color:#fff;"
-                        onclick="setWbTool('pen')">✏️ Pen</button>
-                    <button class="btn-secondary" id="wbToolEraser" style="padding:4px 10px; font-size:12px;"
-                        onclick="setWbTool('eraser')">🧹 Eraser</button>
-                    <button class="btn-secondary" id="wbToolText" style="padding:4px 10px; font-size:12px;"
-                        onclick="setWbTool('text')">🔤 Text</button>
-                    <input type="color" id="wbColor" value="#000000"
-                        style="width:28px; height:28px; border:none; background:none; cursor:pointer;"
-                        title="Pen Color">
-                    <input type="range" id="wbSize" min="2" max="30" value="4" style="width:70px;">
-                </div>
-
-                <!-- Zoom & Pan Controls -->
-                <div
-                    style="display:flex; gap:6px; align-items:center; background:var(--surface); padding:4px 8px; border-radius:8px; border:1px solid var(--border);">
-                    <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(1.2)">🔍
-                        +</button>
-                    <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(0.8)">🔍
-                        -</button>
-                    <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="resetWbView()">↺
-                        Reset View</button>
-                    <span id="wbZoomLevel"
-                        style="font-size:11px; color:var(--text2); min-width:40px; text-align:center;">100%</span>
-                </div>
-
-                <div style="display:flex; gap:8px;">
-                    <button class="btn-secondary" style="padding:6px 12px; font-size:12px;"
-                        onclick="clearWbCanvas()">🗑️ Clear</button>
-                    <button class="btn-primary" style="padding:6px 18px; font-size:12px;"
-                        onclick="saveWhiteboardNote()">Save Board</button>
-                    <button class="btn-secondary" style="padding:6px 12px; font-size:12px;"
-                        onclick="closeModal('whiteboardModal')">✕</button>
-                </div>
-            </div>
-
-            <!-- Canvas Container (Fixed Background) -->
-            <div id="wbContainer"
-                style="flex:1; position:relative; overflow:hidden; background:#ffffff; cursor:crosshair; border-radius:8px; margin-top:4px;">
-                <canvas id="wbCanvas"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- ACADEMIC MODAL -->
-    <div class="modal-overlay" id="academicModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title" id="academicModalTitle">New Academic Event</div>
-            <div class="form-row"><label class="label">Subject *</label><input class="input" id="acadSubject"
-                    placeholder="Course name"></div>
-            <div class="form-grid">
-                <div class="form-row">
-                    <label class="label">Type</label>
-                    <select class="input" id="acadType">
-                        <option>Class Test</option>
-                        <option>Midterm</option>
-                        <option>Final</option>
-                        <option>Presentation</option>
-                        <option>Project</option>
-                        <option>Lab Test</option>
-                    </select>
-                </div>
-                <div class="form-row"><label class="label">Date</label><input class="input" type="date" id="acadDate">
-                </div>
-            </div>
-            <div class="form-row"><label class="label">Topic Name</label><input class="input" id="acadTopic"
-                    placeholder="What is it about?"></div>
-            <div class="form-row"><label class="label">Description</label><input class="input" id="acadDesc"
-                    placeholder="Brief details"></div>
-            <div class="form-row"><label class="label">Note</label><textarea class="input" id="acadNote"
-                    placeholder="Extra notes..." style="min-height:60px"></textarea></div>
-            <div class="modal-footer"><button class="btn-secondary"
-                    onclick="closeModal('academicModal')">Cancel</button><button class="btn-primary"
-                    onclick="saveAcademic()">Save Event</button></div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="accountModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title">Create Account</div>
+<!-- ATTENDANCE ROUTINE MODAL -->
+<div class="modal-overlay" id="attRoutineModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="attRoutineModalTitle">Add Weekly Class Routine</div>
+        <div class="form-row"><label class="label">Class Name *</label><input class="input" id="attRoutineSubject"
+                                                                              placeholder="e.g. Data Structures"></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Room Number</label><input class="input" id="attRoutineRoom"
+                                                                                 placeholder="e.g. 301"></div>
             <div class="form-row">
-                <label class="label">Account Name *</label>
-                <input class="input" id="accountName" placeholder="e.g., Cash, Bank">
-            </div>
-            <div class="form-row">
-                <label class="label">Initial Balance</label>
-                <input class="input" type="number" id="accountInitial" value="0">
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('accountModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveAccount()">Create Account</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="transactionModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title">Add Expense</div>
-            <div class="form-row">
-                <label class="label">Amount *</label>
-                <input class="input" type="number" id="transAmount" placeholder="0.00" step="0.01">
-            </div>
-            <div class="form-row">
-                <label class="label">Category</label>
-                <select class="input" id="transCategory">
-                    <option>Food</option>
-                    <option>Transport</option>
-                    <option>Rent</option>
-                    <option>Shopping</option>
-                    <option>Health</option>
-                    <option>Entertainment</option>
-                    <option>Education</option>
-                    <option>Utilities</option>
-                    <option>Other</option>
+                <label class="label">Day of the Week</label>
+                <select class="input" id="attRoutineDay">
+                    <option value="0">Sunday</option>
+                    <option value="1">Monday</option>
+                    <option value="2">Tuesday</option>
+                    <option value="3">Wednesday</option>
+                    <option value="4">Thursday</option>
+                    <option value="5">Friday</option>
+                    <option value="6">Saturday</option>
                 </select>
             </div>
-            <div class="form-row">
-                <label class="label">Note</label>
-                <input class="input" id="transNote" placeholder="What was this for?">
+        </div>
+        <div class="form-grid" style="margin-top: 14px;">
+            <div class="form-row"><label class="label">Start Time</label><input class="input" type="time"
+                                                                                id="attRoutineStartTime"></div>
+            <div class="form-row"><label class="label">End Time</label><input class="input" type="time"
+                                                                              id="attRoutineEndTime"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('attRoutineModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveAttRoutine()">Save Routine</button>
+        </div>
+    </div>
+</div>
+
+<!-- GRAND NOTE MODAL -->
+<div class="modal-overlay" id="noteModal">
+    <div class="modal" id="noteModalContainer">
+        <div class="note-grand-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:20px;">ðŸ“</span>
+                <span class="modal-title" style="margin:0; font-size:16px;">Note Studio</span>
             </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('transactionModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveTransaction()">Add Expense</button>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button class="btn-secondary" id="noteModeBtn" onclick="toggleNoteMode()"
+                        style="padding:6px 12px; font-size:12px;">â˜‘ï¸ Checklist</button>
+                <button class="btn-secondary" onclick="closeModal('noteModal')"
+                        style="padding:6px 12px; font-size:12px;">âœ•</button>
+            </div>
+        </div>
+
+        <div class="note-grand-body">
+            <input class="input" id="noteTitle" placeholder="Untitled Note..." oninput="updateNoteStats()">
+
+            <!-- CHECKBOX TAGS SELECTOR -->
+            <label class="label" style="margin-bottom:6px;">Select Tags</label>
+            <div id="noteModalTagSelector" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 16px;">
+                <!-- Tags load here dynamically -->
+            </div>
+
+            <textarea class="input" id="noteBody" placeholder="Start typing your thoughts here..."
+                      oninput="updateNoteStats()"></textarea>
+
+            <div id="noteChecklistEditor" style="display:none; flex:1;">
+                <div id="noteChecklistItemsList"></div>
+                <div style="display:flex; gap:8px; margin-top:12px;">
+                    <input class="input" id="noteChecklistInput" placeholder="Add new checklist item..."
+                           style="flex:1"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();addNoteChecklistItem();}">
+                    <button class="btn-add" onclick="addNoteChecklistItem()">+ Add</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="note-grand-footer">
+            <div style="display:flex; align-items:center; gap:16px;">
+                <div id="noteColorPicker" style="display:flex; gap:6px;"></div>
+                <span class="note-meta-stats" id="noteWordCount">0 words Â· 0 chars</span>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
+                <button class="btn-primary" onclick="saveNote()" style="padding:10px 24px;">Save Note</button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- ADD FUND MODAL -->
-    <div class="modal-overlay" id="addFundModal">
-        <div class="modal">
-            <div class="modal-handle"></div>
-            <div class="modal-title">Add Funds</div>
-            <div class="form-row">
-                <label class="label">Amount *</label>
-                <input class="input" type="number" id="fundAmount" placeholder="0.00" step="0.01">
-            </div>
-            <div class="form-row">
-                <label class="label">Note</label>
-                <input class="input" id="fundNote" placeholder="e.g. Salary, Transfer...">
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('addFundModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveAddFund()">Add Funds</button>
-            </div>
+<!-- SLEEP MODAL -->
+<div class="modal-overlay" id="sleepModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Log Sleep</div>
+        <div class="form-row"><label class="label">Date (morning you woke up)</label>
+            <input class="input" type="date" id="sleepDate">
+        </div>
+        <div class="form-row"><label class="label">Bedtime</label>
+            <input class="input" type="time" id="sleepBed">
+        </div>
+        <div class="form-row"><label class="label">Wake time</label>
+            <input class="input" type="time" id="sleepWake">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('sleepModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveSleepLog()">Save</button>
         </div>
     </div>
+</div>
 
-    <script src="app.js"></script>
-    <script>
-        // This runs after app.js is fully loaded
-        initTheme();
-    </script>
+<!-- WHITEBOARD NOTE MODAL -->
+<div class="modal-overlay" id="whiteboardModal">
+    <div class="modal"
+         style="max-width:98vw; width:98vw; height:92vh; max-height:92vh; padding:0; display:flex; flex-direction:column; overflow:hidden; border-radius:16px;">
+        <!-- Toolbar -->
+        <div
+                style="padding:12px 20px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; z-index:10;">
+            <input id="wbTitle" class="input" placeholder="Whiteboard Title..."
+                   style="width:200px; font-weight:700; padding:6px 10px;">
+
+            <!-- Drawing Tools (Fixed Default Color) -->
+            <div
+                    style="display:flex; gap:6px; align-items:center; background:var(--surface); padding:4px 8px; border-radius:8px; border:1px solid var(--border);">
+                <button class="btn-secondary" id="wbToolPen"
+                        style="padding:4px 10px; font-size:12px; background:var(--accent); color:#fff;"
+                        onclick="setWbTool('pen')">âœï¸ Pen</button>
+                <button class="btn-secondary" id="wbToolEraser" style="padding:4px 10px; font-size:12px;"
+                        onclick="setWbTool('eraser')">ðŸ§¹ Eraser</button>
+                <button class="btn-secondary" id="wbToolText" style="padding:4px 10px; font-size:12px;"
+                        onclick="setWbTool('text')">ðŸ”¤ Text</button>
+                <input type="color" id="wbColor" value="#000000"
+                       style="width:28px; height:28px; border:none; background:none; cursor:pointer;"
+                       title="Pen Color">
+                <input type="range" id="wbSize" min="2" max="30" value="4" style="width:70px;">
+            </div>
+
+            <!-- Zoom & Pan Controls -->
+            <div
+                    style="display:flex; gap:6px; align-items:center; background:var(--surface); padding:4px 8px; border-radius:8px; border:1px solid var(--border);">
+                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(1.2)">ðŸ”
+                    +</button>
+                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(0.8)">ðŸ”
+                    -</button>
+                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="resetWbView()">â†º
+                    Reset View</button>
+                <span id="wbZoomLevel"
+                      style="font-size:11px; color:var(--text2); min-width:40px; text-align:center;">100%</span>
+            </div>
+
+            <div style="display:flex; gap:8px;">
+                <button class="btn-secondary" style="padding:6px 12px; font-size:12px;"
+                        onclick="clearWbCanvas()">ðŸ—‘ï¸ Clear</button>
+                <button class="btn-primary" style="padding:6px 18px; font-size:12px;"
+                        onclick="saveWhiteboardNote()">Save Board</button>
+                <button class="btn-secondary" style="padding:6px 12px; font-size:12px;"
+                        onclick="closeModal('whiteboardModal')">âœ•</button>
+            </div>
+        </div>
+
+        <!-- Canvas Container (Fixed Background) -->
+        <div id="wbContainer"
+             style="flex:1; position:relative; overflow:hidden; background:#ffffff; cursor:crosshair; border-radius:8px; margin-top:4px;">
+            <canvas id="wbCanvas"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- ACADEMIC MODAL -->
+<div class="modal-overlay" id="academicModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="academicModalTitle">New Academic Event</div>
+        <div class="form-row"><label class="label">Subject *</label><input class="input" id="acadSubject"
+                                                                           placeholder="Course name"></div>
+        <div class="form-grid">
+            <div class="form-row">
+                <label class="label">Type</label>
+                <select class="input" id="acadType">
+                    <option>Class Test</option>
+                    <option>Midterm</option>
+                    <option>Final</option>
+                    <option>Presentation</option>
+                    <option>Project</option>
+                    <option>Lab Test</option>
+                </select>
+            </div>
+            <div class="form-row"><label class="label">Date</label><input class="input" type="date" id="acadDate">
+            </div>
+        </div>
+        <div class="form-row"><label class="label">Topic Name</label><input class="input" id="acadTopic"
+                                                                            placeholder="What is it about?"></div>
+        <div class="form-row"><label class="label">Description</label><input class="input" id="acadDesc"
+                                                                             placeholder="Brief details"></div>
+        <div class="form-row"><label class="label">Note</label><textarea class="input" id="acadNote"
+                                                                         placeholder="Extra notes..." style="min-height:60px"></textarea></div>
+        <div class="modal-footer"><button class="btn-secondary"
+                                          onclick="closeModal('academicModal')">Cancel</button><button class="btn-primary"
+                                                                                                       onclick="saveAcademic()">Save Event</button></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="accountModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Create Account</div>
+        <div class="form-row">
+            <label class="label">Account Name *</label>
+            <input class="input" id="accountName" placeholder="e.g., Cash, Bank">
+        </div>
+        <div class="form-row">
+            <label class="label">Initial Balance</label>
+            <input class="input" type="number" id="accountInitial" value="0">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('accountModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveAccount()">Create Account</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="transactionModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Add Expense</div>
+        <div class="form-row">
+            <label class="label">Amount *</label>
+            <input class="input" type="number" id="transAmount" placeholder="0.00" step="0.01">
+        </div>
+        <div class="form-row">
+            <label class="label">Category</label>
+            <select class="input" id="transCategory">
+                <option>Food</option>
+                <option>Transport</option>
+                <option>Rent</option>
+                <option>Shopping</option>
+                <option>Health</option>
+                <option>Entertainment</option>
+                <option>Education</option>
+                <option>Utilities</option>
+                <option>Other</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label class="label">Note</label>
+            <input class="input" id="transNote" placeholder="What was this for?">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('transactionModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveTransaction()">Add Expense</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADD FUND MODAL -->
+<div class="modal-overlay" id="addFundModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Add Funds</div>
+        <div class="form-row">
+            <label class="label">Amount *</label>
+            <input class="input" type="number" id="fundAmount" placeholder="0.00" step="0.01">
+        </div>
+        <div class="form-row">
+            <label class="label">Note</label>
+            <input class="input" id="fundNote" placeholder="e.g. Salary, Transfer...">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('addFundModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveAddFund()">Add Funds</button>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+    // This runs after app.js is fully loaded
+    initTheme();
+</script>
 </body>
 
 </html>
