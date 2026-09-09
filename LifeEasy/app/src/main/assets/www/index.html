@@ -813,7 +813,7 @@
         }
 
         .task-check.checked::after {
-            content: 'âœ“';
+            content: '✓';
             font-size: 12px;
             color: #fff;
             font-weight: 700;
@@ -1766,7 +1766,7 @@
 
 <!-- ================= STANDBY MODE ================= -->
 <div id="zenStandby" class="theme-void">
-    <button class="zen-close" onclick="exitStandby()">âœ• Close</button>
+    <button class="zen-close" onclick="exitStandby()">✕ Close</button>
 
     <div class="zen-nav">
         <span id="nav-clock" class="active" onclick="switchStandbyMode('clock')">Clock</span>
@@ -1818,10 +1818,10 @@
             <div class="topbar-date" id="topbarDate"></div>
 
             <button onclick="navTo('settings')"
-                    style="background:none; border:none; color:var(--text2); font-size:18px; cursor:pointer;">âš™ï¸</button>
+                    style="background:none; border:none; color:var(--text2); font-size:18px; cursor:pointer;">⚙️</button>
             <button
                     style="background:rgba(124,110,245,0.15); color:var(--accent); border:1px solid rgba(124,110,245,0.3); padding:6px 12px; border-radius:8px; font-weight:600; cursor:pointer;"
-                    onclick="openStandby()">ðŸ•°ï¸ Standby</button>
+                    onclick="openStandby()">🕰️ Standby</button>
 
             <button id="logoutBtn" onclick="logoutUser()" class="logout-btn"
                     style="background:rgba(245, 100, 124, 0.15); color:var(--red); border:1px solid rgba(245, 100, 124, 0.3); padding:6px 12px; border-radius:8px; font-weight:600; cursor:pointer; transition: 0.2s;">
@@ -1835,7 +1835,7 @@
 
         <!-- DASHBOARD -->
         <div class="screen active" id="screen-dash">
-            <div class="greeting" id="greeting">Good morning ðŸ‘‹</div>
+            <div class="greeting" id="greeting">Good morning 👋</div>
             <div class="greeting-sub" id="greetingSub">Here's your day at a glance</div>
 
             <div id="dashWidgetZone" style="display: flex; flex-direction: column;">
@@ -1849,8 +1849,8 @@
                 <div class="section-title">Personal Vault</div>
                 <div style="display: flex; gap: 8px;">
                     <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
-                            onclick="openCreateFolderModal()">ðŸ“ + Folder</button>
-                    <button class="btn-add" onclick="document.getElementById('fileInput').click()">â¬† Upload
+                            onclick="openCreateFolderModal()">📁 + Folder</button>
+                    <button class="btn-add" onclick="document.getElementById('fileInput').click()">⬆ Upload
                         File</button>
                 </div>
             </div>
@@ -1858,7 +1858,7 @@
             <!-- Navigation Breadcrumbs -->
             <div id="vaultBreadcrumb"
                  style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text2);">
-                    <span style="cursor: pointer; color: var(--accent);" onclick="navigateVaultFolder(null)">ðŸ
+                    <span style="cursor: pointer; color: var(--accent);" onclick="navigateVaultFolder(null)">🏠
                         Root</span>
             </div>
 
@@ -1905,7 +1905,7 @@
                 <div class="form-row">
                     <label class="label">Select Destination</label>
                     <select class="input" id="vaultMoveFolderSelect">
-                        <option value="">ðŸ  Root (No Folder)</option>
+                        <option value="">🏠 Root (No Folder)</option>
                     </select>
                 </div>
                 <div class="modal-footer">
@@ -1926,9 +1926,9 @@
                         File Preview</div>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <a id="vaultViewerDownloadBtn" href="#" download target="_blank" class="btn-secondary"
-                           style="padding: 6px 12px; font-size: 12px; text-decoration: none;">â¬‡ Download</a>
+                           style="padding: 6px 12px; font-size: 12px; text-decoration: none;">⬇ Download</a>
                         <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
-                                onclick="closeModal('vaultViewerModal')">âœ• Close</button>
+                                onclick="closeModal('vaultViewerModal')">✕ Close</button>
                     </div>
                 </div>
                 <div id="vaultViewerBody"
@@ -1954,6 +1954,12 @@
                         <option value="dark" selected>Dark Mode</option>
                     </select>
                 </div>
+            </div>
+
+            <div class="card">
+                <div class="section-title" style="margin-bottom:15px;">Notifications</div>
+                <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Test system notifications in Android notification bar.</p>
+                <button class="btn-primary" style="width:100%;" onclick="testInstantNotification()">Test Notification 🔔</button>
             </div>
 
             <!-- ADD THIS NEW CARD -->
@@ -1989,9 +1995,9 @@
 
             <div class="calendar-wrapper">
                 <div class="calendar-header">
-                    <button onclick="prevMonth()">â—€</button>
+                    <button onclick="prevMonth()">◀</button>
                     <div id="calendarMonthYear">Month Year</div>
-                    <button onclick="nextMonth()">â–¶</button>
+                    <button onclick="nextMonth()">▶</button>
                 </div>
                 <div class="calendar-grid-header">
                     <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
@@ -2020,7 +2026,7 @@
                 <div class="filter-tab active" data-filter="all" onclick="setTaskFilter('all',this)">All</div>
                 <div class="filter-tab" data-filter="active" onclick="setTaskFilter('active',this)">Active</div>
                 <div class="filter-tab" data-filter="done" onclick="setTaskFilter('done',this)">Done</div>
-                <div class="filter-tab" data-filter="high" onclick="setTaskFilter('high',this)">ðŸ”´ High</div>
+                <div class="filter-tab" data-filter="high" onclick="setTaskFilter('high',this)">🔴 High</div>
                 <div class="filter-tab" data-filter="work" onclick="setTaskFilter('work',this)">Work</div>
                 <div class="filter-tab" data-filter="personal" onclick="setTaskFilter('personal',this)">Personal
                 </div>
@@ -2085,12 +2091,12 @@
         <div class="screen" id="screen-attendance">
             <div class="section-header">
                 <div class="section-title">Attendance Tracker</div>
-                <!-- à¦¨à¦¤à§à¦¨ AI Upload à¦¬à¦¾à¦Ÿà¦¨ à¦à¦¬à¦‚ Add Routine à¦¬à¦¾à¦Ÿà¦¨ -->
+                <!-- নতুন AI Upload বাটন এবং Add Routine বাটন -->
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <input type="file" id="routineUploadInput" accept=".pdf" style="display:none"
                            onchange="handleRoutineUpload(event)">
                     <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
-                            onclick="document.getElementById('routineUploadInput').click()">ðŸ“„ AI Upload</button>
+                            onclick="document.getElementById('routineUploadInput').click()">📄 AI Upload</button>
                     <button class="btn-add" onclick="openAttRoutineModal()">+ Add Routine</button>
                 </div>
             </div>
@@ -2098,9 +2104,9 @@
             <!-- Independent Attendance Calendar -->
             <div class="calendar-wrapper">
                 <div class="calendar-header">
-                    <button onclick="prevAttMonth()">â—€</button>
+                    <button onclick="prevAttMonth()">◀</button>
                     <div id="attCalendarMonthYear">Month Year</div>
-                    <button onclick="nextAttMonth()">â–¶</button>
+                    <button onclick="nextAttMonth()">▶</button>
                 </div>
                 <div class="calendar-grid-header">
                     <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
@@ -2170,7 +2176,7 @@
 
                     border:1px solid var(--border); transition:0.2s;">
 
-                    â† Back to Accounts
+                    ← Back to Accounts
 
                 </div>
 
@@ -2199,7 +2205,7 @@
 
         </div>
 
-        <!-- End of screen-expenses â€” make sure this is INSIDE <div class="content"> -->
+        <!-- End of screen-expenses — make sure this is INSIDE <div class="content"> -->
 
         <!-- NOTES -->
         <div class="screen" id="screen-notes">
@@ -2212,7 +2218,7 @@
                 </div>
             </div>
 
-            <input class="input" id="noteSearch" placeholder="ðŸ”Ž Search notes..."
+            <input class="input" id="noteSearch" placeholder="🔎 Search notes..."
                    style="width:100%;margin-bottom:12px;padding:10px;border-radius:var(--radius-sm)"
                    oninput="renderNotes()">
 
@@ -2247,19 +2253,19 @@
             <div class="stats-grid" style="margin-bottom:16px">
                 <div class="stat-card">
                     <div style="font-size:12px;color:var(--text2)">7-day avg</div>
-                    <div style="font-size:20px;font-weight:800" id="sleepAvgWeek">â€”</div>
+                    <div style="font-size:20px;font-weight:800" id="sleepAvgWeek">—</div>
                 </div>
                 <div class="stat-card">
                     <div style="font-size:12px;color:var(--text2)">30-day avg</div>
-                    <div style="font-size:20px;font-weight:800" id="sleepAvgMonth">â€”</div>
+                    <div style="font-size:20px;font-weight:800" id="sleepAvgMonth">—</div>
                 </div>
                 <div class="stat-card">
                     <div style="font-size:12px;color:var(--text2)">Avg Bedtime (7d)</div>
-                    <div style="font-size:20px;font-weight:800" id="sleepAvgBed">â€”</div>
+                    <div style="font-size:20px;font-weight:800" id="sleepAvgBed">—</div>
                 </div>
                 <div class="stat-card">
                     <div style="font-size:12px;color:var(--text2)">Avg Wake (7d)</div>
-                    <div style="font-size:20px;font-weight:800" id="sleepAvgWake">â€”</div>
+                    <div style="font-size:20px;font-weight:800" id="sleepAvgWake">—</div>
                 </div>
             </div>
 
@@ -2522,14 +2528,14 @@
     <div class="modal" id="noteModalContainer">
         <div class="note-grand-header">
             <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:20px;">ðŸ“</span>
+                <span style="font-size:20px;">📝</span>
                 <span class="modal-title" style="margin:0; font-size:16px;">Note Studio</span>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
                 <button class="btn-secondary" id="noteModeBtn" onclick="toggleNoteMode()"
-                        style="padding:6px 12px; font-size:12px;">â˜‘ï¸ Checklist</button>
+                        style="padding:6px 12px; font-size:12px;">☑️ Checklist</button>
                 <button class="btn-secondary" onclick="closeModal('noteModal')"
-                        style="padding:6px 12px; font-size:12px;">âœ•</button>
+                        style="padding:6px 12px; font-size:12px;">✕</button>
             </div>
         </div>
 
@@ -2559,7 +2565,7 @@
         <div class="note-grand-footer">
             <div style="display:flex; align-items:center; gap:16px;">
                 <div id="noteColorPicker" style="display:flex; gap:6px;"></div>
-                <span class="note-meta-stats" id="noteWordCount">0 words Â· 0 chars</span>
+                <span class="note-meta-stats" id="noteWordCount">0 words · 0 chars</span>
             </div>
             <div style="display:flex; gap:10px;">
                 <button class="btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
@@ -2605,11 +2611,11 @@
                     style="display:flex; gap:6px; align-items:center; background:var(--surface); padding:4px 8px; border-radius:8px; border:1px solid var(--border);">
                 <button class="btn-secondary" id="wbToolPen"
                         style="padding:4px 10px; font-size:12px; background:var(--accent); color:#fff;"
-                        onclick="setWbTool('pen')">âœï¸ Pen</button>
+                        onclick="setWbTool('pen')">✏️ Pen</button>
                 <button class="btn-secondary" id="wbToolEraser" style="padding:4px 10px; font-size:12px;"
-                        onclick="setWbTool('eraser')">ðŸ§¹ Eraser</button>
+                        onclick="setWbTool('eraser')">🧹 Eraser</button>
                 <button class="btn-secondary" id="wbToolText" style="padding:4px 10px; font-size:12px;"
-                        onclick="setWbTool('text')">ðŸ”¤ Text</button>
+                        onclick="setWbTool('text')">🔤 Text</button>
                 <input type="color" id="wbColor" value="#000000"
                        style="width:28px; height:28px; border:none; background:none; cursor:pointer;"
                        title="Pen Color">
@@ -2619,11 +2625,11 @@
             <!-- Zoom & Pan Controls -->
             <div
                     style="display:flex; gap:6px; align-items:center; background:var(--surface); padding:4px 8px; border-radius:8px; border:1px solid var(--border);">
-                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(1.2)">ðŸ”
+                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(1.2)">🔍
                     +</button>
-                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(0.8)">ðŸ”
+                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(0.8)">🔍
                     -</button>
-                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="resetWbView()">â†º
+                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="resetWbView()">↺
                     Reset View</button>
                 <span id="wbZoomLevel"
                       style="font-size:11px; color:var(--text2); min-width:40px; text-align:center;">100%</span>
@@ -2631,11 +2637,11 @@
 
             <div style="display:flex; gap:8px;">
                 <button class="btn-secondary" style="padding:6px 12px; font-size:12px;"
-                        onclick="clearWbCanvas()">ðŸ—‘ï¸ Clear</button>
+                        onclick="clearWbCanvas()">🗑️ Clear</button>
                 <button class="btn-primary" style="padding:6px 18px; font-size:12px;"
                         onclick="saveWhiteboardNote()">Save Board</button>
                 <button class="btn-secondary" style="padding:6px 12px; font-size:12px;"
-                        onclick="closeModal('whiteboardModal')">âœ•</button>
+                        onclick="closeModal('whiteboardModal')">✕</button>
             </div>
         </div>
 
@@ -2662,6 +2668,7 @@
                     <option>Midterm</option>
                     <option>Final</option>
                     <option>Presentation</option>
+                    <option>Assignment</option>
                     <option>Project</option>
                     <option>Lab Test</option>
                 </select>

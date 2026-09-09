@@ -290,9 +290,12 @@ body {
     border-radius: var(--radius-sm);
     padding: 14px;
     cursor: pointer;
-    min-height: 80px;
+    height: 175px;
+    max-height: 175px;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
 }
 
 .note-pin-badge {
