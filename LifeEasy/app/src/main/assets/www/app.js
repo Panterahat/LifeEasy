@@ -14,7 +14,7 @@ const STATE = {
     dashHiddenWidgets: ['alarms', 'sleep', 'roadmap', 'specific_account', 'specific_counter', 'specific_note'],
     dashConfig: { accountId: null, counterId: null, noteId: null },
 
-    selectedDate: '', attSelectedDate: '', activeRoadmap: null, activeAccountId: null, taskFilter: 'all', moneyFilter: 'all'
+    selectedDate: '', attSelectedDate: '', activeRoadmap: null, activeAccountId: null, taskFilter: 'active', moneyFilter: 'all'
 };
 
 const WIDGET_DICT = {
@@ -414,6 +414,7 @@ function navTo(screen) {
     if (screen === 'notes') renderNotes();
     if (screen === 'sleep') renderSleep();
     if (screen === 'settings') { renderNavSettings(); renderDashSettings(); }
+    if (screen === 'tasks') { setTaskFilter('active'); }
     if (screen === 'attendance') { STATE.attSelectedDate = fmtDate(new Date()); attCurrentDate = new Date(); renderAttCalendar(); renderAttendance(); }
 
     const fab = document.querySelector('.fab');
@@ -1215,7 +1216,17 @@ function saveTask() {
 }
 function toggleTask(e, id) { if (e) e.stopPropagation(); const t = STATE.tasks.find(x => x.id === id); if (!t) return; t.completed = !t.completed; renderTasks(); renderDashboard(); save(); toast(t.completed ? 'Task done! 🎉' : 'Task reopened'); ofetch('update_task.php', { id, completed: t.completed }); }
 function deleteTask(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this task?')) return; STATE.tasks = STATE.tasks.filter(t => t.id !== id); renderTasks(); renderDashboard(); save(); toast('Task deleted 🗑️'); ofetch('delete_task.php', { id }); }
-function setTaskFilter(f, el) { STATE.taskFilter = f; document.querySelectorAll('#taskFilters .filter-tab').forEach(t => t.classList.remove('active')); el.classList.add('active'); renderTasks(); }
+function setTaskFilter(f, el) {
+    STATE.taskFilter = f || 'active';
+    document.querySelectorAll('#taskFilters .filter-tab').forEach(t => t.classList.remove('active'));
+    if (el) {
+        el.classList.add('active');
+    } else {
+        const tab = document.querySelector(`#taskFilters [data-filter="${STATE.taskFilter}"]`);
+        if (tab) tab.classList.add('active');
+    }
+    renderTasks();
+}
 function renderTasks() {
     let tasks = [...STATE.tasks];
     if (STATE.taskFilter === 'active') tasks = tasks.filter(t => !t.completed); else if (STATE.taskFilter === 'done') tasks = tasks.filter(t => t.completed); else if (STATE.taskFilter === 'high') tasks = tasks.filter(t => t.priority === 2 && !t.completed); else if (STATE.taskFilter === 'work') tasks = tasks.filter(t => t.category === 'Work'); else if (STATE.taskFilter === 'personal') tasks = tasks.filter(t => t.category === 'Personal');
