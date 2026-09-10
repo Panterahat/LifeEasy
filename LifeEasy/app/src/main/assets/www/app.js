@@ -498,7 +498,7 @@ function renderDashboard() {
                     const owedTotal = STATE.money.filter(m => m.type === 'borrowed' && !m.settled).reduce((s, m) => s + parseFloat(m.amount || 0), 0);
                     const netMoney = lentTotal - owedTotal;
                     const netColor = netMoney >= 0 ? 'var(--green)' : 'var(--red)';
-                    wHtml = `<div class="stat-card"><div class="stat-icon">💰</div><div class="stat-num" style="color:${netColor}">${netMoney >= 0 ? '+' : '-'}$${Math.abs(netMoney).toFixed(0)}</div><div class="stat-label">Net Money</div></div>`;
+                    wHtml = `<div class="stat-card"><div class="stat-icon">💰</div><div class="stat-num" style="color:${netColor}">${netMoney >= 0 ? '+' : '-'}${Math.abs(netMoney).toFixed(0)}</div><div class="stat-label">Net Money</div></div>`;
                     break;
                 }
                 case 'active_counters': {
@@ -541,7 +541,7 @@ function renderDashboard() {
                         if (!acc) wHtml = `<div class="stat-card"><div class="stat-icon">💳</div><div class="stat-num" style="font-size:16px; padding:8px 0; color:var(--red);">Deleted</div><div class="stat-label" onclick="STATE.dashConfig.accountId = null; save(); renderDashboard();" style="cursor:pointer; text-decoration:underline;">Reset</div></div>`;
                         else {
                             const bal = typeof getAccountBalance === 'function' ? getAccountBalance(acc.id) : 0;
-                            wHtml = `<div class="stat-card" style="position:relative;"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="STATE.dashConfig.accountId = null; save(); renderDashboard();">⚙️</span><div class="stat-icon">💳</div><div class="stat-num" style="font-size:20px; padding:4px 0; color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};">$${bal.toFixed(0)}</div><div class="stat-label" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${acc.name}</div></div>`;
+                            wHtml = `<div class="stat-card" style="position:relative;"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="STATE.dashConfig.accountId = null; save(); renderDashboard();">⚙️</span><div class="stat-icon">💳</div><div class="stat-num" style="font-size:20px; padding:4px 0; color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};">${bal.toFixed(0)}</div><div class="stat-label" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${acc.name}</div></div>`;
                         }
                     }
                     break;
