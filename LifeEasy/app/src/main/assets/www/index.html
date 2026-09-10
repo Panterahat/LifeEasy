@@ -1850,8 +1850,9 @@
                 <div style="display: flex; gap: 8px;">
                     <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
                             onclick="openCreateFolderModal()">📁 + Folder</button>
-                    <button class="btn-add" onclick="document.getElementById('fileInput').click()">⬆ Upload
-                        File</button>
+                    <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
+                            onclick="document.getElementById('folderInput').click()">📁 Upload Folder</button>
+                    <button class="btn-add" onclick="document.getElementById('fileInput').click()">⬆ Upload Files</button>
                 </div>
             </div>
 
@@ -1866,9 +1867,10 @@
             <div id="dropZone" class="card"
                  style="border: 2px dashed var(--accent); text-align: center; padding: 24px; cursor: pointer; margin-bottom: 16px;"
                  onclick="document.getElementById('fileInput').click()">
-                <p style="margin: 0; font-size: 13px;">Drag &amp; Drop files here or <strong
+                <p style="margin: 0; font-size: 13px;">Drag &amp; Drop files/folders here or <strong
                         style="color:var(--accent);">click to browse</strong></p>
                 <input type="file" id="fileInput" style="display:none" multiple>
+                <input type="file" id="folderInput" style="display:none" webkitdirectory directory multiple>
             </div>
 
             <!-- Upload Progress Card (Hidden by default) -->
@@ -1943,8 +1945,8 @@
                          style="font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">
                         File Preview</div>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <a id="vaultViewerDownloadBtn" href="#" download target="_blank" class="btn-secondary"
-                           style="padding: 6px 12px; font-size: 12px; text-decoration: none;">⬇ Download</a>
+                        <button id="vaultViewerDownloadBtn" class="btn-secondary"
+                           style="padding: 6px 12px; font-size: 12px;">⬇ Download</button>
                         <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
                                 onclick="closeModal('vaultViewerModal')">✕ Close</button>
                     </div>

@@ -17,13 +17,20 @@ import android.net.Uri
 import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
+import android.app.DownloadManager
+import android.content.ContentValues
+import android.os.Environment
+import android.provider.MediaStore
+import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.SslErrorHandler
+import android.webkit.URLUtil
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -31,6 +38,8 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity() {
 
@@ -127,6 +136,11 @@ class MainActivity : AppCompatActivity() {
                     false
                 }
             }
+        }
+
+        webView.setDownloadListener { url, _, contentDisposition, mimetype, _ ->
+            val filename = URLUtil.guessFileName(url, contentDisposition, mimetype)
+            downloadFile(url, filename)
         }
 
         // Load your app from the bundled assets — file:///android_asset/ maps to app/src/main/assets/
@@ -226,6 +240,62 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun downloadFile(url: String, filename: String) {
+        try {
+            val request = DownloadManager.Request(Uri.parse(url)).apply {
+                setTitle(filename)
+                setDescription("Downloading file from LifeEasy Vault...")
+                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename)
+                setAllowedOverMetered(true)
+                setAllowedOverRoaming(true)
+            }
+            val downloadManager = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+            downloadManager.enqueue(request)
+            Toast.makeText(this, "Downloading $filename to Downloads folder... 📥", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(intent)
+            } catch (_: Exception) {
+                Toast.makeText(this, "Download failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    fun downloadBase64File(base64Data: String, filename: String, mimeType: String) {
+        try {
+            val cleanBase64 = if (base64Data.contains(",")) base64Data.substringAfter(",") else base64Data
+            val bytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                    put(MediaStore.Downloads.MIME_TYPE, mimeType)
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                }
+                val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                if (uri != null) {
+                    contentResolver.openOutputStream(uri)?.use { os ->
+                        os.write(bytes)
+                    }
+                    Toast.makeText(this, "Saved $filename to Downloads! 📥", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val file = File(downloadsDir, filename)
+                FileOutputStream(file).use { os ->
+                    os.write(bytes)
+                }
+                Toast.makeText(this, "Saved $filename to Downloads! 📥", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Failed to save file: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
     class AndroidInterface(private val activity: MainActivity) {
         @JavascriptInterface
         fun sendNotification(title: String, message: String) {
@@ -238,6 +308,20 @@ class MainActivity : AppCompatActivity() {
         fun scheduleAlarm(id: Int, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
             activity.runOnUiThread {
                 activity.sendNotification(title, message)
+            }
+        }
+
+        @JavascriptInterface
+        fun downloadFile(url: String, filename: String) {
+            activity.runOnUiThread {
+                activity.downloadFile(url, filename)
+            }
+        }
+
+        @JavascriptInterface
+        fun downloadBase64File(base64Data: String, filename: String, mimeType: String) {
+            activity.runOnUiThread {
+                activity.downloadBase64File(base64Data, filename, mimeType)
             }
         }
     }

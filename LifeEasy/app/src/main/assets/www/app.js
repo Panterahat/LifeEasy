@@ -884,6 +884,7 @@ function renderVault() {
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
                 <button onclick="previewVaultFile('${escapeHtml(f.filename)}', '${f.filepath}')" class="btn-secondary" style="padding:4px 8px; font-size:11px; color:var(--accent2);">View</button>
+                <button onclick="triggerVaultDownload('${escapeHtml(f.filename)}', '${f.filepath}')" class="btn-secondary" style="padding:4px 8px; font-size:11px;" title="Download File">⬇</button>
                 <button onclick="openMoveModal(${f.id})" class="btn-secondary" style="padding:4px 8px; font-size:11px;" title="Move File">📂</button>
                 <button onclick="deleteVaultFile(${f.id}, '${f.filepath}')" style="background:none; border:none; color:var(--red); font-size:15px; cursor:pointer; padding:4px;">🗑</button>
             </div>
@@ -996,12 +997,62 @@ async function confirmMoveVaultFile() {
 document.addEventListener('DOMContentLoaded', () => {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
+    const folderInput = document.getElementById('folderInput');
     if (!dropZone) return;
     dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--green)'; });
     dropZone.addEventListener('dragleave', () => dropZone.style.borderColor = 'var(--accent)');
-    dropZone.addEventListener('drop', e => { e.preventDefault(); uploadFile(e.dataTransfer.files); });
+    dropZone.addEventListener('drop', async e => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--accent)';
+        const files = await getAllFilesFromDataTransfer(e.dataTransfer);
+        if (files && files.length) uploadFile(files);
+    });
     if (fileInput) fileInput.addEventListener('change', () => { if (fileInput.files.length) uploadFile(fileInput.files); });
+    if (folderInput) folderInput.addEventListener('change', () => { if (folderInput.files.length) uploadFile(folderInput.files); });
 });
+
+async function getAllFilesFromDataTransfer(dataTransfer) {
+    const files = [];
+    if (!dataTransfer) return files;
+    const items = dataTransfer.items;
+    if (!items || !items.length) {
+        return Array.from(dataTransfer.files || []);
+    }
+
+    async function traverseEntry(item, path = '') {
+        return new Promise((resolve) => {
+            if (item.isFile) {
+                item.file(file => {
+                    files.push(file);
+                    resolve();
+                });
+            } else if (item.isDirectory) {
+                const dirReader = item.createReader();
+                dirReader.readEntries(async (entries) => {
+                    for (let entry of entries) {
+                        await traverseEntry(entry, path + item.name + '/');
+                    }
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    const promises = [];
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
+        if (item) {
+            promises.push(traverseEntry(item));
+        } else if (items[i].kind === 'file') {
+            const f = items[i].getAsFile();
+            if (f) files.push(f);
+        }
+    }
+    await Promise.all(promises);
+    return files.length ? files : Array.from(dataTransfer.files || []);
+}
 
 function formatFileSize(bytes) {
     if (!bytes || bytes === 0) return '0 B';
@@ -1224,30 +1275,85 @@ async function deleteVaultFile(id, filepath) {
     }
 }
 
+async function triggerVaultDownload(filename, url) {
+    toast(`Preparing download for ${filename}... ⏳`);
+
+    if (window.AndroidInterface && typeof window.AndroidInterface.downloadFile === 'function') {
+        try {
+            window.AndroidInterface.downloadFile(url, filename);
+            return;
+        } catch (e) {
+            console.warn('Native downloadFile failed, using blob fallback:', e);
+        }
+    }
+
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const blob = await res.blob();
+
+        if (window.AndroidInterface && typeof window.AndroidInterface.downloadBase64File === 'function') {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64data = reader.result;
+                window.AndroidInterface.downloadBase64File(base64data, filename, blob.type || 'application/octet-stream');
+            };
+            reader.readAsDataURL(blob);
+            return;
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename || 'downloaded_file';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+        toast(`Downloaded ${filename}! 📥`);
+    } catch (e) {
+        console.warn('Blob download failed, opening URL:', e);
+        window.open(url, '_blank');
+    }
+}
+
 async function previewVaultFile(filename, url) {
     const ext = filename.split('.').pop().toLowerCase();
     const titleEl = document.getElementById('vaultViewerTitle');
     const bodyEl = document.getElementById('vaultViewerBody');
     const downloadBtn = document.getElementById('vaultViewerDownloadBtn');
 
-    titleEl.textContent = filename;
-    downloadBtn.href = url;
-    downloadBtn.setAttribute('download', filename);
+    if (titleEl) titleEl.textContent = filename;
+    if (downloadBtn) {
+        downloadBtn.onclick = (e) => {
+            e.preventDefault();
+            triggerVaultDownload(filename, url);
+        };
+    }
 
+    const imageExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'ico'];
+    const videoExts = ['mp4', 'webm', 'mov', 'mkv', 'avi'];
+    const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
+    const officeExts = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'];
     const codeExtensions = [
         'txt', 'js', 'css', 'html', 'json', 'c', 'cpp', 'h', 'hpp',
-        'py', 'java', 'sql', 'md', 'xml', 'sh', 'bat', 'php', 'ts', 'jsx', 'tsx'
+        'py', 'java', 'sql', 'md', 'xml', 'sh', 'bat', 'php', 'ts', 'jsx', 'tsx', 'csv'
     ];
 
-    if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext)) {
-        bodyEl.innerHTML = `<img src="${url}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:4px;" alt="${escapeHtml(filename)}">`;
+    if (imageExts.includes(ext)) {
+        bodyEl.innerHTML = `<img src="${url}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:8px;" alt="${escapeHtml(filename)}">`;
+    } else if (videoExts.includes(ext)) {
+        bodyEl.innerHTML = `<video src="${url}" controls autoplay style="max-width:100%; max-height:100%; border-radius:8px; outline:none;"></video>`;
+    } else if (audioExts.includes(ext)) {
+        bodyEl.innerHTML = `<div style="text-align:center; padding:30px; background:var(--surface); border-radius:16px; border:1px solid var(--border);"><div style="font-size:52px; margin-bottom:16px;">🎵</div><div style="font-weight:700; font-size:15px; margin-bottom:12px;">${escapeHtml(filename)}</div><audio src="${url}" controls autoplay style="width:100%; min-width:280px;"></audio></div>`;
     } else if (ext === 'pdf') {
-        bodyEl.innerHTML = `<iframe src="${url}#toolbar=1" style="width:100%; height:100%; border:none;" title="${escapeHtml(filename)}"></iframe>`;
-    } else if (['ppt', 'pptx'].includes(ext)) {
+        const gDocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+        bodyEl.innerHTML = `<iframe src="${gDocsUrl}" style="width:100%; height:100%; border:none; background:#fff;" title="${escapeHtml(filename)}"></iframe>`;
+    } else if (officeExts.includes(ext)) {
         const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
-        bodyEl.innerHTML = `<iframe src="${officeViewerUrl}" style="width:100%; height:100%; border:none;" title="${escapeHtml(filename)}"></iframe>`;
+        bodyEl.innerHTML = `<iframe src="${officeViewerUrl}" style="width:100%; height:100%; border:none; background:#fff;" title="${escapeHtml(filename)}"></iframe>`;
     } else if (codeExtensions.includes(ext)) {
-        bodyEl.innerHTML = `<div style="color:var(--text2); font-size:13px;">Loading source file... ⏳</div>`;
+        bodyEl.innerHTML = `<div style="color:var(--text2); font-size:13px;">Loading text content... ⏳</div>`;
         document.getElementById('vaultViewerModal').classList.add('open');
 
         try {
@@ -1264,15 +1370,15 @@ async function previewVaultFile(filename, url) {
             bodyEl.innerHTML = `
                 <div style="text-align:center; padding:20px;">
                     <p style="font-size:13px; color:var(--red); margin-bottom:12px;">Failed to load file text.</p>
-                    <a href="${url}" download class="btn-primary" style="display:inline-block; text-decoration:none; padding:8px 16px;">Download File</a>
+                    <button onclick="triggerVaultDownload('${escapeHtml(filename)}', '${url}')" class="btn-primary" style="padding:8px 16px;">⬇ Download File</button>
                 </div>`;
         }
         return;
     } else {
         bodyEl.innerHTML = `
             <div style="text-align:center; padding:20px;">
-                <p style="font-size:14px; margin-bottom:12px;">This file format (<strong>.${ext}</strong>) cannot be previewed directly.</p>
-                <a href="${url}" download class="btn-primary" style="display:inline-block; text-decoration:none; padding:10px 20px;">Download to View</a>
+                <p style="font-size:14px; margin-bottom:12px;">No live preview for <strong>.${ext}</strong> files.</p>
+                <button onclick="triggerVaultDownload('${escapeHtml(filename)}', '${url}')" class="btn-primary" style="padding:10px 20px;">⬇ Download File</button>
             </div>`;
     }
 
