@@ -390,7 +390,7 @@ function renderAll() {
 }
 
 // ============================================================
-// UI ROUTING
+// UI ROUTING & ANDROID BACK GESTURE ENGINE
 // ============================================================
 function navTo(screen) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -403,10 +403,16 @@ function navTo(screen) {
     renderNavbar();
 
     if (screen === 'roadmap') {
-        document.getElementById('roadmapList-view').style.display = 'block'; document.getElementById('roadmapDetail-view').style.display = 'none'; STATE.activeRoadmap = null;
+        const rList = document.getElementById('roadmapList-view');
+        const rDetail = document.getElementById('roadmapDetail-view');
+        if (rList) rList.style.display = 'block';
+        if (rDetail) rDetail.style.display = 'none';
+        STATE.activeRoadmap = null;
     }
     if (screen !== 'expenses') {
-        STATE.activeAccountId = null; const dv = document.getElementById('transactionDetailView'); if (dv) dv.style.display = 'none';
+        STATE.activeAccountId = null;
+        const dv = document.getElementById('transactionDetailView');
+        if (dv) dv.style.display = 'none';
     }
 
     if (screen === 'dash') renderDashboard();
@@ -419,6 +425,67 @@ function navTo(screen) {
 
     const fab = document.querySelector('.fab');
     if (fab) fab.style.display = (screen === 'expenses' || screen === 'vault' || screen === 'settings' || screen === 'notes' || screen === 'sleep') ? 'none' : 'flex';
+}
+
+function handleAndroidBack() {
+    try {
+        // 1. Check Standby Mode (Zen Clock)
+        const standbyEl = document.getElementById('zenStandby');
+        if (standbyEl && standbyEl.style.display === 'flex') {
+            exitStandby();
+            return 'handled';
+        }
+
+        // 2. Check open Modals / Overlays
+        const openModals = Array.from(document.querySelectorAll('.modal-overlay.open, .modal.open'));
+        if (openModals.length > 0) {
+            const topModal = openModals[openModals.length - 1];
+            if (topModal.id) {
+                closeModal(topModal.id);
+            } else {
+                topModal.classList.remove('open');
+            }
+            return 'handled';
+        }
+
+        // 3. Check Vault sub-folder navigation
+        if (typeof currentVaultFolderId !== 'undefined' && currentVaultFolderId !== null) {
+            navigateVaultFolder(null);
+            return 'handled';
+        }
+
+        // 4. Check Money transaction detail view
+        const txDetail = document.getElementById('transactionDetailView');
+        if (txDetail && txDetail.style.display === 'block') {
+            txDetail.style.display = 'none';
+            if (typeof STATE !== 'undefined') STATE.activeAccountId = null;
+            if (typeof renderExpenses === 'function') renderExpenses();
+            return 'handled';
+        }
+
+        // 5. Check Roadmap detail view
+        const rmDetail = document.getElementById('roadmapDetail-view');
+        if (rmDetail && rmDetail.style.display === 'block') {
+            const rmList = document.getElementById('roadmapList-view');
+            if (rmList) rmList.style.display = 'block';
+            rmDetail.style.display = 'none';
+            if (typeof STATE !== 'undefined') STATE.activeRoadmap = null;
+            return 'handled';
+        }
+
+        // 6. Check Active Screen (If on any sub-screen, go directly to Home Dashboard)
+        const activeScreen = document.querySelector('.screen.active');
+        if (activeScreen && activeScreen.id !== 'screen-dash') {
+            navTo('dash');
+            return 'handled';
+        }
+
+        // 7. Already at Home Dashboard with no overlays open -> Exit app
+        return 'exit';
+    } catch (e) {
+        console.error('Error in handleAndroidBack:', e);
+        return 'exit';
+    }
 }
 
 function handleFabClick() {
