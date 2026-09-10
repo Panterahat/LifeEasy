@@ -435,12 +435,16 @@ function navTo(screen) {
     if (screen === 'notes') renderNotes();
     if (screen === 'sleep') renderSleep();
     if (screen === 'links') renderLinks();
-    if (screen === 'settings') { renderNavSettings(); renderDashSettings(); if (typeof renderDailyReminders === 'function') renderDailyReminders(); }
+    if (screen.startsWith('settings')) {
+        if (typeof renderNavSettings === 'function') renderNavSettings();
+        if (typeof renderDashSettings === 'function') renderDashSettings();
+        if (typeof renderDailyReminders === 'function') renderDailyReminders();
+    }
     if (screen === 'tasks') { setTaskFilter('active'); }
     if (screen === 'attendance') { STATE.attSelectedDate = fmtDate(new Date()); attCurrentDate = new Date(); renderAttCalendar(); renderAttendance(); }
 
     const fab = document.querySelector('.fab');
-    if (fab) fab.style.display = (screen === 'expenses' || screen === 'vault' || screen === 'settings' || screen === 'notes' || screen === 'sleep') ? 'none' : 'flex';
+    if (fab) fab.style.display = (screen === 'expenses' || screen === 'vault' || screen.startsWith('settings') || screen === 'notes' || screen === 'sleep') ? 'none' : 'flex';
 }
 
 function handleAndroidBack() {
@@ -489,8 +493,12 @@ function handleAndroidBack() {
             return 'handled';
         }
 
-        // 6. Check Active Screen (If on any sub-screen, go directly to Home Dashboard)
+        // 6. Check Active Screen (If on Settings sub-screen, return to main Settings menu)
         const activeScreen = document.querySelector('.screen.active');
+        if (activeScreen && activeScreen.id.startsWith('screen-settings-')) {
+            navTo('settings');
+            return 'handled';
+        }
         if (activeScreen && activeScreen.id !== 'screen-dash') {
             navTo('dash');
             return 'handled';

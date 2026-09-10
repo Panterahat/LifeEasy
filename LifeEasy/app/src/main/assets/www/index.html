@@ -1958,16 +1958,16 @@
             </div>
         </div>
 
-        <!-- settings -->
-
+        <!-- MAIN SETTINGS SCREEN -->
         <div class="screen" id="screen-settings">
             <div class="section-header">
                 <div class="section-title">Settings</div>
             </div>
 
-            <div class="card">
-                <div class="section-title" style="margin-bottom:15px;">Appearance</div>
-                <div class="form-row">
+            <!-- Appearance -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="section-title" style="margin-bottom:12px;">Appearance</div>
+                <div class="form-row" style="margin-bottom:0;">
                     <label class="label">Theme Mode</label>
                     <select class="input" id="themeSelect" onchange="toggleTheme(this.value)">
                         <option value="light">Light Mode</option>
@@ -1976,9 +1976,71 @@
                 </div>
             </div>
 
-            <!-- DAILY REMINDERS CARD -->
+            <!-- Customize Navigation Button Card -->
+            <div class="card" style="margin-bottom:16px; cursor:pointer;" onclick="navTo('settings-nav')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--text);">🧭 Customize Navigation</div>
+                        <div style="font-size:12px; color:var(--text2); margin-top:2px;">Rearrange or hide bottom menu tabs</div>
+                    </div>
+                    <span style="font-size:18px; color:var(--text3);">→</span>
+                </div>
+            </div>
+
+            <!-- Dashboard Widgets Button Card -->
+            <div class="card" style="margin-bottom:16px; cursor:pointer;" onclick="navTo('settings-dash')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--text);">📊 Dashboard Widgets</div>
+                        <div style="font-size:12px; color:var(--text2); margin-top:2px;">Rearrange or hide home screen widgets</div>
+                    </div>
+                    <span style="font-size:18px; color:var(--text3);">→</span>
+                </div>
+            </div>
+
+            <!-- Daily Reminders Button Card -->
+            <div class="card" style="margin-bottom:16px; cursor:pointer;" onclick="navTo('settings-reminders')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--text);">🔔 Daily Reminders</div>
+                        <div style="font-size:12px; color:var(--text2); margin-top:2px;">Manage daily recurring notifications</div>
+                    </div>
+                    <span style="font-size:18px; color:var(--text3);">→</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CUSTOMIZE NAVIGATION SUB-SCREEN -->
+        <div class="screen" id="screen-settings-nav">
+            <div class="back-btn" onclick="navTo('settings')">← Back to Settings</div>
+            <div class="section-header">
+                <div class="section-title">Customize Navigation</div>
+            </div>
             <div class="card">
-                <div class="section-title" style="margin-bottom:12px;">Daily Reminders</div>
+                <p style="font-size:12px; color:var(--text2); margin-bottom:14px;">Rearrange your menu or hide modules you don't use.</p>
+                <div id="navSettingsList"></div>
+            </div>
+        </div>
+
+        <!-- DASHBOARD WIDGETS SUB-SCREEN -->
+        <div class="screen" id="screen-settings-dash">
+            <div class="back-btn" onclick="navTo('settings')">← Back to Settings</div>
+            <div class="section-header">
+                <div class="section-title">Dashboard Widgets</div>
+            </div>
+            <div class="card">
+                <p style="font-size:12px; color:var(--text2); margin-bottom:14px;">Rearrange or hide modules on your home screen.</p>
+                <div id="dashSettingsList"></div>
+            </div>
+        </div>
+
+        <!-- DAILY REMINDERS SUB-SCREEN -->
+        <div class="screen" id="screen-settings-reminders">
+            <div class="back-btn" onclick="navTo('settings')">← Back to Settings</div>
+            <div class="section-header">
+                <div class="section-title">Daily Reminders</div>
+            </div>
+            <div class="card">
                 <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Set recurring daily notifications for prayers, habits, or routines.</p>
 
                 <div class="form-row">
@@ -1994,21 +2056,6 @@
                 <button class="btn-primary" style="width:100%; margin-bottom:16px;" onclick="addDailyReminder()">+ Add Daily Reminder 🔔</button>
 
                 <div id="dailyRemindersList" style="display:flex; flex-direction:column; gap:8px;"></div>
-            </div>
-
-            <!-- ADD THIS NEW CARD -->
-            <div class="card">
-                <div class="section-title" style="margin-bottom:15px;">Customize Navigation</div>
-                <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Rearrange your menu or hide
-                    modules you don't use.</p>
-                <div id="navSettingsList"></div>
-            </div>
-
-            <div class="card">
-                <div class="section-title" style="margin-bottom:15px;">Dashboard Widgets</div>
-                <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Rearrange or hide modules on your
-                    home screen.</p>
-                <div id="dashSettingsList"></div>
             </div>
         </div>
 
