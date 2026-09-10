@@ -449,6 +449,13 @@ function navTo(screen) {
 
 function handleAndroidBack() {
     try {
+        // 0. Check Side Navigation Drawer
+        const sideDrawer = document.getElementById('sideNavDrawer');
+        if (sideDrawer && sideDrawer.classList.contains('open')) {
+            closeSideNav();
+            return 'handled';
+        }
+
         // 1. Check Standby Mode (Zen Clock)
         const standbyEl = document.getElementById('zenStandby');
         if (standbyEl && standbyEl.style.display === 'flex') {
@@ -3470,13 +3477,80 @@ function resetPomodoro() { isPomoRunning = false; clearInterval(standbyPomoInter
 function updatePomoDisplay() { const m = Math.floor(pomoTimeLeft / 60); const s = pomoTimeLeft % 60; document.getElementById('zenPomoDisplay').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; const C = 282.74; const offset = C - (pomoTimeLeft / (25 * 60)) * C; document.getElementById('zenPomoRing').style.strokeDasharray = C; document.getElementById('zenPomoRing').style.strokeDashoffset = offset; }
 
 // ============================================================
-// DYNAMIC NAVIGATION ENGINE
+// DYNAMIC NAVIGATION & SIDE DRAWER ENGINE
 // ============================================================
-function renderNavbar() {
-    const nav = document.getElementById('mainBottomNav');
-    if (!nav) return;
+function setNavLayoutMode(mode) {
+    STATE.navLayoutMode = mode;
+    save();
+    applyNavLayoutMode();
+    renderNavbar();
+    renderNavSettings();
+    toast(`Navigation set to ${mode === 'side' ? 'Side Panel' : mode === 'bottom' ? 'Bottom Bar' : 'Both (Bottom + Side)'}! 🧭`);
+}
 
-    // SAFETY CHECK: If old save data wiped the preferences, rebuild them instantly
+function applyNavLayoutMode() {
+    const mode = STATE.navLayoutMode || 'both';
+    const nav = document.getElementById('mainBottomNav');
+    const dotBtns = document.querySelectorAll('.menu-dots-btn');
+    const bottomNavCard = document.getElementById('bottomNavSelectionCard');
+
+    if (nav) {
+        if (mode === 'side') {
+            nav.classList.add('nav-hidden');
+            nav.classList.remove('nav-mode-both');
+        } else if (mode === 'bottom') {
+            nav.classList.remove('nav-hidden');
+            nav.classList.remove('nav-mode-both');
+        } else if (mode === 'both') {
+            nav.classList.remove('nav-hidden');
+            nav.classList.add('nav-mode-both');
+        }
+    }
+
+    dotBtns.forEach(btn => {
+        if (mode === 'bottom') {
+            btn.style.display = 'none';
+        } else {
+            btn.style.display = 'inline-flex';
+        }
+    });
+
+    if (bottomNavCard) {
+        bottomNavCard.style.display = (mode === 'both') ? 'block' : 'none';
+    }
+
+    const sel = document.getElementById('navLayoutSelect');
+    if (sel) sel.value = mode;
+}
+
+function openSideNav() {
+    const drawer = document.getElementById('sideNavDrawer');
+    const overlay = document.getElementById('sideNavOverlay');
+    if (drawer) drawer.classList.add('open');
+    if (overlay) overlay.classList.add('open');
+    renderSideNavItems();
+}
+
+function closeSideNav() {
+    const drawer = document.getElementById('sideNavDrawer');
+    const overlay = document.getElementById('sideNavOverlay');
+    if (drawer) drawer.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+}
+
+function toggleSideNav() {
+    const drawer = document.getElementById('sideNavDrawer');
+    if (drawer && drawer.classList.contains('open')) {
+        closeSideNav();
+    } else {
+        openSideNav();
+    }
+}
+
+function renderSideNavItems() {
+    const body = document.getElementById('sideNavBody');
+    if (!body) return;
+
     if (!STATE.navPreferences || STATE.navPreferences.length === 0) {
         STATE.navPreferences = Object.keys(NAV_MODULES);
         STATE.hiddenNavModules = [];
@@ -3485,7 +3559,6 @@ function renderNavbar() {
 
     if (!STATE.hiddenNavModules) STATE.hiddenNavModules = [];
 
-    // Ensure 'links' module is present in navPreferences if not hidden
     if (!STATE.navPreferences.includes('links') && !STATE.hiddenNavModules.includes('links')) {
         const idx = STATE.navPreferences.indexOf('academic');
         if (idx !== -1) STATE.navPreferences.splice(idx + 1, 0, 'links');
@@ -3493,21 +3566,117 @@ function renderNavbar() {
         save();
     }
 
-    // Filter out any ghost/deleted modules
+    const mode = STATE.navLayoutMode || 'both';
     const safeNavs = STATE.navPreferences.filter(key => NAV_MODULES[key]);
 
-    nav.innerHTML = safeNavs.map(key => {
+    const defaultBottomItems = ['dash', 'planner', 'tasks', 'money', 'links'];
+    const currentBottomItems = STATE.bottomNavItems || defaultBottomItems;
+
+    const sideDrawerKeys = mode === 'both'
+        ? safeNavs.filter(k => !currentBottomItems.includes(k))
+        : safeNavs;
+
+    if (sideDrawerKeys.length === 0) {
+        body.innerHTML = '<div style="font-size:12px; color:var(--text3); text-align:center; padding:16px;">All items are in the bottom bar!</div>';
+        return;
+    }
+
+    body.innerHTML = sideDrawerKeys.map(key => {
         const mod = NAV_MODULES[key];
         const isActive = currentScreen === key ? 'active' : '';
         return `
-        <div class="nav-item ${isActive}" onclick="navTo('${key}')">
-            <div class="nav-icon">${mod.icon}</div>
-            <div class="nav-label">${mod.label}</div>
-        </div>`;
+            <div class="drawer-item ${isActive}" onclick="navTo('${key}'); closeSideNav();">
+                <span class="drawer-icon">${mod.icon}</span>
+                <span>${mod.label}</span>
+            </div>
+        `;
     }).join('');
 }
 
+function renderNavbar() {
+    applyNavLayoutMode();
+
+    const mode = STATE.navLayoutMode || 'both';
+    const nav = document.getElementById('mainBottomNav');
+    if (!nav) return;
+
+    if (!STATE.navPreferences || STATE.navPreferences.length === 0) {
+        STATE.navPreferences = Object.keys(NAV_MODULES);
+        STATE.hiddenNavModules = [];
+        save();
+    }
+
+    if (!STATE.hiddenNavModules) STATE.hiddenNavModules = [];
+
+    if (!STATE.bottomNavItems || STATE.bottomNavItems.length === 0) {
+        STATE.bottomNavItems = ['dash', 'planner', 'tasks', 'money', 'links'];
+    }
+
+    const safeNavs = STATE.navPreferences.filter(key => NAV_MODULES[key]);
+
+    if (mode === 'bottom' || mode === 'both') {
+        const bottomNavKeys = mode === 'both'
+            ? safeNavs.filter(k => STATE.bottomNavItems.includes(k))
+            : safeNavs;
+
+        nav.innerHTML = bottomNavKeys.map(key => {
+            const mod = NAV_MODULES[key];
+            const isActive = currentScreen === key ? 'active' : '';
+            return `
+                <div class="nav-item ${isActive}" onclick="navTo('${key}')">
+                    <div class="nav-icon">${mod.icon}</div>
+                    <div class="nav-label">${mod.label}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    renderSideNavItems();
+}
+
+function renderBottomNavSelectionSettings() {
+    const el = document.getElementById('bottomNavSelectionList');
+    if (!el) return;
+
+    if (!STATE.bottomNavItems || !STATE.bottomNavItems.length) {
+        STATE.bottomNavItems = ['dash', 'planner', 'tasks', 'money', 'links'];
+    }
+
+    const enabledNavs = (STATE.navPreferences || []).filter(key => NAV_MODULES[key]);
+
+    el.innerHTML = enabledNavs.map(key => {
+        const mod = NAV_MODULES[key];
+        const isChecked = STATE.bottomNavItems.includes(key);
+        return `
+            <label style="display:flex; align-items:center; justify-content:space-between; background:var(--surface2); padding:10px 14px; border-radius:10px; border:1px solid var(--border); cursor:pointer;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:18px;">${mod.icon}</span>
+                    <span style="font-size:13px; font-weight:600;">${mod.label}</span>
+                </div>
+                <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleBottomNavItem('${key}')" style="width:18px; height:18px; cursor:pointer;">
+            </label>
+        `;
+    }).join('');
+}
+
+function toggleBottomNavItem(key) {
+    if (!STATE.bottomNavItems) STATE.bottomNavItems = ['dash', 'planner', 'tasks', 'money', 'links'];
+
+    if (STATE.bottomNavItems.includes(key)) {
+        if (STATE.bottomNavItems.length <= 1) return toast('Bottom bar must have at least 1 item');
+        STATE.bottomNavItems = STATE.bottomNavItems.filter(k => k !== key);
+    } else {
+        if (STATE.bottomNavItems.length >= 6) return toast('Maximum 6 items allowed in bottom bar');
+        STATE.bottomNavItems.push(key);
+    }
+
+    save();
+    renderNavbar();
+    renderBottomNavSelectionSettings();
+}
+
 function renderNavSettings() {
+    if (typeof renderBottomNavSelectionSettings === 'function') renderBottomNavSelectionSettings();
     const el = document.getElementById('navSettingsList');
     if (!el) return;
 

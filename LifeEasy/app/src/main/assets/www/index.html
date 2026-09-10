@@ -1813,7 +1813,10 @@
 <div id="app" style="display:none">
     <!-- TOP BAR -->
     <div class="topbar">
-        <div class="topbar-title">Life<span>Easy</span></div>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <button class="menu-dots-btn" onclick="openSideNav()" title="Menu">⋮</button>
+            <div class="topbar-title">Life<span>Easy</span></div>
+        </div>
         <div class="topbar-right" style="display: flex; gap: 10px; align-items: center;">
             <div class="topbar-date" id="topbarDate"></div>
 
@@ -2016,6 +2019,27 @@
             <div class="section-header">
                 <div class="section-title">Customize Navigation</div>
             </div>
+
+            <!-- Navigation Style Selector -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="section-title" style="margin-bottom:12px;">Navigation Style</div>
+                <div class="form-row" style="margin-bottom:0;">
+                    <label class="label">Layout Mode</label>
+                    <select class="input" id="navLayoutSelect" onchange="setNavLayoutMode(this.value)">
+                        <option value="side">Side Panel Only (3-dot Menu)</option>
+                        <option value="bottom">Bottom Navigation Bar Only</option>
+                        <option value="both">Both (Bottom Bar + Side Panel)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Bottom Bar Selector Card (Visible when Both Mode is active) -->
+            <div class="card" id="bottomNavSelectionCard" style="margin-bottom:16px; display:none;">
+                <div class="section-title" style="margin-bottom:10px;">Bottom Bar Tabs (Both Mode)</div>
+                <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Select up to 6 tabs to display on the bottom bar in 1 line. Remaining tabs will be in the side panel.</p>
+                <div id="bottomNavSelectionList" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+
             <div class="card">
                 <p style="font-size:12px; color:var(--text2); margin-bottom:14px;">Rearrange your menu or hide modules you don't use.</p>
                 <div id="navSettingsList"></div>
@@ -2385,9 +2409,25 @@
     <div class="fab" onclick="handleFabClick()">+</div>
 
     <!-- BOTTOM NAV -->
-    <nav class="bottom-nav" id="mainBottomNav">
-        <!-- Items injected dynamically by app.js -->
-    </nav>
+    <nav class="bottom-nav" id="mainBottomNav"></nav>
+
+    <!-- SIDE NAVIGATION OVERLAY & DRAWER -->
+    <div id="sideNavOverlay" class="drawer-overlay" onclick="closeSideNav()"></div>
+    <div id="sideNavDrawer" class="side-drawer">
+        <div class="drawer-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:24px;">🚀</span>
+                <div>
+                    <div class="drawer-title">LifeEasy</div>
+                    <div style="font-size:11px; color:var(--text2); font-weight:600;">Personal Assistant</div>
+                </div>
+            </div>
+            <button class="drawer-close-btn" onclick="closeSideNav()">✕</button>
+        </div>
+        <div class="drawer-body" id="sideNavBody">
+            <!-- Injected dynamically by app.js -->
+        </div>
+    </div>
 </div><!-- /app -->
 
 <!-- TOAST -->
