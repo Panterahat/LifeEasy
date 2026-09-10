@@ -1003,10 +1003,114 @@ document.addEventListener('DOMContentLoaded', () => {
     if (fileInput) fileInput.addEventListener('change', () => { if (fileInput.files.length) uploadFile(fileInput.files); });
 });
 
+function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function showVaultUploadProgress(fileName, fileIndex, totalFiles, percent, loadedBytes, totalBytes, statusMessage, isError = false) {
+    const container = document.getElementById('vaultUploadProgressContainer');
+    if (!container) return;
+
+    container.style.display = 'block';
+
+    const iconEl = document.getElementById('vaultUploadIcon');
+    const nameEl = document.getElementById('vaultUploadFileName');
+    const percentEl = document.getElementById('vaultUploadPercent');
+    const barEl = document.getElementById('vaultUploadProgressBar');
+    const statusEl = document.getElementById('vaultUploadStatusText');
+    const countEl = document.getElementById('vaultUploadFileCount');
+
+    if (nameEl) nameEl.textContent = fileName || 'Uploading file...';
+    if (percentEl) percentEl.textContent = `${percent}%`;
+
+    if (barEl) {
+        barEl.style.width = `${percent}%`;
+        if (isError) {
+            barEl.style.background = 'var(--red)';
+        } else if (percent === 100) {
+            barEl.style.background = 'var(--green)';
+        } else {
+            barEl.style.background = 'linear-gradient(90deg, var(--accent), var(--accent2))';
+        }
+    }
+
+    if (iconEl) {
+        iconEl.textContent = isError ? '❌' : (percent === 100 ? '✅' : '⏳');
+    }
+
+    if (countEl) {
+        countEl.textContent = totalFiles > 1 ? `File ${fileIndex} of ${totalFiles}` : (loadedBytes && totalBytes ? `${formatFileSize(loadedBytes)} / ${formatFileSize(totalBytes)}` : '1 file');
+    }
+
+    if (statusEl) {
+        statusEl.textContent = statusMessage || (percent === 100 ? 'Saving file details...' : `Uploading (${percent}%)...`);
+        statusEl.style.color = isError ? 'var(--red)' : 'var(--text3)';
+    }
+}
+
+function hideVaultUploadProgress(delay = 1500) {
+    setTimeout(() => {
+        const container = document.getElementById('vaultUploadProgressContainer');
+        if (container) {
+            container.style.display = 'none';
+            const barEl = document.getElementById('vaultUploadProgressBar');
+            if (barEl) barEl.style.width = '0%';
+        }
+    }, delay);
+}
+
+async function uploadVaultFileWithProgress(file, generatedName, onProgress) {
+    const { data: sessionData } = await supabaseClient.auth.getSession();
+    const token = sessionData?.session?.access_token || supabaseAnonKey;
+    const url = `${supabaseUrl}/storage/v1/object/vault/${encodeURIComponent(generatedName)}`;
+
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.setRequestHeader('apikey', supabaseAnonKey);
+        xhr.setRequestHeader('x-upsert', 'true');
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+        if (xhr.upload) {
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable && typeof onProgress === 'function') {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    onProgress(percent, e.loaded, e.total);
+                }
+            };
+        }
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    resolve(res);
+                } catch (e) {
+                    resolve({ Key: generatedName });
+                }
+            } else {
+                reject(new Error(`Storage Upload Failed (${xhr.status}): ${xhr.responseText}`));
+            }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during file upload'));
+        xhr.ontimeout = () => reject(new Error('Upload timed out'));
+
+        xhr.send(file);
+    });
+}
+
 async function uploadFile(files) {
     if (!files || !files.length) return;
     const dz = document.getElementById('dropZone');
     if (dz) dz.style.borderColor = 'var(--accent2)';
+
+    const totalFiles = files.length;
 
     try {
         const { data: sessionData } = await supabaseClient.auth.getSession();
@@ -1017,8 +1121,43 @@ async function uploadFile(files) {
             const fileExt = file.name.split('.').pop();
             const generatedName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-            const { data: sData, error: sErr } = await supabaseClient.storage.from('vault').upload(generatedName, file);
-            if (sErr) throw sErr;
+            showVaultUploadProgress(
+                file.name,
+                i + 1,
+                totalFiles,
+                0,
+                0,
+                file.size,
+                `Uploading ${file.name}...`
+            );
+
+            try {
+                await uploadVaultFileWithProgress(file, generatedName, (percent, loaded, total) => {
+                    showVaultUploadProgress(
+                        file.name,
+                        i + 1,
+                        totalFiles,
+                        percent,
+                        loaded,
+                        total,
+                        `Uploading... (${percent}%)`
+                    );
+                });
+            } catch (xhrErr) {
+                console.warn('XHR Upload failed, falling back to SDK upload:', xhrErr);
+                const { data: sData, error: sErr } = await supabaseClient.storage.from('vault').upload(generatedName, file);
+                if (sErr) throw sErr;
+            }
+
+            showVaultUploadProgress(
+                file.name,
+                i + 1,
+                totalFiles,
+                100,
+                file.size,
+                file.size,
+                'Saving to Vault database...'
+            );
 
             const { data: urlObj } = supabaseClient.storage.from('vault').getPublicUrl(generatedName);
 
@@ -1037,12 +1176,33 @@ async function uploadFile(files) {
 
         save();
         if (dz) dz.style.borderColor = 'var(--accent)';
+        showVaultUploadProgress(
+            'Upload Complete!',
+            totalFiles,
+            totalFiles,
+            100,
+            0,
+            0,
+            `Successfully uploaded ${totalFiles} file${totalFiles > 1 ? 's' : ''}! 🎉`
+        );
         toast('Uploaded & Saved to Vault! 🔒');
         renderVault();
+        hideVaultUploadProgress(2000);
     } catch (err) {
         if (dz) dz.style.borderColor = 'var(--accent)';
         console.error('Upload Error:', err);
-        alert('Upload failed: ' + (err.message || err));
+        showVaultUploadProgress(
+            'Upload Failed',
+            1,
+            totalFiles,
+            0,
+            0,
+            0,
+            `Error: ${err.message || err}`,
+            true
+        );
+        toast('Upload failed ❌');
+        hideVaultUploadProgress(4000);
     }
 }
 
