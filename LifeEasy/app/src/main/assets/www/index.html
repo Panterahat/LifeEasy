@@ -1817,11 +1817,7 @@
             <button class="menu-dots-btn" onclick="openSideNav()" title="Menu">⋮</button>
             <div class="topbar-title">Life<span>Easy</span></div>
         </div>
-        <div class="topbar-right" style="display: flex; gap: 10px; align-items: center;">
-            <div class="topbar-date" id="topbarDate"></div>
-
-            <button onclick="navTo('settings')"
-                    style="background:none; border:none; color:var(--text2); font-size:18px; cursor:pointer;">⚙️</button>
+        <div class="topbar-right" style="display: flex; gap: 8px; align-items: center;">
             <button
                     style="background:rgba(124,110,245,0.15); color:var(--accent); border:1px solid rgba(124,110,245,0.3); padding:6px 12px; border-radius:8px; font-weight:600; cursor:pointer;"
                     onclick="openStandby()">🕰️ Standby</button>
@@ -1839,9 +1835,10 @@
         <!-- DASHBOARD -->
         <div class="screen active" id="screen-dash">
             <div class="greeting" id="greeting">Good morning 👋</div>
-            <div class="greeting-sub" id="greetingSub">Here's your day at a glance</div>
+            <div class="greeting-sub" id="greetingDate" style="font-size:13px; font-weight:700; color:var(--accent); margin-top:2px;">friday - 11-09-2026</div>
+            <div class="greeting-sub" id="greetingSub" style="font-size:12px; color:var(--text2); margin-top:4px;">enjoy holiday, make good use of free time</div>
 
-            <div id="dashWidgetZone" style="display: flex; flex-direction: column;">
+            <div id="dashWidgetZone" style="display: flex; flex-direction: column; margin-top: 16px;">
                 <!-- Lego Widgets injected dynamically here -->
             </div>
         </div>

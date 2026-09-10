@@ -531,12 +531,86 @@ function handleFabClick() {
     else openTaskModal();
 }
 
+async function updateAuthButton() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (!logoutBtn) return;
+
+    try {
+        const { data } = await supabaseClient.auth.getSession();
+        const session = data?.session;
+        if (session && session.user) {
+            logoutBtn.textContent = 'Log Out';
+            logoutBtn.style.background = 'rgba(245, 100, 124, 0.15)';
+            logoutBtn.style.color = 'var(--red)';
+            logoutBtn.onclick = logoutUser;
+        } else {
+            logoutBtn.textContent = 'Log In';
+            logoutBtn.style.background = 'rgba(93, 232, 193, 0.15)';
+            logoutBtn.style.color = 'var(--green)';
+            logoutBtn.onclick = openAuthModal;
+        }
+    } catch (e) {
+        logoutBtn.textContent = 'Log In';
+        logoutBtn.onclick = openAuthModal;
+    }
+}
+
+function openAuthModal() {
+    const modal = document.getElementById('authModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        if (typeof switchAuthTab === 'function') switchAuthTab('login');
+    }
+}
+
 function updateGreeting() {
-    const h = new Date().getHours(); const g = h < 12 ? 'Good morning 👋' : h < 17 ? 'Good afternoon ☀️' : 'Good evening 🌙';
-    document.getElementById('greeting').textContent = g;
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    document.getElementById('greetingSub').textContent = `${days[new Date().getDay()]} — let's get things done`;
-    document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' });
+    const now = new Date();
+    const h = now.getHours();
+    const dayName = now.toLocaleDateString('en', { weekday: 'long' }).toLowerCase();
+    const dayOfWeek = now.getDay();
+
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const dateFormatted = `${dayName} - ${dd}-${mm}-${yyyy}`;
+
+    let greetingText = '';
+    let subText = '';
+
+    if (h >= 0 && h < 5) {
+        greetingText = 'Working Late? 🌙';
+        subText = "don't stay up too late, rest is important! 😴";
+    } else if (h >= 5 && h < 12) {
+        greetingText = 'Good Morning 👋';
+        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0) {
+            subText = 'enjoy holiday, make good use of free time';
+        } else {
+            subText = 'make today count and stay focused!';
+        }
+    } else if (h >= 12 && h < 17) {
+        greetingText = 'Good Afternoon ☀️';
+        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0) {
+            subText = 'enjoy holiday, make good use of free time';
+        } else {
+            subText = 'keep up the great momentum!';
+        }
+    } else if (h >= 17 && h < 21) {
+        greetingText = 'Good Evening 🌆';
+        subText = 'unwind and reflect on your progress';
+    } else {
+        greetingText = 'Good Night 🌌';
+        subText = 'time to wrap up and prepare for rest';
+    }
+
+    const greetingEl = document.getElementById('greeting');
+    const dateEl = document.getElementById('greetingDate');
+    const subEl = document.getElementById('greetingSub');
+
+    if (greetingEl) greetingEl.textContent = greetingText;
+    if (dateEl) dateEl.textContent = dateFormatted;
+    if (subEl) subEl.textContent = subText;
+
+    updateAuthButton();
 }
 
 // ============================================================
@@ -584,11 +658,11 @@ function renderDashboard() {
                 /* ------------------ MINI WIDGETS ------------------ */
                 case 'pending_tasks': {
                     const activeTasks = STATE.tasks.filter(t => !t.completed).length;
-                    wHtml = `<div class="stat-card"><div class="stat-icon">✅</div><div class="stat-num">${activeTasks}</div><div class="stat-label">Pending Tasks</div></div>`;
+                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('tasks')"><div class="stat-icon">✅</div><div class="stat-num">${activeTasks}</div><div class="stat-label">Pending Tasks</div></div>`;
                     break;
                 }
                 case 'todays_events': {
-                    wHtml = `<div class="stat-card"><div class="stat-icon">📅</div><div class="stat-num">${STATE.plans.filter(p => isEventOnDate(p, todayStr)).length}</div><div class="stat-label">Today's Events</div></div>`;
+                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('planner')"><div class="stat-icon">📅</div><div class="stat-num">${STATE.plans.filter(p => isEventOnDate(p, todayStr)).length}</div><div class="stat-label">Today's Events</div></div>`;
                     break;
                 }
                 case 'net_money': {
@@ -596,29 +670,29 @@ function renderDashboard() {
                     const owedTotal = STATE.money.filter(m => m.type === 'borrowed' && !m.settled).reduce((s, m) => s + parseFloat(m.amount || 0), 0);
                     const netMoney = lentTotal - owedTotal;
                     const netColor = netMoney >= 0 ? 'var(--green)' : 'var(--red)';
-                    wHtml = `<div class="stat-card"><div class="stat-icon">💰</div><div class="stat-num" style="color:${netColor}">${netMoney >= 0 ? '+' : '-'}${Math.abs(netMoney).toFixed(0)}</div><div class="stat-label">Net Money</div></div>`;
+                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('money')"><div class="stat-icon">💰</div><div class="stat-num" style="color:${netColor}">${netMoney >= 0 ? '+' : '-'}${Math.abs(netMoney).toFixed(0)}</div><div class="stat-label">Net Money</div></div>`;
                     break;
                 }
                 case 'active_counters': {
-                    wHtml = `<div class="stat-card"><div class="stat-icon">🔢</div><div class="stat-num">${STATE.counters.length}</div><div class="stat-label">Active Counters</div></div>`;
+                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('counter')"><div class="stat-icon">🔢</div><div class="stat-num">${STATE.counters.length}</div><div class="stat-label">Active Counters</div></div>`;
                     break;
                 }
                 case 'alarms': {
                     const activeAlarms = STATE.alarms.filter(a => a.enabled && a.time).sort((a, b) => a.time > b.time ? 1 : -1);
-                    if (activeAlarms.length === 0) wHtml = `<div class="stat-card"><div class="stat-icon">⏰</div><div class="stat-num" style="font-size:20px; padding:4px 0;">Off</div><div class="stat-label">Next Alarm</div></div>`;
-                    else wHtml = `<div class="stat-card"><div class="stat-icon">⏰</div><div class="stat-num" style="font-size:22px; padding:2px 0;">${formatTime(activeAlarms[0].time)}</div><div class="stat-label">${activeAlarms[0].label || 'Next Alarm'}</div></div>`;
+                    if (activeAlarms.length === 0) wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('alarms')"><div class="stat-icon">⏰</div><div class="stat-num" style="font-size:20px; padding:4px 0;">Off</div><div class="stat-label">Next Alarm</div></div>`;
+                    else wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('alarms')"><div class="stat-icon">⏰</div><div class="stat-num" style="font-size:22px; padding:2px 0;">${formatTime(activeAlarms[0].time)}</div><div class="stat-label">${activeAlarms[0].label || 'Next Alarm'}</div></div>`;
                     break;
                 }
                 case 'sleep': {
-                    if (STATE.sleepLogs.length === 0) wHtml = `<div class="stat-card"><div class="stat-icon">😴</div><div class="stat-num" style="font-size:20px; padding:4px 0;">No Data</div><div class="stat-label">Last Night</div></div>`;
+                    if (STATE.sleepLogs.length === 0) wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('sleep')"><div class="stat-icon">😴</div><div class="stat-num" style="font-size:20px; padding:4px 0;">No Data</div><div class="stat-label">Last Night</div></div>`;
                     else {
                         const latest = [...STATE.sleepLogs].sort((a, b) => (a.date || '').localeCompare(b.date || '')).pop();
-                        wHtml = `<div class="stat-card"><div class="stat-icon">😴</div><div class="stat-num" style="color:var(--accent2);">${(latest.durationMins / 60).toFixed(1)}h</div><div class="stat-label">Last Night</div></div>`;
+                        wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('sleep')"><div class="stat-icon">😴</div><div class="stat-num" style="color:var(--accent2);">${(latest.durationMins / 60).toFixed(1)}h</div><div class="stat-label">Last Night</div></div>`;
                     }
                     break;
                 }
                 case 'roadmap': {
-                    if (STATE.roadmaps.length === 0) wHtml = `<div class="stat-card"><div class="stat-icon">🗺️</div><div class="stat-num" style="font-size:20px; padding:4px 0;">None</div><div class="stat-label">Active Roadmap</div></div>`;
+                    if (STATE.roadmaps.length === 0) wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('roadmap')"><div class="stat-icon">🗺️</div><div class="stat-num" style="font-size:20px; padding:4px 0;">None</div><div class="stat-label">Active Roadmap</div></div>`;
                     else {
                         let bestR = STATE.roadmaps[0]; let bestPct = -1;
                         STATE.roadmaps.forEach(r => {
@@ -628,7 +702,7 @@ function renderDashboard() {
                             if (pct > bestPct && pct < 100) { bestPct = pct; bestR = r; }
                         });
                         if (bestPct === -1) { bestR = STATE.roadmaps[0]; bestPct = STATE.steps.filter(s => s.roadmapId === bestR.id && s.completed).length / (STATE.steps.filter(s => s.roadmapId === bestR.id).length || 1) * 100; }
-                        wHtml = `<div class="stat-card"><div class="stat-icon">🗺️</div><div class="stat-num" style="font-size:24px; padding:2px 0;">${bestPct.toFixed(0)}%</div><div class="stat-label" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${bestR.title}</div></div>`;
+                        wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('roadmap')"><div class="stat-icon">🗺️</div><div class="stat-num" style="font-size:24px; padding:2px 0;">${bestPct.toFixed(0)}%</div><div class="stat-label" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${bestR.title}</div></div>`;
                     }
                     break;
                 }
@@ -639,7 +713,7 @@ function renderDashboard() {
                         if (!acc) wHtml = `<div class="stat-card"><div class="stat-icon">💳</div><div class="stat-num" style="font-size:16px; padding:8px 0; color:var(--red);">Deleted</div><div class="stat-label" onclick="STATE.dashConfig.accountId = null; save(); renderDashboard();" style="cursor:pointer; text-decoration:underline;">Reset</div></div>`;
                         else {
                             const bal = typeof getAccountBalance === 'function' ? getAccountBalance(acc.id) : 0;
-                            wHtml = `<div class="stat-card" style="position:relative;"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="STATE.dashConfig.accountId = null; save(); renderDashboard();">⚙️</span><div class="stat-icon">💳</div><div class="stat-num" style="font-size:20px; padding:4px 0; color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};">${bal.toFixed(0)}</div><div class="stat-label" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${acc.name}</div></div>`;
+                            wHtml = `<div class="stat-card" style="position:relative; cursor:pointer;" onclick="navTo('expenses')"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="event.stopPropagation(); STATE.dashConfig.accountId = null; save(); renderDashboard();">⚙️</span><div class="stat-icon">💳</div><div class="stat-num" style="font-size:20px; padding:4px 0; color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};">${bal.toFixed(0)}</div><div class="stat-label" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${acc.name}</div></div>`;
                         }
                     }
                     break;
@@ -650,7 +724,7 @@ function renderDashboard() {
                         const c = STATE.counters.find(x => x.id == STATE.dashConfig.counterId);
                         if (!c) wHtml = `<div class="stat-card"><div class="stat-icon">🔢</div><div class="stat-num" style="font-size:16px; padding:8px 0; color:var(--red);">Deleted</div><div class="stat-label" onclick="STATE.dashConfig.counterId = null; save(); renderDashboard();" style="cursor:pointer; text-decoration:underline;">Reset</div></div>`;
                         else {
-                            wHtml = `<div class="stat-card" style="position:relative;"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="STATE.dashConfig.counterId = null; save(); renderDashboard();">⚙️</span><div class="stat-icon" style="color:${c.color};">🔢</div><div class="stat-num" style="font-size:24px; padding:2px 0;">${c.value}</div><div style="display:flex; justify-content:center; gap:4px; margin-top:4px;"><button class="btn-secondary" style="padding:2px 8px; font-size:12px;" onclick="adjustCounter(${c.id},-1); setTimeout(renderDashboard, 50)">-</button><button class="btn-secondary" style="padding:2px 8px; font-size:12px;" onclick="adjustCounter(${c.id},1); setTimeout(renderDashboard, 50)">+</button></div><div class="stat-label" style="margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.name}</div></div>`;
+                            wHtml = `<div class="stat-card" style="position:relative; cursor:pointer;" onclick="navTo('counter')"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="event.stopPropagation(); STATE.dashConfig.counterId = null; save(); renderDashboard();">⚙️</span><div class="stat-icon" style="color:${c.color};">🔢</div><div class="stat-num" style="font-size:24px; padding:2px 0;">${c.value}</div><div style="display:flex; justify-content:center; gap:4px; margin-top:4px;"><button class="btn-secondary" style="padding:2px 8px; font-size:12px;" onclick="event.stopPropagation(); adjustCounter(${c.id},-1); setTimeout(renderDashboard, 50)">-</button><button class="btn-secondary" style="padding:2px 8px; font-size:12px;" onclick="event.stopPropagation(); adjustCounter(${c.id},1); setTimeout(renderDashboard, 50)">+</button></div><div class="stat-label" style="margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.name}</div></div>`;
                         }
                     }
                     break;
@@ -666,7 +740,7 @@ function renderDashboard() {
                                 rawText = n.checklist.map(c => c.text).join('\n');
                             }
                             const preview = escapeHtml(rawText).substring(0, 40) + (rawText.length > 40 ? '...' : '');
-                            wHtml = `<div class="stat-card" style="position:relative; text-align:left; display:flex; flex-direction:column; justify-content:space-between;"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="STATE.dashConfig.noteId = null; save(); renderDashboard();">⚙️</span><div style="font-size:11px; color:var(--text2); text-transform:uppercase; margin-bottom:4px; font-weight:700;">📝 ${n.title || 'Note'}</div><div style="font-size:11px; line-height:1.4; color:var(--text); white-space:pre-wrap;">${preview}</div></div>`;
+                            wHtml = `<div class="stat-card" style="position:relative; text-align:left; display:flex; flex-direction:column; justify-content:space-between; cursor:pointer;" onclick="navTo('notes')"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="event.stopPropagation(); STATE.dashConfig.noteId = null; save(); renderDashboard();">⚙️</span><div style="font-size:11px; color:var(--text2); text-transform:uppercase; margin-bottom:4px; font-weight:700;">📝 ${n.title || 'Note'}</div><div style="font-size:11px; line-height:1.4; color:var(--text); white-space:pre-wrap;">${preview}</div></div>`;
                         }
                     }
                     break;
@@ -674,7 +748,7 @@ function renderDashboard() {
 
                 /* ------------------ FULL WIDGETS ------------------ */
                 case 'redzone': {
-                    let uHtml = `<div class="card" style="margin-bottom:12px;"><div class="section-header" style="margin-bottom:10px;"><div class="section-title" style="color:var(--red);">🚨 Urgent Deadlines</div></div>`;
+                    let uHtml = `<div class="card" style="margin-bottom:12px; cursor:pointer;" onclick="navTo('tasks')"><div class="section-header" style="margin-bottom:10px;"><div class="section-title" style="color:var(--red);">🚨 Urgent Deadlines</div></div>`;
                     const limitDate = new Date(); limitDate.setDate(limitDate.getDate() + 3);
                     let urgents = [];
                     STATE.tasks.filter(t => !t.completed && t.due).forEach(t => { if (new Date(t.due) <= limitDate) urgents.push({ type: 'Task', title: t.title, date: t.due }); });
@@ -688,7 +762,7 @@ function renderDashboard() {
                     break;
                 }
                 case 'schedule': {
-                    let sHtml = `<div class="card" style="margin-bottom:12px;"><div class="section-header" style="margin-bottom:10px;"><div class="section-title">📅 Today's Schedule</div></div>`;
+                    let sHtml = `<div class="card" style="margin-bottom:12px; cursor:pointer;" onclick="navTo('planner')"><div class="section-header" style="margin-bottom:10px;"><div class="section-title">📅 Today's Schedule</div></div>`;
                     const todayPlans = STATE.plans.filter(p => isEventOnDate(p, todayStr) && p.time).sort((a, b) => a.time > b.time ? 1 : -1);
                     if (todayPlans.length === 0) sHtml += `<div style="font-size:12px; color:var(--text3); text-align:center; padding:10px;">Clear schedule today.</div>`;
                     else sHtml += `<div class="today-list">` + todayPlans.map(p => `<div class="today-item"><div class="today-dot" style="background:${p.color || 'var(--accent)'}"></div><div class="today-time">${formatTime(p.time)}</div><div class="today-text ${p.completed ? 'done' : ''}">${p.title}</div></div>`).join('') + `</div>`;
@@ -697,7 +771,7 @@ function renderDashboard() {
                     break;
                 }
                 case 'tasks': {
-                    let tHtml = `<div class="card" style="margin-bottom:12px;"><div class="section-header" style="margin-bottom:10px;"><div class="section-title">📋 Upcoming Tasks</div></div>`;
+                    let tHtml = `<div class="card" style="margin-bottom:12px; cursor:pointer;" onclick="navTo('tasks')"><div class="section-header" style="margin-bottom:10px;"><div class="section-title">📋 Upcoming Tasks</div></div>`;
                     const upcoming = STATE.tasks.filter(t => !t.completed).slice(0, 5);
                     if (upcoming.length === 0) tHtml += `<div style="font-size:12px; color:var(--text3); text-align:center; padding:10px;">All clear!</div>`;
                     else tHtml += upcoming.map(t => `<div class="task-item" style="margin-bottom:8px; cursor:default;"><div class="priority-dot p${t.priority}" style="margin-top:6px"></div><div class="task-body"><div class="task-title">${t.title}</div><div class="task-due">${t.category} ${t.due ? '· ' + fmtDisplay(t.due) : ''}</div></div></div>`).join('');
@@ -713,7 +787,7 @@ function renderDashboard() {
                     const dayOfWeek = targetDate.getDay();
                     const sectionTitleStr = isAfter5PM ? "🎓 Tomorrow's Classes" : "🎓 Today's Classes";
 
-                    let cHtml = `<div class="card" style="margin-bottom:12px;"><div class="section-header" style="margin-bottom:10px;"><div class="section-title">${sectionTitleStr}</div></div>`;
+                    let cHtml = `<div class="card" style="margin-bottom:12px; cursor:pointer;" onclick="navTo('attendance')"><div class="section-header" style="margin-bottom:10px;"><div class="section-title">${sectionTitleStr}</div></div>`;
                     const targetClasses = STATE.attendanceRoutines.filter(r => parseInt(r.dayOfWeek) === dayOfWeek).sort((a, b) => (a.startTime || a.time) > (b.startTime || b.time) ? 1 : -1);
                     if (targetClasses.length === 0) cHtml += `<div style="font-size:12px; color:var(--text3); text-align:center; padding:10px;">${isAfter5PM ? 'No classes scheduled for tomorrow.' : 'No classes scheduled today.'}</div>`;
                     else cHtml += targetClasses.map(c => {
