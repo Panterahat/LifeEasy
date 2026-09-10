@@ -3912,14 +3912,29 @@ function formatTimeDisplay(timeStr) {
     return `${dispH}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+function parseTimeHHMM(timeStr) {
+    if (!timeStr) return { h: 12, m: 0 };
+    const str = String(timeStr).trim();
+    const isPM = /pm/i.test(str);
+    const isAM = /am/i.test(str);
+    const cleanStr = str.replace(/[^\d:]/g, '');
+    const parts = cleanStr.split(':').map(Number);
+    let h = isNaN(parts[0]) ? 12 : parts[0];
+    let m = isNaN(parts[1]) ? 0 : parts[1];
+
+    if (isPM && h < 12) h += 12;
+    if (isAM && h === 12) h = 0;
+
+    return { h: Math.min(23, Math.max(0, h)), m: Math.min(59, Math.max(0, m)) };
+}
+
 function calculateNextAlarmMillis(timeStr) {
-    if (!timeStr) return Date.now() + 60000;
-    const [h, m] = timeStr.split(':').map(Number);
+    const { h, m } = parseTimeHHMM(timeStr);
     const now = new Date();
     const target = new Date();
     target.setHours(h, m, 0, 0);
 
-    if (target.getTime() <= now.getTime()) {
+    if (target.getTime() <= now.getTime() + 1000) {
         target.setDate(target.getDate() + 1);
     }
     return target.getTime();
