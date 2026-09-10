@@ -295,7 +295,15 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+}
+
+.note-content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    margin-bottom: 6px;
+    display: flex;
+    flex-direction: column;
 }
 
 .note-pin-badge {
@@ -304,13 +312,20 @@ body {
     right: 8px;
     font-size: 13px;
     opacity: 0.8;
+    z-index: 2;
 }
 
 .note-title {
+    font-size: 14px;
     font-weight: 700;
+    color: var(--text);
     margin-bottom: 6px;
     padding-right: 20px;
     word-break: break-word;
+    max-height: 2.8em;
+    line-height: 1.4em;
+    overflow: hidden;
+    flex-shrink: 0;
 }
 
 .note-body {
@@ -319,23 +334,53 @@ body {
     white-space: pre-wrap;
     word-break: break-word;
     margin-bottom: 8px;
+    overflow: hidden;
+    line-height: 1.4em;
 }
 
 .note-checklist {
     margin-bottom: 8px;
+    overflow: hidden;
 }
 
 .checklist-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    padding: 3px 0;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 4px 0;
 }
 
 .checklist-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
     accent-color: var(--accent);
     cursor: pointer;
+}
+
+.checklist-row .checklist-text-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px transparent;
+    outline: none;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+    flex: 1;
+    min-width: 0;
+    padding: 3px 6px;
+    transition: border-color 0.2s ease;
+}
+
+.checklist-row .checklist-text-input:focus {
+    border-bottom: 1px solid var(--accent);
+}
+
+.checklist-row .checklist-text-input.done {
+    text-decoration: line-through;
+    color: var(--text3);
 }
 
 .checklist-row .done {
@@ -347,30 +392,40 @@ body {
     margin-left: auto;
     color: var(--text3);
     cursor: pointer;
-    font-size: 12px;
+    font-size: 14px;
+    padding: 4px;
 }
 
 .note-actions {
     margin-top: auto;
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 10px;
-    padding-top: 8px;
+    padding-top: 6px;
     font-size: 15px;
-    opacity: 0.75;
+    opacity: 0.85;
+    flex-shrink: 0;
+    z-index: 2;
 }
 
 .color-swatch {
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     border: 2px solid var(--border);
     cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.color-swatch:hover {
+    transform: scale(1.12);
 }
 
 .color-swatch.selected {
-    border-color: var(--text);
-    box-shadow: 0 0 0 2px var(--accent);
+    border-color: #ffffff;
+    box-shadow: 0 0 0 3px var(--accent), 0 0 10px rgba(255,255,255,0.3);
+    transform: scale(1.12);
 }
 
 /* =========================================================

@@ -1543,7 +1543,7 @@ function deleteAccount(id) { if (!confirm('Delete this account and all its trans
 function renderTransactions(accountId) { const list = document.getElementById('transactionList'); if (!list) return; const acc = STATE.accounts.find(a => a.id == accountId); const trans = STATE.expenses.filter(e => e.accountId == accountId).sort((a, b) => { const da = new Date((a.date || '1970-01-01') + 'T' + (a.time || '00:00')); const db = new Date((b.date || '1970-01-01') + 'T' + (b.time || '00:00')); return db - da; }); const expensesOnly = trans.filter(t => parseFloat(t.amount) > 0); const totalSpent = expensesOnly.reduce((s, t) => s + parseFloat(t.amount || 0), 0); const bal = getAccountBalance(accountId); const categoryIcons = { 'Food': '🍔', 'Transport': '🚗', 'Rent': '🏠', 'Shopping': '🛍️', 'Health': '💊', 'Entertainment': '🎮', 'Education': '📚', 'Utilities': '💡', 'Other': '📌', 'Deposit': '💰' }; const catColors = ['#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64']; const catTotals = {}; expensesOnly.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + parseFloat(t.amount || 0); }); const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]); let html = `<div style="background:linear-gradient(135deg,rgba(124,110,245,0.12),rgba(93,232,193,0.06));border:1px solid rgba(124,110,245,0.25);border-radius:var(--radius);padding:20px;margin-bottom:16px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Current Balance</div><div style="font-family:'Syne',sans-serif;font-size:38px;font-weight:800;color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};line-height:1;">$${bal.toFixed(2)}</div><div style="display:flex;gap:24px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Total Spent</div><div style="font-size:18px;font-weight:700;color:var(--red);margin-top:2px;">-$${totalSpent.toFixed(2)}</div></div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Transactions</div><div style="font-size:18px;font-weight:700;color:var(--text);margin-top:2px;">${trans.length}</div></div></div></div>`; if (catEntries.length > 0) { html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;"><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:14px;">Spending by Category</div>`; catEntries.forEach(([cat, amt], i) => { const pct = totalSpent > 0 ? (amt / totalSpent * 100) : 0; const color = catColors[i % catColors.length]; const icon = categoryIcons[cat] || '📌'; html += `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:6px;font-size:13px;"><span>${icon}</span><span style="font-weight:500;">${cat}</span></div><div><span style="font-size:13px;font-weight:700;color:var(--red);">-$${parseFloat(amt).toFixed(2)}</span><span style="font-size:10px;color:var(--text3);margin-left:6px;">${pct.toFixed(0)}%</span></div></div><div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 0.5s;"></div></div></div>`; }); html += `</div>`; } if (trans.length === 0) { html += `<div class="empty-state"><div class="empty-icon">💸</div><p>No expenses yet.<br>Tap + Expense to add one.</p></div>`; } else { const groups = {}; trans.forEach(t => { const d = t.date || 'Unknown'; if (!groups[d]) groups[d] = []; groups[d].push(t); }); const todayStr = new Date().toISOString().split('T')[0]; Object.keys(groups).sort((a, b) => new Date(b) - new Date(a)).forEach(date => { const dayTotal = groups[date].filter(t => t.amount > 0).reduce((s, t) => s + parseFloat(t.amount || 0), 0); let displayDate; try { displayDate = date === todayStr ? 'Today' : new Date(date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }); } catch (e) { displayDate = date; } html += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding:0 4px;"><span>${displayDate}</span><span style="color:var(--red);">-$${dayTotal.toFixed(2)}</span></div>`; groups[date].forEach(t => { const isIncome = parseFloat(t.amount) < 0; const displayAmt = Math.abs(parseFloat(t.amount)).toFixed(2); const amtSign = isIncome ? '+' : '-'; const amtColor = isIncome ? 'var(--green)' : 'var(--red)'; const icon = isIncome ? '💰' : (categoryIcons[t.category] || '📌'); let timeDisplay = ''; if (t.time) { const [h, m] = t.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const dh = h > 12 ? h - 12 : h === 0 ? 12 : h; timeDisplay = `${dh}:${String(m).padStart(2, '0')} ${ampm}`; } html += `<div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;"><div style="width:44px;height:44px;border-radius:12px;background:${isIncome ? 'rgba(93,232,193,0.1)' : 'rgba(245,100,124,0.1)'};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">${icon}</div><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">${t.category}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.note || 'No note'}</div>${timeDisplay ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;">🕐 ${timeDisplay}</div>` : ''}</div><div style="text-align:right;flex-shrink:0;"><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:${amtColor};">${amtSign}$${displayAmt}</div><button data-expense-id="${t.id}" data-account-id="${accountId}" onclick="deleteExpense(this)" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;margin-top:6px;padding:2px;">🗑</button></div></div>`; }); }); } list.innerHTML = html; }
 
 // ===================== NOTES (Google Keep style) =====================
-const NOTE_COLORS = ['', '#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64'];
+const NOTE_COLORS = ['', '#7c6ef5', '#10b981', '#f59e0b', '#f5647c', '#06b6d4', '#c87cf5', '#f57c64', '#3b82f6'];
 let noteChecklistMode = false;
 let noteChecklistItems = [];
 let noteColor = '';
@@ -1661,6 +1661,11 @@ function addNoteChecklistItem() {
     input.value = '';
     renderNoteChecklistEditor();
 }
+function updateNoteChecklistItemText(idx, newText) {
+    if (noteChecklistItems[idx]) {
+        noteChecklistItems[idx].text = newText;
+    }
+}
 function removeNoteChecklistItem(idx) { noteChecklistItems.splice(idx, 1); renderNoteChecklistEditor(); }
 function toggleNoteChecklistItemEditor(idx) { noteChecklistItems[idx].done = !noteChecklistItems[idx].done; renderNoteChecklistEditor(); }
 
@@ -1675,7 +1680,7 @@ function renderNoteChecklistEditor() {
         listEl.innerHTML = noteChecklistItems.map((it, i) => `
                 <div class="checklist-row">
                     <input type="checkbox" ${it.done ? 'checked' : ''} onchange="toggleNoteChecklistItemEditor(${i})">
-                    <span class="${it.done ? 'done' : ''}">${escapeHtml(it.text)}</span>
+                    <input type="text" class="checklist-text-input ${it.done ? 'done' : ''}" value="${escapeHtml(it.text)}" oninput="updateNoteChecklistItemText(${i}, this.value)" placeholder="Checklist item...">
                     <span class="remove-x" onclick="removeNoteChecklistItem(${i})">✕</span>
                 </div>`).join('');
     }
@@ -1800,8 +1805,10 @@ function renderNotes() {
             const actions = n.trashed ? `<span onclick="toggleNoteTrash(event,${n.id})" title="Restore">♻️</span><span onclick="deleteNoteForever(event,${n.id})" title="Delete forever">🗑</span>` : `<span onclick="toggleNotePin(event,${n.id})" title="Pin">${n.pinned ? '📌' : '📍'}</span><span onclick="toggleNoteArchive(event,${n.id})" title="Archive">🗄</span><span onclick="toggleNoteTrash(event,${n.id})" title="Trash">🗑</span>`;
             return `<div class="note-card" style="border-left:4px solid var(--accent); background:var(--surface2);" onclick="${n.trashed ? '' : `if(typeof openWhiteboardModal === 'function') openWhiteboardModal(${n.id})`}">
                         ${n.pinned ? '<div class="note-pin-badge">📌</div>' : ''}
-                        <div class="note-title" style="color:var(--accent2);">🎨 ${escapeHtml(n.title)}</div>
-                        <div class="note-body">Canvas Note</div>
+                        <div class="note-content">
+                            <div class="note-title" style="color:var(--accent2);">🎨 ${escapeHtml(n.title)}</div>
+                            <div class="note-body">Canvas Note</div>
+                        </div>
                         <div class="note-actions">${actions}</div>
                     </div>`;
         }
@@ -1817,10 +1824,12 @@ function renderNotes() {
         const tagsHtml = n.tags && n.tags.length ? `<div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">${n.tags.map(t => `<span class="pill" style="font-size:9px; background:rgba(255,255,255,0.05); color:var(--accent2); border: 1px solid rgba(255,255,255,0.1);">#${t}</span>`).join('')}</div>` : '';
         const actions = n.trashed ? `<span onclick="toggleNoteTrash(event,${n.id})" title="Restore">♻️</span><span onclick="deleteNoteForever(event,${n.id})" title="Delete forever">🗑</span>` : `<span onclick="toggleNotePin(event,${n.id})" title="Pin">${n.pinned ? '📌' : '📍'}</span><span onclick="toggleNoteArchive(event,${n.id})" title="Archive">🗄</span><span onclick="toggleNoteTrash(event,${n.id})" title="Trash">🗑</span>`;
 
-        return `<div class="note-card" style="${n.color ? `background:${n.color}22;border-color:${n.color}66` : ''}" onclick="${n.trashed ? '' : `openNoteModal(${n.id})`}">
+        return `<div class="note-card" style="${n.color ? `background:${n.color}40; border:1px solid ${n.color}bb; box-shadow:0 4px 12px ${n.color}20;` : ''}" onclick="${n.trashed ? '' : `openNoteModal(${n.id})`}">
                 ${n.pinned ? '<div class="note-pin-badge">📌</div>' : ''}
-                ${n.title ? `<div class="note-title">${escapeHtml(n.title)}</div>` : ''}
-                ${bodyHtml}${checklistHtml}${tagsHtml}
+                <div class="note-content">
+                    ${n.title ? `<div class="note-title">${escapeHtml(n.title)}</div>` : ''}
+                    ${bodyHtml}${checklistHtml}${tagsHtml}
+                </div>
                 <div class="note-actions">${actions}</div>
             </div>`;
     }).join('');
