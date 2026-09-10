@@ -2616,56 +2616,101 @@
 <!-- WHITEBOARD NOTE MODAL -->
 <div class="modal-overlay" id="whiteboardModal">
     <div class="modal"
-         style="max-width:98vw; width:98vw; height:92vh; max-height:92vh; padding:0; display:flex; flex-direction:column; overflow:hidden; border-radius:16px;">
-        <!-- Toolbar -->
-        <div
-                style="padding:12px 20px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; z-index:10;">
-            <input id="wbTitle" class="input" placeholder="Whiteboard Title..."
-                   style="width:200px; font-weight:700; padding:6px 10px;">
+         style="max-width:98vw; width:98vw; height:92vh; max-height:92vh; padding:0; display:flex; flex-direction:column; overflow:hidden; border-radius:16px; background:#f8fafc; position:relative;">
+        <!-- Header Toolbar -->
+        <div style="padding:8px 12px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; z-index:10;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <input id="wbTitle" class="input" placeholder="Note Title..." style="width:130px; font-weight:700; padding:4px 8px; font-size:13px;">
 
-            <!-- Drawing Tools (Fixed Default Color) -->
-            <div
-                    style="display:flex; gap:6px; align-items:center; background:var(--surface); padding:4px 8px; border-radius:8px; border:1px solid var(--border);">
-                <button class="btn-secondary" id="wbToolPen"
-                        style="padding:4px 10px; font-size:12px; background:var(--accent); color:#fff;"
-                        onclick="setWbTool('pen')">✏️ Pen</button>
-                <button class="btn-secondary" id="wbToolEraser" style="padding:4px 10px; font-size:12px;"
-                        onclick="setWbTool('eraser')">🧹 Eraser</button>
-                <button class="btn-secondary" id="wbToolText" style="padding:4px 10px; font-size:12px;"
-                        onclick="setWbTool('text')">🔤 Text</button>
-                <input type="color" id="wbColor" value="#000000"
-                       style="width:28px; height:28px; border:none; background:none; cursor:pointer;"
-                       title="Pen Color">
-                <input type="range" id="wbSize" min="2" max="30" value="4" style="width:70px;">
+                <!-- Page Navigation -->
+                <div style="display:flex; align-items:center; gap:2px; background:var(--surface); padding:2px 6px; border-radius:8px; border:1px solid var(--border);">
+                    <select id="wbPageSelect" onchange="changeWbPage(parseInt(this.value))" style="background:transparent; border:none; color:var(--text); font-size:11px; font-weight:700; cursor:pointer; outline:none;">
+                        <option value="0">Page 1</option>
+                    </select>
+                    <button class="btn-secondary" style="padding:2px 6px; font-size:10px;" onclick="addWbPage()" title="Add Page">+ Page</button>
+                </div>
+
+                <!-- Zoom Controls -->
+                <div style="display:flex; align-items:center; gap:2px; background:var(--surface); padding:2px 6px; border-radius:8px; border:1px solid var(--border);">
+                    <button class="btn-secondary" style="padding:2px 6px; font-size:10px;" onclick="zoomWb(0.8)" title="Zoom Out">🔍 -</button>
+                    <span id="wbZoomLevel" style="font-size:10px; font-weight:700; min-width:30px; text-align:center;">100%</span>
+                    <button class="btn-secondary" style="padding:2px 6px; font-size:10px;" onclick="zoomWb(1.25)" title="Zoom In">🔍 +</button>
+                </div>
             </div>
 
-            <!-- Zoom & Pan Controls -->
-            <div
-                    style="display:flex; gap:6px; align-items:center; background:var(--surface); padding:4px 8px; border-radius:8px; border:1px solid var(--border);">
-                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(1.2)">🔍
-                    +</button>
-                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="zoomWb(0.8)">🔍
-                    -</button>
-                <button class="btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="resetWbView()">↺
-                    Reset View</button>
-                <span id="wbZoomLevel"
-                      style="font-size:11px; color:var(--text2); min-width:40px; text-align:center;">100%</span>
-            </div>
-
-            <div style="display:flex; gap:8px;">
-                <button class="btn-secondary" style="padding:6px 12px; font-size:12px;"
-                        onclick="clearWbCanvas()">🗑️ Clear</button>
-                <button class="btn-primary" style="padding:6px 18px; font-size:12px;"
-                        onclick="saveWhiteboardNote()">Save Board</button>
-                <button class="btn-secondary" style="padding:6px 12px; font-size:12px;"
-                        onclick="closeModal('whiteboardModal')">✕</button>
+            <!-- Action Controls -->
+            <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
+                <button class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="undoWb()" title="Undo">↶</button>
+                <button class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="redoWb()" title="Redo">↷</button>
+                <button class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="resetWbView()" title="Fit View">🔲 Fit</button>
+                <button class="btn-secondary" style="padding:4px 8px; font-size:11px; color:var(--red);" onclick="clearWbCanvas()" title="Clear Canvas">🗑 Clear</button>
+                <button class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="exportWbImage()" title="Export PNG">📷 Export</button>
+                <button class="btn-primary" style="padding:4px 12px; font-size:11px;" onclick="saveWhiteboardNote()">💾 Save</button>
+                <button class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="closeModal('whiteboardModal')">✕</button>
             </div>
         </div>
 
-        <!-- Canvas Container (Fixed Background) -->
-        <div id="wbContainer"
-             style="flex:1; position:relative; overflow:hidden; background:#ffffff; cursor:crosshair; border-radius:8px; margin-top:4px;">
-            <canvas id="wbCanvas"></canvas>
+        <!-- Canvas Container -->
+        <div id="wbContainer" style="flex:1; position:relative; overflow:hidden; background:#ffffff; cursor:crosshair; width:100%; height:100%;">
+            <canvas id="wbCanvas" style="display:block; width:100%; height:100%;"></canvas>
+
+            <!-- Floating Bottom Tools Dock -->
+            <div id="wbBottomDock" class="wb-dock-bottom">
+                <button class="wb-tool-btn" id="wbToolSelect" onclick="setWbTool('select')" title="Select Pointer">↖</button>
+                <button class="wb-tool-btn" id="wbToolPan" onclick="setWbTool('pan')" title="Pan Hand">✋</button>
+                <button class="wb-tool-btn active" id="wbToolPen" onclick="setWbTool('pen')" title="Draw Pen">✏️</button>
+                <button class="wb-tool-btn" id="wbToolEraser" onclick="setWbTool('eraser')" title="Eraser">🧹</button>
+                <button class="wb-tool-btn" id="wbToolArrow" onclick="setWbTool('arrow')" title="Arrow Line">↗</button>
+                <button class="wb-tool-btn" id="wbToolText" onclick="setWbTool('text')" title="Add Text">T</button>
+                <button class="wb-tool-btn" id="wbToolSticky" onclick="setWbTool('sticky')" title="Sticky Note">📝</button>
+                <button class="wb-tool-btn" id="wbToolRect" onclick="setWbTool('rect')" title="Rectangle">□</button>
+                <button class="wb-tool-btn" id="wbToolCircle" onclick="setWbTool('circle')" title="Circle">⭕</button>
+                <button class="wb-tool-btn" id="wbToolImage" onclick="document.getElementById('wbImageInput').click()" title="Add Image">🖼️</button>
+                <input type="file" id="wbImageInput" accept="image/*" style="display:none" onchange="handleWbImageSelect(this.files)">
+            </div>
+
+            <!-- Floating Right Style Panel -->
+            <div id="wbRightPanel" class="wb-dock-right">
+                <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleWbStylePanel()">
+                    <span class="wb-section-title" style="margin:0;">Style &amp; Colors</span>
+                    <span id="wbPanelToggleIcon" style="font-size:12px; color:var(--text2);">▼</span>
+                </div>
+
+                <div id="wbStylePanelBody" style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+                    <div>
+                        <div class="wb-section-title">Colors</div>
+                        <div class="wb-color-grid" id="wbColorSwatches"></div>
+                    </div>
+
+                    <div>
+                        <div class="wb-section-title">Stroke Size</div>
+                        <div class="wb-size-group">
+                            <div class="wb-size-btn" id="wbSizeS" onclick="setWbSize('S')">S</div>
+                            <div class="wb-size-btn active" id="wbSizeM" onclick="setWbSize('M')">M</div>
+                            <div class="wb-size-btn" id="wbSizeL" onclick="setWbSize('L')">L</div>
+                            <div class="wb-size-btn" id="wbSizeXL" onclick="setWbSize('XL')">XL</div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="wb-section-title">Line Style</div>
+                        <div class="wb-size-group">
+                            <div class="wb-size-btn active" id="wbStyleSolid" onclick="setWbLineStyle('solid')">—</div>
+                            <div class="wb-size-btn" id="wbStyleDashed" onclick="setWbLineStyle('dashed')">--</div>
+                            <div class="wb-size-btn" id="wbStyleDotted" onclick="setWbLineStyle('dotted')">···</div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="wb-section-title">Fill Style</div>
+                        <div class="wb-size-group">
+                            <div class="wb-size-btn active" id="wbFillNone" onclick="setWbFillStyle('none')">⬜</div>
+                            <div class="wb-size-btn" id="wbFillSemi" onclick="setWbFillStyle('semi')">🏁</div>
+                            <div class="wb-size-btn" id="wbFillSolid" onclick="setWbFillStyle('solid')">⬛</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

@@ -2132,17 +2132,1140 @@ function renderNotes() {
 }
 
 // ============================================================
-// INFINITE WHITEBOARD ENGINE
+// RICH INFINITE WHITEBOARD ENGINE
 // ============================================================
-let wbCanvas, wbCtx; let wbTool = 'pen'; let isDrawing = false; let isPanning = false; let startX = 0, startY = 0; let scale = 1; let panX = 0, panY = 0; let activeWbNoteId = null; let wbPaths = []; let wbTexts = [];
-function openWhiteboardModal(noteId = null) { const modal = document.getElementById('whiteboardModal'); wbCanvas = document.getElementById('wbCanvas'); wbCtx = wbCanvas.getContext('2d'); activeWbNoteId = noteId; scale = 1; panX = 0; panY = 0; if (noteId) { const n = STATE.notes.find(x => x.id === noteId); document.getElementById('wbTitle').value = n.title || 'Untitled Board'; if (n.wbData) { wbPaths = n.wbData.paths || []; wbTexts = n.wbData.texts || []; } else { wbPaths = []; wbTexts = []; } } else { document.getElementById('wbTitle').value = 'New Whiteboard'; wbPaths = []; wbTexts = []; } modal.classList.add('open'); setTimeout(() => { const container = document.getElementById('wbContainer'); wbCanvas.width = container.clientWidth; wbCanvas.height = container.clientHeight; initWbEvents(); redrawWb(); }, 350); }
-function setWbTool(tool) { wbTool = tool;['Pen', 'Eraser', 'Text'].forEach(t => { const btn = document.getElementById('wbTool' + t); if (btn) { btn.style.background = (t.toLowerCase() === tool) ? 'var(--accent)' : 'var(--surface2)'; btn.style.color = (t.toLowerCase() === tool) ? '#fff' : 'var(--text)'; } }); }
-function zoomWb(factor) { scale *= factor; scale = Math.max(0.2, Math.min(scale, 5)); document.getElementById('wbZoomLevel').textContent = `${Math.round(scale * 100)}%`; redrawWb(); }
-function resetWbView() { scale = 1; panX = 0; panY = 0; document.getElementById('wbZoomLevel').textContent = '100%'; redrawWb(); }
-function clearWbCanvas() { if (!confirm('Clear entire whiteboard?')) return; wbPaths = []; wbTexts = []; redrawWb(); }
-function initWbEvents() { const container = document.getElementById('wbContainer'); const getPos = (e) => { const rect = wbCanvas.getBoundingClientRect(); let clientX = e.clientX; let clientY = e.clientY; if (e.touches && e.touches.length > 0) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; } return { x: (clientX - rect.left - panX) / scale, y: (clientY - rect.top - panY) / scale }; }; const startAction = (e) => { if (e.button === 1 || e.shiftKey || (e.touches && e.touches.length > 1)) { isPanning = true; let clientX = e.touches ? e.touches[0].clientX : e.clientX; let clientY = e.touches ? e.touches[0].clientY : e.clientY; startX = clientX - panX; startY = clientY - panY; container.style.cursor = 'grab'; return; } const pos = getPos(e); if (wbTool === 'text') { const txt = prompt('Enter text:'); if (txt) { wbTexts.push({ text: txt, x: pos.x, y: pos.y, color: document.getElementById('wbColor').value, size: parseInt(document.getElementById('wbSize').value) * 5 }); redrawWb(); } return; } isDrawing = true; const color = wbTool === 'eraser' ? '#ffffff' : document.getElementById('wbColor').value; const size = parseInt(document.getElementById('wbSize').value); wbPaths.push({ tool: wbTool, color, size, points: [{ x: pos.x, y: pos.y }] }); }; const moveAction = (e) => { if (isPanning) { e.preventDefault(); let clientX = e.touches ? e.touches[0].clientX : e.clientX; let clientY = e.touches ? e.touches[0].clientY : e.clientY; panX = clientX - startX; panY = clientY - startY; redrawWb(); return; } if (!isDrawing) return; e.preventDefault(); const pos = getPos(e); const currentPath = wbPaths[wbPaths.length - 1]; if (currentPath) { currentPath.points.push({ x: pos.x, y: pos.y }); redrawWb(); } }; const endAction = () => { isDrawing = false; isPanning = false; container.style.cursor = 'crosshair'; }; container.onmousedown = startAction; container.onmousemove = moveAction; container.onmouseup = container.onmouseleave = endAction; container.ontouchstart = startAction; container.ontouchmove = moveAction; container.ontouchend = container.ontouchcancel = endAction; container.onwheel = (e) => { e.preventDefault(); const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9; zoomWb(zoomFactor); }; }
-function redrawWb() { if (!wbCtx) return; wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height); wbCtx.save(); wbCtx.translate(panX, panY); wbCtx.scale(scale, scale); wbPaths.forEach(path => { if (path.points.length < 1) return; wbCtx.beginPath(); wbCtx.strokeStyle = path.color; wbCtx.lineWidth = path.size; wbCtx.lineCap = 'round'; wbCtx.lineJoin = 'round'; wbCtx.moveTo(path.points[0].x, path.points[0].y); for (let i = 1; i < path.points.length; i++) { wbCtx.lineTo(path.points[i].x, path.points[i].y); } wbCtx.stroke(); }); wbTexts.forEach(t => { wbCtx.font = `${t.size}px 'DM Sans', sans-serif`; wbCtx.fillStyle = t.color; wbCtx.fillText(t.text, t.x, t.y); }); wbCtx.restore(); }
-function saveWhiteboardNote() { const title = document.getElementById('wbTitle').value.trim() || 'Untitled Board'; const now = new Date().toISOString(); const wbData = { paths: wbPaths, texts: wbTexts }; if (activeWbNoteId) { const n = STATE.notes.find(x => x.id === activeWbNoteId); if (n) { n.title = title; n.wbData = wbData; n.updatedAt = now; } } else { const tempId = Date.now(); const nData = { id: tempId, title: title, body: '[Whiteboard Note]', isWhiteboard: true, wbData: wbData, pinned: false, archived: false, trashed: false, updatedAt: now }; STATE.notes.unshift(nData); } save(); renderNotes(); closeModal('whiteboardModal'); toast('Whiteboard saved! 🎨'); }
+let wbCanvas, wbCtx;
+let wbTool = 'pen';
+let wbColor = '#000000';
+let wbSize = 4;
+let wbSizeName = 'M';
+let wbLineStyle = 'solid';
+let wbFillStyle = 'none';
+let isDrawing = false;
+let isPanning = false;
+let startX = 0, startY = 0;
+let drawStartX = 0, drawStartY = 0;
+let scale = 1;
+let panX = 0, panY = 0;
+let activeWbNoteId = null;
+
+let wbActivePage = 0;
+let wbPages = [
+    { paths: [], shapes: [], texts: [], stickies: [], images: [] }
+];
+
+let wbUndoStack = [];
+let wbRedoStack = [];
+
+let wbSelectedObjs = [];
+let isDraggingGroup = false;
+let groupLastDragPos = { x: 0, y: 0 };
+let isMarqueeSelecting = false;
+let marqueeStartPos = { x: 0, y: 0 };
+let marqueeCurrentPos = { x: 0, y: 0 };
+let isResizingObj = false;
+let resizeLastPos = { x: 0, y: 0 };
+let pinchStartDist = 0;
+
+let wbStylePanelCollapsed = false;
+
+const WB_SWATCHES = [
+    '#000000', '#6b7280', '#a855f7', '#3b82f6',
+    '#06b6d4', '#10b981', '#22c55e', '#f59e0b',
+    '#ff6b6b', '#ef4444', '#ffffff'
+];
+
+function toggleWbStylePanel() {
+    wbStylePanelCollapsed = !wbStylePanelCollapsed;
+    const panel = document.getElementById('wbRightPanel');
+    const icon = document.getElementById('wbPanelToggleIcon');
+    if (panel) {
+        if (wbStylePanelCollapsed) panel.classList.add('collapsed');
+        else panel.classList.remove('collapsed');
+    }
+    if (icon) icon.textContent = wbStylePanelCollapsed ? '▲' : '▼';
+}
+
+function getCurrentWbPage() {
+    if (!wbPages[wbActivePage]) {
+        wbPages[wbActivePage] = { paths: [], shapes: [], texts: [], stickies: [], images: [] };
+    }
+    return wbPages[wbActivePage];
+}
+
+function saveWbUndoState() {
+    wbUndoStack.push(JSON.parse(JSON.stringify(wbPages)));
+    wbRedoStack = [];
+}
+
+function undoWb() {
+    if (wbUndoStack.length === 0) return toast('Nothing to undo');
+    wbRedoStack.push(JSON.parse(JSON.stringify(wbPages)));
+    wbPages = wbUndoStack.pop();
+    if (wbActivePage >= wbPages.length) wbActivePage = wbPages.length - 1;
+    renderWbPageSelect();
+    redrawWb();
+}
+
+function redoWb() {
+    if (wbRedoStack.length === 0) return toast('Nothing to redo');
+    wbUndoStack.push(JSON.parse(JSON.stringify(wbPages)));
+    wbPages = wbRedoStack.pop();
+    if (wbActivePage >= wbPages.length) wbActivePage = wbPages.length - 1;
+    renderWbPageSelect();
+    redrawWb();
+}
+
+function addWbPage() {
+    saveWbUndoState();
+    wbPages.push({ paths: [], shapes: [], texts: [], stickies: [], images: [] });
+    wbActivePage = wbPages.length - 1;
+    renderWbPageSelect();
+    redrawWb();
+    toast(`Page ${wbActivePage + 1} added! 📄`);
+}
+
+function changeWbPage(idx) {
+    wbActivePage = Math.max(0, Math.min(idx, wbPages.length - 1));
+    renderWbPageSelect();
+    redrawWb();
+}
+
+function renderWbPageSelect() {
+    const sel = document.getElementById('wbPageSelect');
+    if (!sel) return;
+    sel.innerHTML = wbPages.map((_, i) => `<option value="${i}" ${i === wbActivePage ? 'selected' : ''}>Page ${i + 1}</option>`).join('');
+}
+
+function renderWbSwatches() {
+    const el = document.getElementById('wbColorSwatches');
+    if (!el) return;
+    el.innerHTML = WB_SWATCHES.map(c => `
+        <div class="wb-color-swatch ${c === wbColor ? 'active' : ''}" style="background:${c}; ${c === '#ffffff' ? 'border:1px solid #ccc;' : ''}" onclick="setWbColor('${c}')"></div>
+    `).join('');
+}
+
+function setWbColor(c) {
+    wbColor = c;
+    renderWbSwatches();
+
+    if (wbSelectedObjs && wbSelectedObjs.length > 0) {
+        saveWbUndoState();
+        wbSelectedObjs.forEach(item => {
+            const obj = item.obj;
+            if (item.type === 'path' || item.type === 'shape' || item.type === 'text') {
+                obj.color = c;
+            } else if (item.type === 'sticky') {
+                obj.bgColor = c;
+            }
+        });
+        redrawWb();
+    }
+}
+
+function setWbSize(sizeName) {
+    wbSizeName = sizeName;
+    const sizeMap = { 'S': 2, 'M': 4, 'L': 8, 'XL': 16 };
+    wbSize = sizeMap[sizeName] || 4;
+    ['S', 'M', 'L', 'XL'].forEach(s => {
+        const btn = document.getElementById('wbSize' + s);
+        if (btn) btn.className = `wb-size-btn ${s === sizeName ? 'active' : ''}`;
+    });
+}
+
+function setWbLineStyle(style) {
+    wbLineStyle = style;
+    ['solid', 'dashed', 'dotted'].forEach(s => {
+        const name = s.charAt(0).toUpperCase() + s.slice(1);
+        const btn = document.getElementById('wbStyle' + name);
+        if (btn) btn.className = `wb-size-btn ${s === style ? 'active' : ''}`;
+    });
+}
+
+function setWbFillStyle(style) {
+    wbFillStyle = style;
+    ['none', 'semi', 'solid'].forEach(s => {
+        const name = s.charAt(0).toUpperCase() + s.slice(1);
+        const btn = document.getElementById('wbFill' + name);
+        if (btn) btn.className = `wb-size-btn ${s === style ? 'active' : ''}`;
+    });
+}
+
+function setWbTool(tool) {
+    wbTool = tool;
+    wbSelectedObjs = [];
+
+    const tools = ['select', 'pan', 'pen', 'eraser', 'arrow', 'text', 'sticky', 'rect', 'circle'];
+    tools.forEach(t => {
+        const name = t.charAt(0).toUpperCase() + t.slice(1);
+        const btn = document.getElementById('wbTool' + name);
+        if (btn) btn.className = `wb-tool-btn ${t === tool ? 'active' : ''}`;
+    });
+
+    const container = document.getElementById('wbContainer');
+    if (container) {
+        if (tool === 'pan') container.style.cursor = 'grab';
+        else if (tool === 'select') container.style.cursor = 'default';
+        else if (tool === 'text') container.style.cursor = 'text';
+        else container.style.cursor = 'crosshair';
+    }
+    redrawWb();
+}
+
+function handleWbImageSelect(files) {
+    if (!files || !files.length) return;
+    for (let f of files) {
+        addWbImageBlob(f);
+    }
+}
+
+function addWbImageBlob(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            saveWbUndoState();
+            const curPage = getCurrentWbPage();
+            if (!curPage.images) curPage.images = [];
+            let maxDim = 320;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+                if (w > h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+                else { w = Math.round(w * (maxDim / h)); h = maxDim; }
+            }
+            const centerX = (-panX + (wbCanvas ? wbCanvas.width / 2 : 300)) / scale - w / 2;
+            const centerY = (-panY + (wbCanvas ? wbCanvas.height / 2 : 300)) / scale - h / 2;
+
+            curPage.images.push({
+                id: Date.now() + Math.random(),
+                src: e.target.result,
+                imgObj: img,
+                x: centerX,
+                y: centerY,
+                w: w,
+                h: h
+            });
+            redrawWb();
+            toast('Image added! 🖼️');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+window.addEventListener('paste', (e) => {
+    const modal = document.getElementById('whiteboardModal');
+    if (!modal || !modal.classList.contains('open')) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let item of items) {
+        if (item.type.indexOf('image') !== -1) {
+            const blob = item.getAsFile();
+            if (blob) addWbImageBlob(blob);
+        }
+    }
+});
+
+function openWhiteboardModal(noteId = null) {
+    const modal = document.getElementById('whiteboardModal');
+    wbCanvas = document.getElementById('wbCanvas');
+    wbCtx = wbCanvas.getContext('2d');
+    activeWbNoteId = noteId;
+    scale = 1; panX = 0; panY = 0;
+    wbUndoStack = [];
+    wbRedoStack = [];
+    wbSelectedObjs = [];
+
+    if (noteId) {
+        const n = STATE.notes.find(x => x.id === noteId);
+        document.getElementById('wbTitle').value = n.title || 'Untitled Board';
+        if (n.wbData) {
+            wbActivePage = n.wbData.activePage || 0;
+            if (Array.isArray(n.wbData.pages) && n.wbData.pages.length) {
+                wbPages = JSON.parse(JSON.stringify(n.wbData.pages));
+            } else if (n.wbData.paths || n.wbData.texts) {
+                wbPages = [{
+                    paths: n.wbData.paths || [],
+                    shapes: n.wbData.shapes || [],
+                    texts: n.wbData.texts || [],
+                    stickies: n.wbData.stickies || [],
+                    images: []
+                }];
+            } else {
+                wbPages = [{ paths: [], shapes: [], texts: [], stickies: [], images: [] }];
+            }
+        } else {
+            wbActivePage = 0;
+            wbPages = [{ paths: [], shapes: [], texts: [], stickies: [], images: [] }];
+        }
+    } else {
+        document.getElementById('wbTitle').value = 'New Whiteboard';
+        wbActivePage = 0;
+        wbPages = [{ paths: [], shapes: [], texts: [], stickies: [], images: [] }];
+    }
+
+    wbPages.forEach(p => {
+        (p.images || []).forEach(imgData => {
+            if (imgData.src && !imgData.imgObj) {
+                const img = new Image();
+                img.onload = () => redrawWb();
+                img.src = imgData.src;
+                imgData.imgObj = img;
+            }
+        });
+    });
+
+    renderWbSwatches();
+    setWbTool('pen');
+    setWbSize('M');
+    setWbLineStyle('solid');
+    setWbFillStyle('none');
+    renderWbPageSelect();
+
+    modal.classList.add('open');
+    setTimeout(() => {
+        const container = document.getElementById('wbContainer');
+        wbCanvas.width = container.clientWidth;
+        wbCanvas.height = container.clientHeight;
+        initWbEvents();
+        redrawWb();
+    }, 350);
+}
+
+function zoomWb(factor) {
+    scale *= factor;
+    scale = Math.max(0.2, Math.min(scale, 5));
+    const zoomEl = document.getElementById('wbZoomLevel');
+    if (zoomEl) zoomEl.textContent = `${Math.round(scale * 100)}%`;
+    redrawWb();
+}
+
+function resetWbView() {
+    scale = 1;
+    panX = 0;
+    panY = 0;
+    const zoomEl = document.getElementById('wbZoomLevel');
+    if (zoomEl) zoomEl.textContent = '100%';
+    redrawWb();
+}
+
+function clearWbCanvas() {
+    if (!confirm('Clear canvas on this page?')) return;
+    saveWbUndoState();
+    const cur = getCurrentWbPage();
+    cur.paths = [];
+    cur.shapes = [];
+    cur.texts = [];
+    cur.stickies = [];
+    cur.images = [];
+    wbSelectedObjs = [];
+    redrawWb();
+}
+
+function exportWbImage() {
+    if (!wbCanvas) return;
+    const off = document.createElement('canvas');
+    off.width = wbCanvas.width;
+    off.height = wbCanvas.height;
+    const ctx = off.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, off.width, off.height);
+
+    ctx.drawImage(wbCanvas, 0, 0);
+
+    const title = document.getElementById('wbTitle').value.trim() || 'whiteboard';
+    const filename = `${title.toLowerCase().replace(/\s+/g, '_')}_page${wbActivePage + 1}.png`;
+    const dataUrl = off.toDataURL('image/png');
+
+    if (window.AndroidInterface && typeof window.AndroidInterface.downloadBase64File === 'function') {
+        window.AndroidInterface.downloadBase64File(dataUrl, filename, 'image/png');
+        toast('Saved whiteboard to Downloads! 📥');
+        return;
+    }
+
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast('Exported PNG! 📷');
+}
+
+function findWbObjectAt(pos) {
+    const curPage = getCurrentWbPage();
+
+    if (curPage.images) {
+        for (let i = curPage.images.length - 1; i >= 0; i--) {
+            const img = curPage.images[i];
+            if (pos.x >= img.x && pos.x <= img.x + img.w && pos.y >= img.y && pos.y <= img.y + img.h) {
+                return { obj: img, type: 'image' };
+            }
+        }
+    }
+
+    if (curPage.stickies) {
+        for (let i = curPage.stickies.length - 1; i >= 0; i--) {
+            const st = curPage.stickies[i];
+            const w = st.w || 140; const h = st.h || 140;
+            if (pos.x >= st.x && pos.x <= st.x + w && pos.y >= st.y && pos.y <= st.y + h) {
+                return { obj: st, type: 'sticky' };
+            }
+        }
+    }
+
+    if (curPage.texts) {
+        for (let i = curPage.texts.length - 1; i >= 0; i--) {
+            const t = curPage.texts[i];
+            const size = t.size || 18;
+            if (Math.hypot(t.x - pos.x, t.y - pos.y) < size * 2) {
+                return { obj: t, type: 'text' };
+            }
+        }
+    }
+
+    if (curPage.shapes) {
+        for (let i = curPage.shapes.length - 1; i >= 0; i--) {
+            const s = curPage.shapes[i];
+            if (s.type === 'arrow') {
+                if (Math.hypot(s.x1 - pos.x, s.y1 - pos.y) < 25 || Math.hypot(s.x2 - pos.x, s.y2 - pos.y) < 25) {
+                    return { obj: s, type: 'shape' };
+                }
+            } else {
+                const minX = Math.min(s.x, s.x + s.w); const maxX = Math.max(s.x, s.x + s.w);
+                const minY = Math.min(s.y, s.y + s.h); const maxY = Math.max(s.y, s.y + s.h);
+                if (pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY) {
+                    return { obj: s, type: 'shape' };
+                }
+            }
+        }
+    }
+
+    if (curPage.paths) {
+        for (let i = curPage.paths.length - 1; i >= 0; i--) {
+            const p = curPage.paths[i];
+            if (p.points && p.points.some(pt => Math.hypot(pt.x - pos.x, pt.y - pos.y) < 15)) {
+                return { obj: p, type: 'path' };
+            }
+        }
+    }
+
+    return null;
+}
+
+function findWbObjectsInBox(p1, p2) {
+    const curPage = getCurrentWbPage();
+    const result = [];
+    const minX = Math.min(p1.x, p2.x); const maxX = Math.max(p1.x, p2.x);
+    const minY = Math.min(p1.y, p2.y); const maxY = Math.max(p1.y, p2.y);
+
+    function intersects(x, y, w, h) {
+        return (x + w >= minX && x <= maxX && y + h >= minY && y <= maxY);
+    }
+
+    (curPage.images || []).forEach(img => {
+        if (intersects(img.x, img.y, img.w, img.h)) result.push({ obj: img, type: 'image' });
+    });
+
+    (curPage.stickies || []).forEach(st => {
+        if (intersects(st.x, st.y, st.w || 140, st.h || 140)) result.push({ obj: st, type: 'sticky' });
+    });
+
+    (curPage.texts || []).forEach(t => {
+        const size = t.size || 18;
+        if (intersects(t.x, t.y - size, size * 5, size)) result.push({ obj: t, type: 'text' });
+    });
+
+    (curPage.shapes || []).forEach(s => {
+        if (s.type === 'arrow') {
+            const sx = Math.min(s.x1, s.x2); const sw = Math.abs(s.x2 - s.x1);
+            const sy = Math.min(s.y1, s.y2); const sh = Math.abs(s.y2 - s.y1);
+            if (intersects(sx, sy, sw, sh)) result.push({ obj: s, type: 'shape' });
+        } else {
+            const sx = Math.min(s.x, s.x + s.w); const sw = Math.abs(s.w);
+            const sy = Math.min(s.y, s.y + s.h); const sh = Math.abs(s.h);
+            if (intersects(sx, sy, sw, sh)) result.push({ obj: s, type: 'shape' });
+        }
+    });
+
+    (curPage.paths || []).forEach(p => {
+        if (p.points && p.points.some(pt => pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY)) {
+            result.push({ obj: p, type: 'path' });
+        }
+    });
+
+    return result;
+}
+
+function drawWbItemBoundingBox(ctx, item) {
+    const obj = item.obj;
+    if (item.type === 'image') {
+        ctx.strokeRect(obj.x - 2, obj.y - 2, obj.w + 4, obj.h + 4);
+    } else if (item.type === 'sticky') {
+        ctx.strokeRect(obj.x - 2, obj.y - 2, (obj.w || 140) + 4, (obj.h || 140) + 4);
+    } else if (item.type === 'text') {
+        const fontH = obj.size || 18;
+        const metrics = ctx.measureText(obj.text || '');
+        ctx.strokeRect(obj.x - 2, obj.y - fontH, metrics.width + 4, fontH + 6);
+    } else if (item.type === 'shape') {
+        if (obj.type === 'arrow') {
+            ctx.strokeRect(Math.min(obj.x1, obj.x2) - 4, Math.min(obj.y1, obj.y2) - 4, Math.abs(obj.x2 - obj.x1) + 8, Math.abs(obj.y2 - obj.y1) + 8);
+        } else {
+            ctx.strokeRect(Math.min(obj.x, obj.x + obj.w) - 4, Math.min(obj.y, obj.y + obj.h) - 4, Math.abs(obj.w) + 8, Math.abs(obj.h) + 8);
+        }
+    } else if (item.type === 'path') {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        (obj.points || []).forEach(pt => {
+            if (pt.x < minX) minX = pt.x;
+            if (pt.x > maxX) maxX = pt.x;
+            if (pt.y < minY) minY = pt.y;
+            if (pt.y > maxY) maxY = pt.y;
+        });
+        if (minX !== Infinity) {
+            ctx.strokeRect(minX - 4, minY - 4, (maxX - minX) + 8, (maxY - minY) + 8);
+        }
+    }
+}
+
+function getWbGroupBounds(items) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    items.forEach(item => {
+        const obj = item.obj;
+        if (item.type === 'image' || item.type === 'sticky') {
+            const w = obj.w || 140; const h = obj.h || 140;
+            minX = Math.min(minX, obj.x); maxX = Math.max(maxX, obj.x + w);
+            minY = Math.min(minY, obj.y); maxY = Math.max(maxY, obj.y + h);
+        } else if (item.type === 'text') {
+            const size = obj.size || 18;
+            minX = Math.min(minX, obj.x); maxX = Math.max(maxX, obj.x + size * 4);
+            minY = Math.min(minY, obj.y - size); maxY = Math.max(maxY, obj.y);
+        } else if (item.type === 'shape') {
+            if (obj.type === 'arrow') {
+                minX = Math.min(minX, obj.x1, obj.x2); maxX = Math.max(maxX, obj.x1, obj.x2);
+                minY = Math.min(minY, obj.y1, obj.y2); maxY = Math.max(maxY, obj.y1, obj.y2);
+            } else {
+                minX = Math.min(minX, obj.x, obj.x + obj.w); maxX = Math.max(maxX, obj.x, obj.x + obj.w);
+                minY = Math.min(minY, obj.y, obj.y + obj.h); maxY = Math.max(maxY, obj.y, obj.y + obj.h);
+            }
+        } else if (item.type === 'path') {
+            (obj.points || []).forEach(pt => {
+                minX = Math.min(minX, pt.x); maxX = Math.max(maxX, pt.x);
+                minY = Math.min(minY, pt.y); maxY = Math.max(maxY, pt.y);
+            });
+        }
+    });
+    if (minX === Infinity) return null;
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
+function initWbEvents() {
+    const container = document.getElementById('wbContainer');
+    const getPos = (e) => {
+        const rect = wbCanvas.getBoundingClientRect();
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        }
+        return {
+            x: (clientX - rect.left - panX) / scale,
+            y: (clientY - rect.top - panY) / scale
+        };
+    };
+
+    const startAction = (e) => {
+        if (e.target.closest('.wb-dock-bottom, .wb-dock-right, button, select, input')) {
+            return;
+        }
+
+        if (e.touches && e.touches.length === 2) {
+            isDrawing = false;
+            isPanning = false;
+            pinchStartDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            return;
+        }
+
+        if (e.button === 1 || wbTool === 'pan' || (e.touches && e.touches.length > 2)) {
+            isPanning = true;
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            startX = clientX - panX;
+            startY = clientY - panY;
+            container.style.cursor = 'grabbing';
+            return;
+        }
+
+        const pos = getPos(e);
+        const curPage = getCurrentWbPage();
+
+        if (wbTool === 'select') {
+            // Check if user clicked on corner resize handle of single selection
+            if (wbSelectedObjs && wbSelectedObjs.length === 1) {
+                const bounds = getWbGroupBounds(wbSelectedObjs);
+                if (bounds) {
+                    const handleX = bounds.x + bounds.w + 4;
+                    const handleY = bounds.y + bounds.h + 4;
+                    if (Math.hypot(pos.x - handleX, pos.y - handleY) < 18 / scale) {
+                        isResizingObj = true;
+                        resizeLastPos = pos;
+                        return;
+                    }
+                }
+            }
+
+            const found = findWbObjectAt(pos);
+            if (found) {
+                const isAlreadySelected = wbSelectedObjs.some(item => item.obj === found.obj);
+                if (e.shiftKey) {
+                    if (isAlreadySelected) {
+                        wbSelectedObjs = wbSelectedObjs.filter(item => item.obj !== found.obj);
+                    } else {
+                        wbSelectedObjs.push(found);
+                    }
+                } else if (!isAlreadySelected) {
+                    wbSelectedObjs = [found];
+                }
+                isDraggingGroup = true;
+                groupLastDragPos = pos;
+            } else {
+                if (!e.shiftKey) {
+                    wbSelectedObjs = [];
+                }
+                isMarqueeSelecting = true;
+                marqueeStartPos = pos;
+                marqueeCurrentPos = pos;
+            }
+            redrawWb();
+            return;
+        }
+
+        if (wbTool === 'text') {
+            const txt = prompt('Enter text:');
+            if (txt && txt.trim()) {
+                saveWbUndoState();
+                if (!curPage.texts) curPage.texts = [];
+                curPage.texts.push({
+                    text: txt.trim(),
+                    x: pos.x,
+                    y: pos.y,
+                    color: wbColor,
+                    size: wbSize * 4.5
+                });
+                redrawWb();
+            }
+            setWbTool('select');
+            return;
+        }
+
+        if (wbTool === 'sticky') {
+            const txt = prompt('Enter sticky note text:');
+            if (txt && txt.trim()) {
+                saveWbUndoState();
+                if (!curPage.stickies) curPage.stickies = [];
+                const stickyColors = ['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#fed7aa'];
+                const randomBg = stickyColors[Math.floor(Math.random() * stickyColors.length)];
+                curPage.stickies.push({
+                    text: txt.trim(),
+                    x: pos.x - 70,
+                    y: pos.y - 70,
+                    w: 140,
+                    h: 140,
+                    color: '#1e293b',
+                    bgColor: randomBg
+                });
+                redrawWb();
+            }
+            setWbTool('select');
+            return;
+        }
+
+        if (wbTool === 'eraser') {
+            saveWbUndoState();
+            eraseWbAtPos(pos.x, pos.y);
+            isDrawing = true;
+            return;
+        }
+
+        saveWbUndoState();
+        isDrawing = true;
+        drawStartX = pos.x;
+        drawStartY = pos.y;
+
+        if (wbTool === 'pen') {
+            if (!curPage.paths) curPage.paths = [];
+            curPage.paths.push({
+                color: wbColor,
+                size: wbSize,
+                lineStyle: wbLineStyle,
+                points: [{ x: pos.x, y: pos.y }]
+            });
+        } else if (['rect', 'circle', 'arrow'].includes(wbTool)) {
+            if (!curPage.shapes) curPage.shapes = [];
+            curPage.shapes.push({
+                type: wbTool,
+                x: pos.x,
+                y: pos.y,
+                w: 0,
+                h: 0,
+                x1: pos.x,
+                y1: pos.y,
+                x2: pos.x,
+                y2: pos.y,
+                color: wbColor,
+                size: wbSize,
+                lineStyle: wbLineStyle,
+                fillStyle: wbFillStyle
+            });
+        }
+    };
+
+    const moveAction = (e) => {
+        if (e.touches && e.touches.length === 2 && pinchStartDist > 0) {
+            e.preventDefault();
+            const newDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            const factor = newDist / pinchStartDist;
+            pinchStartDist = newDist;
+            zoomWb(factor);
+            return;
+        }
+
+        if (isPanning) {
+            e.preventDefault();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            panX = clientX - startX;
+            panY = clientY - startY;
+            redrawWb();
+            return;
+        }
+
+        if (isResizingObj && wbSelectedObjs && wbSelectedObjs.length === 1) {
+            e.preventDefault();
+            const pos = getPos(e);
+            const dx = pos.x - resizeLastPos.x;
+            const dy = pos.y - resizeLastPos.y;
+            resizeLastPos = pos;
+
+            const item = wbSelectedObjs[0];
+            const obj = item.obj;
+
+            if (item.type === 'image') {
+                obj.w = Math.max(30, obj.w + dx);
+                obj.h = Math.max(30, obj.h + dy);
+            } else if (item.type === 'sticky') {
+                obj.w = Math.max(60, (obj.w || 140) + dx);
+                obj.h = Math.max(60, (obj.h || 140) + dy);
+            } else if (item.type === 'text') {
+                obj.size = Math.max(10, (obj.size || 18) + dx * 0.3);
+            } else if (item.type === 'shape') {
+                if (obj.type === 'arrow') {
+                    obj.x2 += dx; obj.y2 += dy;
+                } else {
+                    obj.w += dx; obj.h += dy;
+                }
+            } else if (item.type === 'path') {
+                let minX = Infinity, maxX = -Infinity;
+                (obj.points || []).forEach(pt => {
+                    if (pt.x < minX) minX = pt.x;
+                    if (pt.x > maxX) maxX = pt.x;
+                });
+                const currentWidth = Math.max(10, maxX - minX);
+                const scaleX = (currentWidth + dx) / currentWidth;
+                (obj.points || []).forEach(pt => {
+                    pt.x = minX + (pt.x - minX) * scaleX;
+                });
+            }
+            redrawWb();
+            return;
+        }
+
+        if (isDraggingGroup && wbSelectedObjs.length > 0) {
+            e.preventDefault();
+            const pos = getPos(e);
+            const dx = pos.x - groupLastDragPos.x;
+            const dy = pos.y - groupLastDragPos.y;
+            groupLastDragPos = pos;
+
+            wbSelectedObjs.forEach(item => {
+                const obj = item.obj;
+                if (item.type === 'path') {
+                    (obj.points || []).forEach(pt => { pt.x += dx; pt.y += dy; });
+                } else if (item.type === 'shape' && obj.type === 'arrow') {
+                    obj.x1 += dx; obj.y1 += dy;
+                    obj.x2 += dx; obj.y2 += dy;
+                } else {
+                    obj.x = (obj.x || 0) + dx;
+                    obj.y = (obj.y || 0) + dy;
+                }
+            });
+            redrawWb();
+            return;
+        }
+
+        if (isMarqueeSelecting) {
+            e.preventDefault();
+            const pos = getPos(e);
+            marqueeCurrentPos = pos;
+            wbSelectedObjs = findWbObjectsInBox(marqueeStartPos, marqueeCurrentPos);
+            redrawWb();
+            return;
+        }
+
+        if (!isDrawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        const curPage = getCurrentWbPage();
+
+        if (wbTool === 'eraser') {
+            eraseWbAtPos(pos.x, pos.y);
+            redrawWb();
+            return;
+        }
+
+        if (wbTool === 'pen') {
+            const currentPath = curPage.paths[curPage.paths.length - 1];
+            if (currentPath) {
+                currentPath.points.push({ x: pos.x, y: pos.y });
+                redrawWb();
+            }
+        } else if (['rect', 'circle', 'arrow'].includes(wbTool)) {
+            const currentShape = curPage.shapes[curPage.shapes.length - 1];
+            if (currentShape) {
+                if (wbTool === 'arrow') {
+                    currentShape.x2 = pos.x;
+                    currentShape.y2 = pos.y;
+                } else {
+                    currentShape.w = pos.x - drawStartX;
+                    currentShape.h = pos.y - drawStartY;
+                }
+                redrawWb();
+            }
+        }
+    };
+
+    const endAction = () => {
+        isDrawing = false;
+        isPanning = false;
+        isDraggingGroup = false;
+        isMarqueeSelecting = false;
+        isResizingObj = false;
+        pinchStartDist = 0;
+        container.style.cursor = wbTool === 'pan' ? 'grab' : wbTool === 'select' ? 'default' : wbTool === 'text' ? 'text' : 'crosshair';
+    };
+
+    container.onmousedown = startAction;
+    container.onmousemove = moveAction;
+    container.onmouseup = container.onmouseleave = endAction;
+    container.ontouchstart = startAction;
+    container.ontouchmove = moveAction;
+    container.ontouchend = container.ontouchcancel = endAction;
+    container.onwheel = (e) => {
+        e.preventDefault();
+        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+        zoomWb(zoomFactor);
+    };
+}
+
+function eraseWbAtPos(x, y) {
+    const curPage = getCurrentWbPage();
+    const threshold = 20 / scale;
+
+    if (curPage.paths) {
+        curPage.paths = curPage.paths.filter(p => {
+            return !p.points.some(pt => Math.hypot(pt.x - x, pt.y - y) < threshold);
+        });
+    }
+
+    if (curPage.shapes) {
+        curPage.shapes = curPage.shapes.filter(s => {
+            if (s.type === 'arrow') {
+                const d1 = Math.hypot(s.x1 - x, s.y1 - y);
+                const d2 = Math.hypot(s.x2 - x, s.y2 - y);
+                return d1 > threshold && d2 > threshold;
+            }
+            return !(x >= Math.min(s.x, s.x + s.w) && x <= Math.max(s.x, s.x + s.w) &&
+                     y >= Math.min(s.y, s.y + s.h) && y <= Math.max(s.y, s.y + s.h));
+        });
+    }
+
+    if (curPage.texts) {
+        curPage.texts = curPage.texts.filter(t => Math.hypot(t.x - x, t.y - y) > threshold * 1.5);
+    }
+
+    if (curPage.stickies) {
+        curPage.stickies = curPage.stickies.filter(st => {
+            return !(x >= st.x && x <= st.x + (st.w || 140) && y >= st.y && y <= st.y + (st.h || 140));
+        });
+    }
+
+    if (curPage.images) {
+        curPage.images = curPage.images.filter(img => {
+            return !(x >= img.x && x <= img.x + img.w && y >= img.y && y <= img.y + img.h);
+        });
+    }
+}
+
+function drawWbArrow(ctx, x1, y1, x2, y2, color, size) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = size;
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const headLen = Math.max(12, size * 2.5);
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
+
+function wrapWbText(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = (text || '').split(' ');
+    let line = '';
+    for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && n > 0) {
+            ctx.fillText(line, x, y);
+            line = words[n] + ' ';
+            y += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+    ctx.fillText(line, x, y);
+}
+
+function redrawWb() {
+    if (!wbCtx) return;
+    wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
+    wbCtx.save();
+
+    wbCtx.translate(panX, panY);
+    wbCtx.scale(scale, scale);
+
+    const currentPage = getCurrentWbPage();
+
+    // 1. Render Images
+    (currentPage.images || []).forEach(imgData => {
+        if (imgData.imgObj && imgData.imgObj.complete) {
+            wbCtx.drawImage(imgData.imgObj, imgData.x, imgData.y, imgData.w, imgData.h);
+        }
+    });
+
+    // 2. Render Shapes (rect, circle, arrow)
+    (currentPage.shapes || []).forEach(shape => {
+        wbCtx.save();
+        wbCtx.strokeStyle = shape.color;
+        wbCtx.lineWidth = shape.size;
+
+        if (shape.lineStyle === 'dashed') wbCtx.setLineDash([10, 8]);
+        else if (shape.lineStyle === 'dotted') wbCtx.setLineDash([3, 6]);
+        else wbCtx.setLineDash([]);
+
+        if (shape.type === 'rect') {
+            if (shape.fillStyle === 'solid') {
+                wbCtx.fillStyle = shape.color;
+                wbCtx.fillRect(shape.x, shape.y, shape.w, shape.h);
+            } else if (shape.fillStyle === 'semi') {
+                wbCtx.fillStyle = shape.color + '44';
+                wbCtx.fillRect(shape.x, shape.y, shape.w, shape.h);
+            }
+            wbCtx.strokeRect(shape.x, shape.y, shape.w, shape.h);
+        } else if (shape.type === 'circle') {
+            const rx = shape.w / 2;
+            const ry = shape.h / 2;
+            const cx = shape.x + rx;
+            const cy = shape.y + ry;
+            wbCtx.beginPath();
+            wbCtx.ellipse(cx, cy, Math.abs(rx), Math.abs(ry), 0, 0, 2 * Math.PI);
+            if (shape.fillStyle === 'solid') {
+                wbCtx.fillStyle = shape.color;
+                wbCtx.fill();
+            } else if (shape.fillStyle === 'semi') {
+                wbCtx.fillStyle = shape.color + '44';
+                wbCtx.fill();
+            }
+            wbCtx.stroke();
+        } else if (shape.type === 'arrow') {
+            drawWbArrow(wbCtx, shape.x1, shape.y1, shape.x2, shape.y2, shape.color, shape.size);
+        }
+        wbCtx.restore();
+    });
+
+    // 3. Render Stickies
+    (currentPage.stickies || []).forEach(st => {
+        wbCtx.save();
+        wbCtx.shadowColor = 'rgba(0,0,0,0.15)';
+        wbCtx.shadowBlur = 8;
+        wbCtx.shadowOffsetY = 4;
+
+        wbCtx.fillStyle = st.bgColor || '#fef08a';
+        wbCtx.fillRect(st.x, st.y, st.w || 140, st.h || 140);
+        wbCtx.shadowColor = 'transparent';
+
+        wbCtx.fillStyle = st.color || '#1e293b';
+        wbCtx.font = "14px 'Syne', sans-serif";
+        wrapWbText(wbCtx, st.text, st.x + 12, st.y + 24, (st.w || 140) - 24, 18);
+        wbCtx.restore();
+    });
+
+    // 4. Render Freehand Paths
+    (currentPage.paths || []).forEach(path => {
+        if (!path.points || path.points.length < 1) return;
+        wbCtx.save();
+        wbCtx.beginPath();
+        wbCtx.strokeStyle = path.color;
+        wbCtx.lineWidth = path.size;
+        wbCtx.lineCap = 'round';
+        wbCtx.lineJoin = 'round';
+
+        if (path.lineStyle === 'dashed') wbCtx.setLineDash([10, 8]);
+        else if (path.lineStyle === 'dotted') wbCtx.setLineDash([3, 6]);
+
+        wbCtx.moveTo(path.points[0].x, path.points[0].y);
+        for (let i = 1; i < path.points.length; i++) {
+            wbCtx.lineTo(path.points[i].x, path.points[i].y);
+        }
+        wbCtx.stroke();
+        wbCtx.restore();
+    });
+
+    // 5. Render Texts
+    (currentPage.texts || []).forEach(t => {
+        wbCtx.save();
+        wbCtx.font = `${t.size || 18}px 'Syne', sans-serif`;
+        wbCtx.fillStyle = t.color;
+        wbCtx.fillText(t.text, t.x, t.y);
+        wbCtx.restore();
+    });
+
+    // 6. Render Marquee Drag Selection Box
+    if (isMarqueeSelecting && marqueeStartPos && marqueeCurrentPos) {
+        wbCtx.save();
+        wbCtx.strokeStyle = '#3b82f6';
+        wbCtx.fillStyle = 'rgba(59, 130, 246, 0.12)';
+        wbCtx.lineWidth = 1.5 / scale;
+        const mx = Math.min(marqueeStartPos.x, marqueeCurrentPos.x);
+        const my = Math.min(marqueeStartPos.y, marqueeCurrentPos.y);
+        const mw = Math.abs(marqueeCurrentPos.x - marqueeStartPos.x);
+        const mh = Math.abs(marqueeCurrentPos.y - marqueeStartPos.y);
+        wbCtx.fillRect(mx, my, mw, mh);
+        wbCtx.strokeRect(mx, my, mw, mh);
+        wbCtx.restore();
+    }
+
+    // 7. Render Group Selection Bounding Boxes & Resize Corner Handle
+    if (wbSelectedObjs && wbSelectedObjs.length > 0) {
+        wbCtx.save();
+        wbCtx.strokeStyle = '#3b82f6';
+        wbCtx.lineWidth = 2 / scale;
+        wbCtx.setLineDash([6, 4]);
+
+        wbSelectedObjs.forEach(item => {
+            drawWbItemBoundingBox(wbCtx, item);
+        });
+
+        const bounds = getWbGroupBounds(wbSelectedObjs);
+        if (bounds) {
+            if (wbSelectedObjs.length > 1) {
+                wbCtx.strokeStyle = '#2563eb';
+                wbCtx.lineWidth = 2 / scale;
+                wbCtx.setLineDash([]);
+                wbCtx.strokeRect(bounds.x - 4, bounds.y - 4, bounds.w + 8, bounds.h + 8);
+            }
+
+            // Draw Resize Handle at bottom-right corner for selection
+            wbCtx.fillStyle = '#2563eb';
+            wbCtx.strokeStyle = '#ffffff';
+            wbCtx.lineWidth = 2 / scale;
+            wbCtx.setLineDash([]);
+            wbCtx.beginPath();
+            wbCtx.arc(bounds.x + bounds.w + 4, bounds.y + bounds.h + 4, 7 / scale, 0, Math.PI * 2);
+            wbCtx.fill();
+            wbCtx.stroke();
+        }
+        wbCtx.restore();
+    }
+
+    wbCtx.restore();
+}
+
+function saveWhiteboardNote() {
+    const title = document.getElementById('wbTitle').value.trim() || 'Untitled Board';
+    const now = new Date().toISOString();
+
+    const serializablePages = wbPages.map(p => ({
+        paths: p.paths || [],
+        shapes: p.shapes || [],
+        texts: p.texts || [],
+        stickies: p.stickies || [],
+        images: (p.images || []).map(img => ({
+            id: img.id,
+            src: img.src,
+            x: img.x,
+            y: img.y,
+            w: img.w,
+            h: img.h
+        }))
+    }));
+
+    const wbData = {
+        activePage: wbActivePage,
+        pages: serializablePages
+    };
+
+    if (activeWbNoteId) {
+        const n = STATE.notes.find(x => x.id === activeWbNoteId);
+        if (n) {
+            n.title = title;
+            n.wbData = wbData;
+            n.updatedAt = now;
+            save();
+            renderNotes();
+            ofetch('update_note.php', { id: n.id, title: n.title, isWhiteboard: true, wbData: n.wbData, updatedAt: now });
+        }
+    } else {
+        const tempId = Date.now();
+        const nData = {
+            id: tempId,
+            title: title,
+            body: '[Whiteboard Note]',
+            isWhiteboard: true,
+            wbData: wbData,
+            pinned: false,
+            archived: false,
+            trashed: false,
+            updatedAt: now
+        };
+        STATE.notes.unshift(nData);
+        save();
+        renderNotes();
+        ofetch('add_note.php', nData, d => {
+            const n = STATE.notes.find(x => x.id === tempId);
+            if (n) n.id = d.id;
+            save();
+            renderNotes();
+        });
+    }
+    closeModal('whiteboardModal');
+    toast('Whiteboard saved! 🎨');
+}
 
 // ============================================================
 // SLEEP TRACKER
