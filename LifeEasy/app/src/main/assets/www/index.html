@@ -2475,8 +2475,20 @@
         </div>
         <div class="form-row"><label class="label">Due Date</label><input class="input" type="date" id="taskDue">
         </div>
-        <div class="form-row"><label class="label">Reminder</label><input class="input" type="datetime-local"
-                                                                          id="taskReminder"></div>
+        <div class="form-row">
+            <label class="label">Notification Reminder</label>
+            <select class="input" id="taskReminderOpt" onchange="toggleCustomReminderPicker('task')">
+                <option value="none">None</option>
+                <option value="date_9am">On due date at 9:00 AM</option>
+                <option value="1day_before_9pm">1 day before at 9:00 PM</option>
+                <option value="1day_before_9am">1 day before at 9:00 AM</option>
+                <option value="custom">Custom Date &amp; Time...</option>
+            </select>
+        </div>
+        <div class="form-row" id="taskCustomPickerRow" style="display:none;">
+            <label class="label">Custom Reminder Time</label>
+            <input class="input" type="datetime-local" id="taskCustomPicker">
+        </div>
         <div class="modal-footer"><button class="btn-secondary"
                                           onclick="closeModal('taskModal')">Cancel</button><button class="btn-primary"
                                                                                                    onclick="saveTask()">Save Task</button></div>
@@ -2507,6 +2519,23 @@
                 <option value="monthly">Monthly</option>
                 <option value="yearly">Yearly</option>
             </select>
+        </div>
+
+        <div class="form-row">
+            <label class="label">Notification Reminder</label>
+            <select class="input" id="planReminderOpt" onchange="toggleCustomReminderPicker('plan')">
+                <option value="none">None</option>
+                <option value="10m_before">10 minutes before</option>
+                <option value="30m_before">30 minutes before</option>
+                <option value="1h_before">1 hour before</option>
+                <option value="date_9am">On event date at 9:00 AM</option>
+                <option value="1day_before_9am">1 day before at 9:00 AM</option>
+                <option value="custom">Custom Date &amp; Time...</option>
+            </select>
+        </div>
+        <div class="form-row" id="planCustomPickerRow" style="display:none;">
+            <label class="label">Custom Reminder Time</label>
+            <input class="input" type="datetime-local" id="planCustomPicker">
         </div>
 
         <div class="form-row"><label class="label">Color</label>
@@ -2559,6 +2588,20 @@
                                                                       placeholder="For what?"></div>
         <div class="form-row"><label class="label">Due Date (optional)</label><input class="input" type="date"
                                                                                      id="moneyDue"></div>
+        <div class="form-row">
+            <label class="label">Notification Reminder</label>
+            <select class="input" id="moneyReminderOpt" onchange="toggleCustomReminderPicker('money')">
+                <option value="none">None</option>
+                <option value="date_9am">On settlement date at 9:00 AM</option>
+                <option value="1day_before_9am">1 day before at 9:00 AM</option>
+                <option value="1week_before_9am">1 week before at 9:00 AM</option>
+                <option value="custom">Custom Date &amp; Time...</option>
+            </select>
+        </div>
+        <div class="form-row" id="moneyCustomPickerRow" style="display:none;">
+            <label class="label">Custom Reminder Time</label>
+            <input class="input" type="datetime-local" id="moneyCustomPicker">
+        </div>
         <div class="modal-footer"><button class="btn-secondary"
                                           onclick="closeModal('moneyModal')">Cancel</button><button class="btn-primary"
                                                                                                     onclick="saveMoney()">Save</button></div>
@@ -2666,6 +2709,16 @@
                                                                                 id="attRoutineStartTime"></div>
             <div class="form-row"><label class="label">End Time</label><input class="input" type="time"
                                                                               id="attRoutineEndTime"></div>
+        </div>
+        <div class="form-row">
+            <label class="label">Notification Reminder</label>
+            <select class="input" id="attReminderOpt">
+                <option value="none">None</option>
+                <option value="10m_before">10 minutes before class start time</option>
+                <option value="30m_before">30 minutes before class start time</option>
+                <option value="1h_before">1 hour before class start time</option>
+                <option value="date_9am">On class date at 9:00 AM</option>
+            </select>
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeModal('attRoutineModal')">Cancel</button>
@@ -2878,6 +2931,20 @@
                                                                              placeholder="Brief details"></div>
         <div class="form-row"><label class="label">Note</label><textarea class="input" id="acadNote"
                                                                          placeholder="Extra notes..." style="min-height:60px"></textarea></div>
+        <div class="form-row">
+            <label class="label">Notification Reminder</label>
+            <select class="input" id="acadReminderOpt" onchange="toggleCustomReminderPicker('acad')">
+                <option value="none">None</option>
+                <option value="date_8am">On date at 8:00 AM</option>
+                <option value="1day_before_8pm">1 day before at 8:00 PM</option>
+                <option value="1day_before_8am">1 day before at 8:00 AM</option>
+                <option value="custom">Custom Date &amp; Time...</option>
+            </select>
+        </div>
+        <div class="form-row" id="acadCustomPickerRow" style="display:none;">
+            <label class="label">Custom Reminder Time</label>
+            <input class="input" type="datetime-local" id="acadCustomPicker">
+        </div>
         <div class="modal-footer"><button class="btn-secondary"
                                           onclick="closeModal('academicModal')">Cancel</button><button class="btn-primary"
                                                                                                        onclick="saveAcademic()">Save Event</button></div>

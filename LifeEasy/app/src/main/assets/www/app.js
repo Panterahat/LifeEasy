@@ -1656,6 +1656,12 @@ function savePlan() {
     const title = document.getElementById('planTitle').value.trim(); if (!title) return toast('Please enter a title');
     const planData = { title, desc: document.getElementById('planDesc').value, date: document.getElementById('planDate').value, time: document.getElementById('planTime').value || '09:00', color: selectedColors.plan, recurrence: document.getElementById('planRecurrence').value };
     const tempId = Date.now(); planData.id = tempId; planData.completed = false; STATE.plans.push(planData);
+
+    const remOpt = document.getElementById('planReminderOpt')?.value || 'none';
+    const customVal = document.getElementById('planCustomPicker')?.value || '';
+    const triggerAtMillis = calculateReminderTimestamp(remOpt, planData.date, planData.time, customVal);
+    scheduleItemNotification(tempId, "Event Reminder 📅", planData.title, triggerAtMillis);
+
     renderCalendar(); renderPlanner(); renderDashboard(); closeModal('plannerModal'); save(); toast('Event added 📅');
     ofetch('add_plan.php', planData, d => { const p = STATE.plans.find(x => x.id === tempId); if (p) p.id = d.id; renderCalendar(); renderPlanner(); renderDashboard(); save(); });
 }
@@ -1792,8 +1798,13 @@ function saveTask() {
         category: document.getElementById('taskCategory').value,
         priority: parseInt(document.getElementById('taskPriority').value),
         due: document.getElementById('taskDue').value,
-        reminder: document.getElementById('taskReminder').value
+        reminder: document.getElementById('taskReminderOpt')?.value || 'none'
     };
+
+    const remOpt = document.getElementById('taskReminderOpt')?.value || 'none';
+    const customVal = document.getElementById('taskCustomPicker')?.value || '';
+    const triggerAtMillis = calculateReminderTimestamp(remOpt, taskData.due, '09:00', customVal);
+
     if (editId) {
         taskData.id = parseInt(editId);
         const idx = STATE.tasks.findIndex(x => x.id === taskData.id);
@@ -1801,12 +1812,14 @@ function saveTask() {
             taskData.completed = STATE.tasks[idx].completed;
             STATE.tasks[idx] = taskData;
         }
+        scheduleItemNotification(taskData.id, "Task Reminder 📋", taskData.title, triggerAtMillis);
         renderTasks(); renderDashboard(); closeModal('taskModal'); save(); ofetch('update_task_details.php', taskData, () => toast('Task updated! ✅'));
     } else {
         const tempId = Date.now();
         taskData.id = tempId;
         taskData.completed = false;
         STATE.tasks.unshift(taskData);
+        scheduleItemNotification(tempId, "Task Reminder 📋", taskData.title, triggerAtMillis);
         renderTasks(); renderDashboard(); closeModal('taskModal'); save(); toast('Saved! ✅');
         ofetch('add_task.php', taskData, d => { const t = STATE.tasks.find(x => x.id === tempId); if (t) t.id = Number(d.id); renderTasks(); save(); });
     }
@@ -1973,7 +1986,21 @@ function renderCounters() {
 // ============================================================
 // MONEY
 // ============================================================
-function saveMoney() { const person = document.getElementById('moneyPerson').value.trim(); const amount = parseFloat(document.getElementById('moneyAmount').value); if (!person || !amount) return toast('Fill required fields'); const mData = { person, amount, type: document.getElementById('moneyType').value, note: document.getElementById('moneyNote').value, due: document.getElementById('moneyDue').value }; const tempId = Date.now(); mData.id = tempId; mData.settled = false; STATE.money.push(mData); renderMoney(); renderDashboard(); closeModal('moneyModal'); save(); toast('Saved 💰'); ofetch('add_money.php', mData, d => { const m = STATE.money.find(x => x.id === tempId); if (m) m.id = d.id; renderMoney(); renderDashboard(); save(); }); }
+function saveMoney() {
+    const person = document.getElementById('moneyPerson').value.trim();
+    const amount = parseFloat(document.getElementById('moneyAmount').value);
+    if (!person || !amount) return toast('Fill required fields');
+    const mData = { person, amount, type: document.getElementById('moneyType').value, note: document.getElementById('moneyNote').value, due: document.getElementById('moneyDue').value };
+    const tempId = Date.now(); mData.id = tempId; mData.settled = false; STATE.money.push(mData);
+
+    const remOpt = document.getElementById('moneyReminderOpt')?.value || 'none';
+    const customVal = document.getElementById('moneyCustomPicker')?.value || '';
+    const triggerAtMillis = calculateReminderTimestamp(remOpt, mData.due, '09:00', customVal);
+    scheduleItemNotification(tempId, "Money Record Reminder 💰", `${person} - ${mData.note || 'Money Record'}`, triggerAtMillis);
+
+    renderMoney(); renderDashboard(); closeModal('moneyModal'); save(); toast('Saved 💰');
+    ofetch('add_money.php', mData, d => { const m = STATE.money.find(x => x.id === tempId); if (m) m.id = d.id; renderMoney(); renderDashboard(); save(); });
+}
 function settleMoney(e, id) { if (e) e.stopPropagation(); const m = STATE.money.find(x => x.id === id); if (!m) return; m.settled = true; renderMoney(); save(); toast('Settled ✓'); ofetch('update_money.php', { id }); }
 function deleteMoney(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this money record?')) return; STATE.money = STATE.money.filter(x => x.id !== id); renderMoney(); save(); toast('Deleted 🗑️'); ofetch('delete_money.php', { id }); }
 function openMoneyModal() { document.getElementById('moneyPerson').value = ''; document.getElementById('moneyAmount').value = ''; document.getElementById('moneyNote').value = ''; document.getElementById('moneyDue').value = ''; document.getElementById('moneyModal').classList.add('open'); }
@@ -3592,6 +3619,79 @@ function rescheduleAllReminders() {
 }
 function requestNotificationPermission() { if ("Notification" in window) { if (Notification.permission !== "granted" && Notification.permission !== "denied") { Notification.requestPermission(); } } }
 function sendSystemNotification(title, bodyText) { if (window.AndroidInterface && typeof window.AndroidInterface.sendNotification === 'function') { try { window.AndroidInterface.sendNotification(title, bodyText || ""); return; } catch(e) { console.error("Native notification failed:", e); } } toast(`🔔 ${title} ${bodyText ? '- ' + bodyText : ''}`); if ("Notification" in window && Notification.permission === "granted") { try { if (navigator.serviceWorker) { navigator.serviceWorker.ready.then(function (registration) { registration.showNotification(title, { body: bodyText, vibrate: [200, 100, 200] }); }).catch(function () { new Notification(title, { body: bodyText }); }); } else { new Notification(title, { body: bodyText }); } } catch (e) { console.log("Notification failed", e); } } }
+
+// ============================================================
+// ITEM NOTIFICATION REMINDER ENGINE
+// ============================================================
+function toggleCustomReminderPicker(prefix) {
+    const optEl = document.getElementById(prefix + 'ReminderOpt');
+    const rowEl = document.getElementById(prefix + 'CustomPickerRow');
+    if (optEl && rowEl) {
+        rowEl.style.display = (optEl.value === 'custom') ? 'block' : 'none';
+    }
+}
+
+function calculateReminderTimestamp(option, baseDateStr, baseTimeStr, customDateTimeValue) {
+    if (!option || option === 'none') return null;
+
+    if (option === 'custom') {
+        if (!customDateTimeValue) return null;
+        const dt = new Date(customDateTimeValue);
+        return isNaN(dt.getTime()) ? null : dt.getTime();
+    }
+
+    if (!baseDateStr) return null;
+
+    const [year, month, day] = baseDateStr.split('-').map(Number);
+    const [hour, minute] = (baseTimeStr || '09:00').split(':').map(Number);
+    const baseDt = new Date(year, month - 1, day, hour || 0, minute || 0, 0, 0);
+
+    switch (option) {
+        case '10m_before':
+            return baseDt.getTime() - (10 * 60 * 1000);
+        case '30m_before':
+            return baseDt.getTime() - (30 * 60 * 1000);
+        case '1h_before':
+            return baseDt.getTime() - (60 * 60 * 1000);
+
+        case 'date_9am':
+            return new Date(year, month - 1, day, 9, 0, 0, 0).getTime();
+        case 'date_8am':
+            return new Date(year, month - 1, day, 8, 0, 0, 0).getTime();
+
+        case '1day_before_9am':
+            return new Date(year, month - 1, day - 1, 9, 0, 0, 0).getTime();
+        case '1day_before_9pm':
+            return new Date(year, month - 1, day - 1, 21, 0, 0, 0).getTime();
+        case '1day_before_8am':
+            return new Date(year, month - 1, day - 1, 8, 0, 0, 0).getTime();
+        case '1day_before_8pm':
+            return new Date(year, month - 1, day - 1, 20, 0, 0, 0).getTime();
+
+        case '1week_before_9am':
+            return new Date(year, month - 1, day - 7, 9, 0, 0, 0).getTime();
+
+        default:
+            return null;
+    }
+}
+
+function scheduleItemNotification(id, title, message, triggerAtMillis) {
+    if (!triggerAtMillis) {
+        if (window.AndroidInterface && typeof window.AndroidInterface.cancelAlarm === 'function') {
+            try { window.AndroidInterface.cancelAlarm(id); } catch(e) {}
+        }
+        return;
+    }
+
+    if (triggerAtMillis > Date.now()) {
+        if (window.AndroidInterface && typeof window.AndroidInterface.scheduleAlarm === 'function') {
+            try {
+                window.AndroidInterface.scheduleAlarm(id, triggerAtMillis, title, message, false);
+            } catch(e) { console.warn('scheduleAlarm error:', e); }
+        }
+    }
+}
 
 // ============================================================
 // STANDBY MODE LOGIC
