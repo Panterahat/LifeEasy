@@ -2261,6 +2261,30 @@
             <div class="notes-grid" id="notesGrid"></div>
         </div>
 
+        <!-- LINKS MANAGER -->
+        <div class="screen" id="screen-links">
+            <div class="section-header">
+                <div class="section-title">Saved Links</div>
+                <button class="btn-add" onclick="openLinkModal()">🔗 + Add Link</button>
+            </div>
+
+            <!-- Search Links -->
+            <div class="card" style="padding:12px; margin-bottom:12px;">
+                <input type="text" id="linkSearch" class="input" placeholder="🔍 Search saved links..." oninput="renderLinks()" style="border:none; padding:0; background:transparent;">
+            </div>
+
+            <!-- Link Category Filter Bar -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                <div class="filter-tabs" id="linkCategoryFilter" style="margin-bottom: 0; flex: 1; overflow-x: auto;">
+                    <div class="filter-tab active" onclick="setLinkCategoryFilter('all')">All</div>
+                </div>
+                <button class="btn-secondary" onclick="promptAddNewLinkCategory()" style="padding: 6px 12px; font-size: 12px; white-space: nowrap;">+ Tag</button>
+            </div>
+
+            <!-- Links Grid -->
+            <div id="linksGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;"></div>
+        </div>
+
         <!-- SLEEP TRACKER -->
         <div class="screen" id="screen-sleep">
             <div class="section-header">
@@ -2818,6 +2842,34 @@
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeModal('addFundModal')">Cancel</button>
             <button class="btn-primary" onclick="saveAddFund()">Add Funds</button>
+        </div>
+    </div>
+</div>
+
+<!-- LINK MODAL -->
+<div class="modal-overlay" id="linkModal">
+    <div class="modal">
+        <div class="modal-handle"></div>
+        <div class="modal-title" id="linkModalTitle">Save New Link</div>
+        <div class="form-row">
+            <label class="label">URL / Link *</label>
+            <input class="input" id="linkUrl" placeholder="https://youtube.com/watch?v=... or any web link">
+        </div>
+        <div class="form-row">
+            <label class="label">Title (Optional)</label>
+            <input class="input" id="linkTitle" placeholder="Auto-generated if empty">
+        </div>
+        <div class="form-row">
+            <label class="label">Category / Tag</label>
+            <select class="input" id="linkCategorySelect"></select>
+        </div>
+        <div class="form-row">
+            <label class="label">Note (Optional)</label>
+            <textarea class="input" id="linkNote" placeholder="Add any personal notes or key takeaways..." style="min-height:80px; resize:vertical;"></textarea>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('linkModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveLink()">Save Link</button>
         </div>
     </div>
 </div>

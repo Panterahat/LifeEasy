@@ -38,6 +38,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 
@@ -167,6 +168,9 @@ class MainActivity : AppCompatActivity() {
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
         connectivityManager.registerNetworkCallback(request, networkCallback)
+
+        // Handle incoming shared links/text from other apps (e.g. YouTube, Chrome)
+        handleSharedIntent(intent)
     }
 
     private fun createNotificationChannel() {
@@ -322,6 +326,40 @@ class MainActivity : AppCompatActivity() {
         fun downloadBase64File(base64Data: String, filename: String, mimeType: String) {
             activity.runOnUiThread {
                 activity.downloadBase64File(base64Data, filename, mimeType)
+            }
+        }
+
+        @JavascriptInterface
+        fun openExternalUrl(url: String) {
+            activity.runOnUiThread {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    activity.startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(activity, "Could not open link: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleSharedIntent(intent)
+    }
+
+    private fun handleSharedIntent(intent: Intent?) {
+        if (intent == null) return
+        if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("text/") == true) {
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)
+            if (!sharedText.isNullOrBlank()) {
+                val jsonSafeText = JSONObject.quote(sharedText)
+                webView.postDelayed({
+                    webView.evaluateJavascript(
+                        "typeof handleSharedLink === 'function' && handleSharedLink($jsonSafeText)",
+                        null
+                    )
+                }, 1200)
             }
         }
     }

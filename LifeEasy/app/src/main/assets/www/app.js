@@ -48,6 +48,7 @@ const NAV_MODULES = {
     roadmap: { icon: '🗺️', label: 'Roadmap' },
     attendance: { icon: '📊', label: 'Attend' },
     academic: { icon: '🎓', label: 'School' },
+    links: { icon: '🔗', label: 'Links' },
     vault: { icon: '🔒', label: 'Vault' },
     expenses: { icon: '💸', label: 'Expenses' },
     notes: { icon: '📝', label: 'Notes' },
@@ -150,6 +151,17 @@ async function executeSupabaseOperation(endpoint, payload) {
         case 'delete_note.php': table = 'notes'; break;
         case 'add_sleep.php': table = 'sleep_logs'; data = { date: payload.date, bedtime: payload.bedtime, wake_time: payload.wake, duration_mins: payload.durationMins }; break;
         case 'delete_sleep.php': table = 'sleep_logs'; break;
+        case 'add_link.php': table = 'links'; data = { title: payload.title || '', url: payload.url || '', thumbnail: payload.thumbnail || '', note: payload.note || '' }; break;
+        case 'update_link.php': {
+            table = 'links'; const d = {};
+            if (payload.title !== undefined) d.title = payload.title;
+            if (payload.url !== undefined) d.url = payload.url;
+            if (payload.thumbnail !== undefined) d.thumbnail = payload.thumbnail;
+            if (payload.note !== undefined) d.note = payload.note;
+            data = d;
+            break;
+        }
+        case 'delete_link.php': table = 'links'; break;
         default: throw new Error(`Unmapped endpoint: ${endpoint}`);
     }
 
@@ -336,6 +348,7 @@ async function load() {
             };
         });
         if (rSleep.data) STATE.sleepLogs = rSleep.data.map(s => ({ ...s, wake: s.wake_time, durationMins: s.duration_mins }));
+        if (rLinks && rLinks.data) STATE.links = rLinks.data;
         if (rAttRoutines && rAttRoutines.data) STATE.attendanceRoutines = rAttRoutines.data.map(r => ({ ...r, dayOfWeek: r.day_of_week, startTime: r.start_time || r.time, endTime: r.end_time || r.time }));
         if (rAttLogs && rAttLogs.data) STATE.attendanceLogs = rAttLogs.data.map(l => ({ ...l, routineId: l.routine_id }));
 
@@ -386,6 +399,7 @@ function renderAll() {
 
     renderTasks(); renderPlanner(); renderCounters(); renderMoney(); renderAlarms(); renderRoadmaps();
     renderAttendance(); renderAcademic(); renderDashboard(); renderVault(); renderNotes(); renderSleep();
+    if (typeof renderLinks === 'function') renderLinks();
     renderAttCalendar(); initColorPickers();
 }
 
@@ -419,6 +433,7 @@ function navTo(screen) {
     if (screen === 'expenses') renderExpenses();
     if (screen === 'notes') renderNotes();
     if (screen === 'sleep') renderSleep();
+    if (screen === 'links') renderLinks();
     if (screen === 'settings') { renderNavSettings(); renderDashSettings(); }
     if (screen === 'tasks') { setTaskFilter('active'); }
     if (screen === 'attendance') { STATE.attSelectedDate = fmtDate(new Date()); attCurrentDate = new Date(); renderAttCalendar(); renderAttendance(); }
@@ -1904,6 +1919,71 @@ function saveTransaction() { const amount = parseFloat(document.getElementById('
 function deleteExpense(btn) { const expenseId = btn.getAttribute('data-expense-id'); const accountId = btn.getAttribute('data-account-id'); if (!expenseId || expenseId === 'undefined') return toast('Cannot delete: missing ID.'); if (!confirm('Delete this transaction?')) return; STATE.expenses = STATE.expenses.filter(ex => ex.id != expenseId); renderTransactions(accountId); renderExpenses(); renderDashboard(); save(); toast('Transaction deleted 🗑️'); ofetch('delete_expense.php', { id: expenseId }); }
 function deleteAccount(id) { if (!confirm('Delete this account and all its transactions? This cannot be undone.')) return; STATE.accounts = STATE.accounts.filter(a => a.id != id); STATE.expenses = STATE.expenses.filter(e => e.accountId != id); renderExpenses(); hideTransactionDetail(); renderDashboard(); save(); toast('Account deleted 🗑️'); ofetch('delete_account.php', { id }); }
 function renderTransactions(accountId) { const list = document.getElementById('transactionList'); if (!list) return; const acc = STATE.accounts.find(a => a.id == accountId); const trans = STATE.expenses.filter(e => e.accountId == accountId).sort((a, b) => { const da = new Date((a.date || '1970-01-01') + 'T' + (a.time || '00:00:00')); const db = new Date((b.date || '1970-01-01') + 'T' + (b.time || '00:00:00')); const diff = db - da; if (diff !== 0) return diff; const idxA = STATE.expenses.indexOf(a); const idxB = STATE.expenses.indexOf(b); if (idxA !== -1 && idxB !== -1 && idxA !== idxB) { return idxB - idxA; } return (Number(b.id) || 0) - (Number(a.id) || 0); }); const expensesOnly = trans.filter(t => parseFloat(t.amount) > 0); const totalSpent = expensesOnly.reduce((s, t) => s + parseFloat(t.amount || 0), 0); const bal = getAccountBalance(accountId); const categoryIcons = { 'Food': '🍔', 'Transport': '🚗', 'Rent': '🏠', 'Shopping': '🛍️', 'Health': '💊', 'Entertainment': '🎮', 'Education': '📚', 'Utilities': '💡', 'Other': '📌', 'Deposit': '💰' }; const catColors = ['#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64']; const catTotals = {}; expensesOnly.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + parseFloat(t.amount || 0); }); const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]); let html = `<div style="background:linear-gradient(135deg,rgba(124,110,245,0.12),rgba(93,232,193,0.06));border:1px solid rgba(124,110,245,0.25);border-radius:var(--radius);padding:20px;margin-bottom:16px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Current Balance</div><div style="font-family:'Syne',sans-serif;font-size:38px;font-weight:800;color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};line-height:1;">$${bal.toFixed(2)}</div><div style="display:flex;gap:24px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Total Spent</div><div style="font-size:18px;font-weight:700;color:var(--red);margin-top:2px;">-$${totalSpent.toFixed(2)}</div></div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Transactions</div><div style="font-size:18px;font-weight:700;color:var(--text);margin-top:2px;">${trans.length}</div></div></div></div>`; if (catEntries.length > 0) { html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;"><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:14px;">Spending by Category</div>`; catEntries.forEach(([cat, amt], i) => { const pct = totalSpent > 0 ? (amt / totalSpent * 100) : 0; const color = catColors[i % catColors.length]; const icon = categoryIcons[cat] || '📌'; html += `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:6px;font-size:13px;"><span>${icon}</span><span style="font-weight:500;">${cat}</span></div><div><span style="font-size:13px;font-weight:700;color:var(--red);">-$${parseFloat(amt).toFixed(2)}</span><span style="font-size:10px;color:var(--text3);margin-left:6px;">${pct.toFixed(0)}%</span></div></div><div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 0.5s;"></div></div></div>`; }); html += `</div>`; } if (trans.length === 0) { html += `<div class="empty-state"><div class="empty-icon">💸</div><p>No expenses yet.<br>Tap + Expense to add one.</p></div>`; } else { const groups = {}; trans.forEach(t => { const d = t.date || 'Unknown'; if (!groups[d]) groups[d] = []; groups[d].push(t); }); const todayStr = new Date().toISOString().split('T')[0]; Object.keys(groups).sort((a, b) => new Date(b) - new Date(a)).forEach(date => { const dayTotal = groups[date].filter(t => t.amount > 0).reduce((s, t) => s + parseFloat(t.amount || 0), 0); let displayDate; try { displayDate = date === todayStr ? 'Today' : new Date(date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }); } catch (e) { displayDate = date; } html += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding:0 4px;"><span>${displayDate}</span><span style="color:var(--red);">-$${dayTotal.toFixed(2)}</span></div>`; groups[date].forEach(t => { const isIncome = parseFloat(t.amount) < 0; const displayAmt = Math.abs(parseFloat(t.amount)).toFixed(2); const amtSign = isIncome ? '+' : '-'; const amtColor = isIncome ? 'var(--green)' : 'var(--red)'; const icon = isIncome ? '💰' : (categoryIcons[t.category] || '📌'); let timeDisplay = ''; if (t.time) { const [h, m] = t.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const dh = h > 12 ? h - 12 : h === 0 ? 12 : h; timeDisplay = `${dh}:${String(m).padStart(2, '0')} ${ampm}`; } html += `<div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;"><div style="width:44px;height:44px;border-radius:12px;background:${isIncome ? 'rgba(93,232,193,0.1)' : 'rgba(245,100,124,0.1)'};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">${icon}</div><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">${t.category}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.note || 'No note'}</div>${timeDisplay ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;">🕐 ${timeDisplay}</div>` : ''}</div><div style="text-align:right;flex-shrink:0;"><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:${amtColor};">${amtSign}$${displayAmt}</div><button data-expense-id="${t.id}" data-account-id="${accountId}" onclick="deleteExpense(this)" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;margin-top:6px;padding:2px;">🗑</button></div></div>`; }); }); } list.innerHTML = html; }
+
+function handleSharedLink(sharedText) {
+    if (!sharedText || !sharedText.trim()) return;
+
+    const text = sharedText.trim();
+
+    // Extract URL if present
+    const urlMatch = text.match(/(https?:\/\/[^\s]+)/i);
+    const url = urlMatch ? urlMatch[0] : null;
+
+    // Determine Title
+    let title = 'Shared Link';
+    if (url) {
+        let cleanText = text.replace(url, '').replace(/Check out this video on YouTube/i, '').replace(/[-–—:]+$/, '').trim();
+        if (cleanText) {
+            title = cleanText;
+        } else if (url.includes('youtu.be') || url.includes('youtube.com')) {
+            title = 'YouTube Video';
+        } else {
+            try {
+                const domain = new URL(url).hostname.replace(/^www\./, '');
+                title = `Link: ${domain}`;
+            } catch (e) {
+                title = 'Shared Link';
+            }
+        }
+    } else {
+        title = text.length > 30 ? text.substring(0, 30) + '...' : text;
+    }
+
+    // Ensure 'links' tag exists in customTags
+    if (!STATE.customTags) STATE.customTags = [];
+    if (!STATE.customTags.includes('links')) {
+        STATE.customTags.push('links');
+    }
+
+    const now = new Date().toISOString();
+    const tempId = Date.now();
+    const noteData = {
+        id: tempId,
+        title: title,
+        body: text,
+        tags: ['links'],
+        pinned: false,
+        archived: false,
+        trashed: false,
+        updatedAt: now
+    };
+
+    STATE.notes.unshift(noteData);
+    save();
+
+    // Sync to Supabase cloud
+    ofetch('add_note.php', noteData, d => {
+        const n = STATE.notes.find(x => x.id === tempId);
+        if (n) n.id = d.id;
+        save();
+        if (currentScreen === 'notes') renderNotes();
+    });
+
+    // Navigate to Notes screen and activate 'links' tag filter
+    navTo('notes');
+    setNoteTagFilter('links');
+    toast('Link saved to Notes under #links! 🔗');
+}
 
 // ===================== NOTES (Google Keep style) =====================
 const NOTE_COLORS = ['', '#7c6ef5', '#10b981', '#f59e0b', '#f5647c', '#06b6d4', '#c87cf5', '#f57c64', '#3b82f6'];
@@ -3391,6 +3471,16 @@ function renderNavbar() {
         save();
     }
 
+    if (!STATE.hiddenNavModules) STATE.hiddenNavModules = [];
+
+    // Ensure 'links' module is present in navPreferences if not hidden
+    if (!STATE.navPreferences.includes('links') && !STATE.hiddenNavModules.includes('links')) {
+        const idx = STATE.navPreferences.indexOf('academic');
+        if (idx !== -1) STATE.navPreferences.splice(idx + 1, 0, 'links');
+        else STATE.navPreferences.push('links');
+        save();
+    }
+
     // Filter out any ghost/deleted modules
     const safeNavs = STATE.navPreferences.filter(key => NAV_MODULES[key]);
 
@@ -3469,6 +3559,326 @@ function moveNavModule(index, direction) {
     save();
     renderNavSettings();
     renderNavbar();
+}
+
+// ============================================================
+// LINKS MANAGER MODULE
+// ============================================================
+let activeEditLinkId = null;
+let activeLinkCategory = 'all';
+
+function setLinkCategoryFilter(cat) {
+    activeLinkCategory = cat;
+    renderLinks();
+}
+
+function promptAddNewLinkCategory() {
+    const t = prompt("Enter a new category/tag:");
+    if (t && t.trim()) {
+        const cat = t.trim();
+        if (!STATE.linkCategories) STATE.linkCategories = [];
+        if (!STATE.linkCategories.includes(cat)) {
+            STATE.linkCategories.push(cat);
+            save();
+            renderLinks();
+            toast(`Category '#${cat}' added!`);
+        }
+    }
+}
+
+function deleteLinkCategory(e, tagToDelete) {
+    e.stopPropagation();
+    if (!confirm(`Delete category #${tagToDelete}? This will remove it from saved links.`)) return;
+
+    if (STATE.linkCategories) {
+        STATE.linkCategories = STATE.linkCategories.filter(t => t !== tagToDelete);
+    }
+
+    (STATE.links || []).forEach(l => {
+        if (l.category === tagToDelete) {
+            l.category = '';
+            ofetch('update_link.php', { id: l.id, category: '' });
+        }
+    });
+
+    if (activeLinkCategory === tagToDelete) activeLinkCategory = 'all';
+
+    save();
+    renderLinks();
+    toast(`Category #${tagToDelete} deleted.`);
+}
+
+function renderLinkCategorySelect(selectedCategory = '') {
+    const sel = document.getElementById('linkCategorySelect');
+    if (!sel) return;
+    const cats = STATE.linkCategories || [];
+    let opts = `<option value="">(No Category)</option>`;
+    cats.forEach(c => {
+        opts += `<option value="${escapeHtml(c)}" ${c === selectedCategory ? 'selected' : ''}>#${escapeHtml(c)}</option>`;
+    });
+    sel.innerHTML = opts;
+}
+
+function getLinkThumbnail(url) {
+    if (!url) return '';
+
+    const ytReg = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+    const match = url.match(ytReg);
+    if (match && match[1]) {
+        return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
+    }
+
+    try {
+        const domain = new URL(url).hostname;
+        return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+    } catch (e) {
+        return '';
+    }
+}
+
+function handleSharedLink(sharedText) {
+    if (!sharedText || !sharedText.trim()) return;
+
+    const text = sharedText.trim();
+
+    const urlMatch = text.match(/(https?:\/\/[^\s]+)/i);
+    const url = urlMatch ? urlMatch[0] : null;
+    if (!url) {
+        toast('No URL found in shared text');
+        return;
+    }
+
+    let title = 'Shared Link';
+    let cleanText = text.replace(url, '').replace(/Check out this video on YouTube/i, '').replace(/[-–—:]+$/, '').trim();
+    if (cleanText) {
+        title = cleanText;
+    } else {
+        try {
+            const domain = new URL(url).hostname.replace(/^www\./, '');
+            title = `Link: ${domain}`;
+        } catch (e) {
+            title = 'Shared Link';
+        }
+    }
+
+    const thumb = getLinkThumbnail(url);
+    const now = new Date().toISOString();
+    const tempId = Date.now();
+
+    if (!STATE.links) STATE.links = [];
+
+    const linkData = {
+        id: tempId,
+        title: title,
+        url: url,
+        thumbnail: thumb,
+        category: '',
+        note: '',
+        createdAt: now
+    };
+
+    STATE.links.unshift(linkData);
+    save();
+
+    ofetch('add_link.php', linkData, d => {
+        const l = STATE.links.find(x => x.id === tempId);
+        if (l) l.id = d.id;
+        save();
+        if (currentScreen === 'links') renderLinks();
+    });
+
+    navTo('links');
+    renderLinks();
+    toast('Link saved to Links! 🔗');
+}
+
+function openLinkModal(linkId = null) {
+    activeEditLinkId = linkId;
+    const modal = document.getElementById('linkModal');
+    const titleEl = document.getElementById('linkModalTitle');
+    const urlInput = document.getElementById('linkUrl');
+    const titleInput = document.getElementById('linkTitle');
+    const noteInput = document.getElementById('linkNote');
+
+    if (linkId) {
+        const l = (STATE.links || []).find(x => x.id === linkId);
+        if (l) {
+            if (titleEl) titleEl.textContent = 'Edit Link';
+            if (urlInput) urlInput.value = l.url || '';
+            if (titleInput) titleInput.value = l.title || '';
+            if (noteInput) noteInput.value = l.note || '';
+            renderLinkCategorySelect(l.category || '');
+        }
+    } else {
+        if (titleEl) titleEl.textContent = 'Save New Link';
+        if (urlInput) urlInput.value = '';
+        if (titleInput) titleInput.value = '';
+        if (noteInput) noteInput.value = '';
+        renderLinkCategorySelect('');
+    }
+
+    if (modal) modal.classList.add('open');
+}
+
+function saveLink() {
+    const url = document.getElementById('linkUrl').value.trim();
+    let title = document.getElementById('linkTitle').value.trim();
+    const category = document.getElementById('linkCategorySelect')?.value || '';
+    const note = document.getElementById('linkNote').value.trim();
+
+    if (!url) return toast('Please enter a valid URL');
+
+    if (!title) {
+        try {
+            const domain = new URL(url).hostname.replace(/^www\./, '');
+            title = `Link: ${domain}`;
+        } catch (e) {
+            title = 'Saved Link';
+        }
+    }
+
+    const thumb = getLinkThumbnail(url);
+    const now = new Date().toISOString();
+
+    if (!STATE.links) STATE.links = [];
+
+    if (activeEditLinkId) {
+        const l = STATE.links.find(x => x.id === activeEditLinkId);
+        if (l) {
+            l.title = title;
+            l.url = url;
+            l.thumbnail = thumb;
+            l.category = category;
+            l.note = note;
+            save();
+            renderLinks();
+            ofetch('update_link.php', { id: l.id, title, url, thumbnail: thumb, category, note });
+            toast('Link updated! 🔗');
+        }
+    } else {
+        const tempId = Date.now();
+        const linkData = {
+            id: tempId,
+            title: title,
+            url: url,
+            thumbnail: thumb,
+            category: category,
+            note: note,
+            createdAt: now
+        };
+        STATE.links.unshift(linkData);
+        save();
+        renderLinks();
+        ofetch('add_link.php', linkData, d => {
+            const l = STATE.links.find(x => x.id === tempId);
+            if (l) l.id = d.id;
+            save();
+            renderLinks();
+        });
+        toast('Link saved! 🔗');
+    }
+
+    closeModal('linkModal');
+}
+
+function deleteLink(id) {
+    if (!confirm('Delete this saved link?')) return;
+    STATE.links = (STATE.links || []).filter(x => x.id !== id);
+    save();
+    renderLinks();
+    toast('Link deleted 🗑️');
+    ofetch('delete_link.php', { id });
+}
+
+function openExternalLink(url) {
+    if (!url) return;
+    if (window.AndroidInterface && typeof window.AndroidInterface.openExternalUrl === 'function') {
+        try {
+            window.AndroidInterface.openExternalUrl(url);
+            return;
+        } catch (e) {
+            console.warn('Native openExternalUrl failed, using fallback:', e);
+        }
+    }
+    window.open(url, '_system') || window.open(url, '_blank');
+}
+
+function renderLinks() {
+    const grid = document.getElementById('linksGrid');
+    if (!grid) return;
+
+    if (!STATE.linkCategories) STATE.linkCategories = [];
+
+    const catFilterEl = document.getElementById('linkCategoryFilter');
+    if (catFilterEl) {
+        const categories = new Set(STATE.linkCategories || []);
+        (STATE.links || []).forEach(l => { if (l.category) categories.add(l.category); });
+
+        let catHtml = `<div class="filter-tab ${activeLinkCategory === 'all' ? 'active' : ''}" onclick="setLinkCategoryFilter('all')">All</div>`;
+        Array.from(categories).sort().forEach(cat => {
+            catHtml += `<div class="filter-tab ${activeLinkCategory === cat ? 'active' : ''}" onclick="setLinkCategoryFilter('${escapeHtml(cat)}')" style="display:flex; align-items:center; gap:6px;">
+                            #${escapeHtml(cat)}
+                            <span style="opacity:0.5; font-size:14px; line-height:1;" onclick="deleteLinkCategory(event, '${escapeHtml(cat)}')">✕</span>
+                        </div>`;
+        });
+        catFilterEl.innerHTML = catHtml;
+    }
+
+    const q = (document.getElementById('linkSearch')?.value || '').toLowerCase();
+    let list = STATE.links || [];
+
+    if (activeLinkCategory !== 'all') {
+        list = list.filter(l => (l.category || '').toLowerCase() === activeLinkCategory.toLowerCase());
+    }
+
+    if (q) {
+        list = list.filter(l => (l.title || '').toLowerCase().includes(q) || (l.url || '').toLowerCase().includes(q) || (l.note || '').toLowerCase().includes(q) || (l.category || '').toLowerCase().includes(q));
+    }
+
+    if (!list.length) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><div class="empty-icon">🔗</div><p>No saved links found.<br>Tap + Add Link or share links from YouTube/Chrome!</p></div>';
+        return;
+    }
+
+    grid.innerHTML = list.map(l => {
+        const isYt = (l.url || '').includes('youtu.be') || (l.url || '').includes('youtube.com');
+        let domain = 'link';
+        try {
+            domain = new URL(l.url).hostname.replace(/^www\./, '');
+        } catch (e) {
+            domain = (l.url || '').replace(/^https?:\/\//i, '').split('/')[0] || 'link';
+        }
+
+        return `
+            <div class="card" style="padding:0; overflow:hidden; display:flex; flex-direction:column; background:var(--surface); border:1px solid var(--border); border-radius:16px;">
+                ${l.thumbnail ? `
+                    <div style="width:100%; height:150px; background:#000; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="openExternalLink('${escapeHtml(l.url)}')">
+                        <img src="${escapeHtml(l.thumbnail)}" style="width:100%; height:100%; object-fit:${isYt ? 'cover' : 'contain'}; padding:${isYt ? '0' : '20px'}; background:${isYt ? '#000' : 'var(--surface2)'};" onerror="this.style.display='none';">
+                        ${isYt ? `<div style="position:absolute; width:44px; height:44px; border-radius:50%; background:rgba(239,68,68,0.9); display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; box-shadow:0 4px 12px rgba(0,0,0,0.4);">▶</div>` : ''}
+                    </div>
+                ` : ''}
+
+                <div style="padding:16px; flex:1; display:flex; flex-direction:column;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px;">
+                        <div style="font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:var(--text); line-height:1.3; flex:1;" onclick="openExternalLink('${escapeHtml(l.url)}')">${escapeHtml(l.title || 'Untitled Link')}</div>
+                        <span class="badge" style="font-size:10px; font-weight:700; background:var(--surface2); color:var(--accent); text-transform:lowercase;">${escapeHtml(domain)}</span>
+                    </div>
+
+                    ${l.category ? `<div style="margin-bottom:6px;"><span class="badge" style="font-size:10px; font-weight:700; background:var(--surface3); color:var(--text2);">#${escapeHtml(l.category)}</span></div>` : ''}
+
+                    ${l.note ? `<div style="font-size:12px; color:var(--text2); margin:6px 0 10px; background:var(--surface2); padding:8px 10px; border-radius:8px; line-height:1.4;">📝 ${escapeHtml(l.note)}</div>` : ''}
+
+                    <div style="margin-top:auto; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                        <button class="btn-primary" style="padding:6px 12px; font-size:12px;" onclick="openExternalLink('${escapeHtml(l.url)}')">🔗 Open Link</button>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="openLinkModal(${l.id})">✏️</button>
+                            <button class="btn-secondary" style="padding:6px 10px; font-size:12px; color:var(--red);" onclick="deleteLink(${l.id})">🗑️</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function toggleNavModuleVisibility(key) {
