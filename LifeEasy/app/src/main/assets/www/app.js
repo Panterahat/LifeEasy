@@ -108,8 +108,8 @@ async function executeSupabaseOperation(endpoint, payload) {
         case 'update_task.php': table = 'tasks'; matchField = 'task_id'; data = { completed: payload.completed }; break;
         case 'delete_task.php': table = 'tasks'; matchField = 'task_id'; break;
         case 'add_plan.php': case 'update_plan.php': case 'delete_plan.php': table = 'plans'; if (endpoint === 'update_plan.php') data = { completed: payload.completed }; if (endpoint === 'add_plan.php') { data = { title: payload.title, desc: payload.desc, date: payload.date, time: payload.time, color: payload.color, recurrence: payload.recurrence }; } break;
-        case 'add_counter.php': table = 'counters'; data = { name: payload.name, value: payload.value, step: payload.step, color: payload.color }; break;
-        case 'update_counter.php': table = 'counters'; data = { value: payload.value, last_updated: payload.lastUpdated || new Date().toLocaleString() }; break;
+        case 'add_counter.php': table = 'counters'; data = { name: payload.name, value: payload.value, step: payload.step, color: payload.color, last_updated: payload.lastUpdated || new Date().toISOString() }; break;
+        case 'update_counter.php': table = 'counters'; data = { value: payload.value, last_updated: payload.lastUpdated || new Date().toISOString() }; break;
         case 'delete_counter.php': table = 'counters'; break;
         case 'add_money.php': case 'update_money.php': case 'delete_money.php': table = 'money'; if (endpoint === 'update_money.php') data = { settled: true }; break;
         case 'add_alarm.php': case 'update_alarm.php': case 'delete_alarm.php': table = 'alarms'; if (endpoint === 'update_alarm.php') data = { enabled: payload.enabled }; break;
@@ -306,7 +306,7 @@ async function load() {
         if (rTasks.error?.status === 401 || rCounters.error?.status === 401) { document.getElementById('authModal').style.display = 'flex'; return; }
 
         if (rTasks.data) STATE.tasks = rTasks.data.map(t => ({ ...t, id: t.task_id }));
-        if (rCounters.data) STATE.counters = rCounters.data.map(c => ({ ...c, lastUpdated: c.last_updated }));
+        if (rCounters.data) STATE.counters = rCounters.data.map(c => ({ ...c, lastUpdated: c.last_updated || c.lastUpdated || c.created_at || c.createdAt || new Date().toISOString() }));
         if (rPlans.data) STATE.plans = rPlans.data;
         if (rMoney.data) STATE.money = rMoney.data;
         if (rAlarms.data) STATE.alarms = rAlarms.data;
@@ -1366,7 +1366,15 @@ function renderTasks() {
 function saveCounter() {
     const name = document.getElementById('counterName').value.trim();
     if (!name) return toast('Enter a name');
-    const cData = { name, value: parseInt(document.getElementById('counterStart').value) || 0, step: parseInt(document.getElementById('counterStep').value) || 1, color: selectedColors.counter };
+    const nowIso = new Date().toISOString();
+    const cData = {
+        name,
+        value: parseInt(document.getElementById('counterStart').value) || 0,
+        step: parseInt(document.getElementById('counterStep').value) || 1,
+        color: selectedColors.counter,
+        lastUpdated: nowIso,
+        createdAt: nowIso
+    };
     const tempId = Date.now();
     cData.id = tempId;
     STATE.counters.push(cData);
@@ -1377,26 +1385,51 @@ function saveCounter() {
     ofetch('add_counter.php', cData, d => {
         const c = STATE.counters.find(x => x.id === tempId);
         if (c) c.id = d.id;
-        if (STATE.dashConfig.counterId == tempId) STATE.dashConfig.counterId = String(d.id); // Reconcile Pin
+        if (STATE.dashConfig.counterId == tempId) STATE.dashConfig.counterId = String(d.id);
         renderCounters(); renderDashboard(); save();
     });
-} // <--- THIS WAS THE FATAL MISSING BRACKET
+}
 
-function adjustCounter(id, dir) { const c = STATE.counters.find(x => x.id === id); if (!c) return; c.value += dir * c.step; c.lastUpdated = new Date().toISOString(); renderCounters(); save(); ofetch('update_counter.php', { id, value: c.value }); }
-function resetCounter(id) { const c = STATE.counters.find(x => x.id === id); if (!c) return; c.value = 0; c.lastUpdated = new Date().toISOString(); renderCounters(); save(); ofetch('update_counter.php', { id, value: 0 }); }
+function adjustCounter(id, dir) { const c = STATE.counters.find(x => x.id === id); if (!c) return; c.value += dir * c.step; c.lastUpdated = new Date().toISOString(); renderCounters(); save(); ofetch('update_counter.php', { id, value: c.value, lastUpdated: c.lastUpdated }); }
+function resetCounter(id) { const c = STATE.counters.find(x => x.id === id); if (!c) return; c.value = 0; c.lastUpdated = new Date().toISOString(); renderCounters(); save(); ofetch('update_counter.php', { id, value: 0, lastUpdated: c.lastUpdated }); }
 function deleteCounter(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this counter?')) return; STATE.counters = STATE.counters.filter(x => x.id !== id); renderCounters(); save(); toast('Counter deleted 🗑️'); ofetch('delete_counter.php', { id }); }
 function openCounterModal() { document.getElementById('counterName').value = ''; document.getElementById('counterStep').value = '1'; document.getElementById('counterStart').value = '0'; document.getElementById('counterModal').classList.add('open'); }
-// Helper to calculate relative time (e.g., "13.5 days ago")
-function timeSince(dateString) {
-    if (!dateString) return 'Never';
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
 
-    if (isNaN(diffMs) || diffMs < 0) return 'Just now';
+function parseCounterDate(val) {
+    if (!val) return null;
+    if (typeof val === 'number') {
+        if (val < 10000000000) val = val * 1000;
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof val === 'string') {
+        let str = val.trim();
+        if (/^\d+$/.test(str)) {
+            let num = parseInt(str, 10);
+            if (num < 10000000000) num = num * 1000;
+            const d = new Date(num);
+            return isNaN(d.getTime()) ? null : d;
+        }
+        if (str.includes(' ') && !str.includes('T') && !str.includes(',')) {
+            str = str.replace(' ', 'T');
+        }
+        const d = new Date(str);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+}
+
+function timeSince(dateInput) {
+    if (!dateInput) return 'Just now';
+    const date = dateInput instanceof Date ? dateInput : parseCounterDate(dateInput);
+    if (!date || isNaN(date.getTime())) return 'Just now';
+
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+
+    if (diffMs <= 0 || diffMs < 60000) return 'Just now';
 
     const diffMins = diffMs / (1000 * 60);
-    if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return Math.floor(diffMins) + ' mins ago';
 
     const diffHours = diffMins / 60;
@@ -1414,19 +1447,16 @@ function renderCounters() {
     if (STATE.counters.length === 0) return el.innerHTML = '<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">🔢</div><p>Create your first counter</p></div>';
 
     el.innerHTML = STATE.counters.map(c => {
-        // Generate the combined Date + Time + Timer HTML
-        let editInfo = 'Never edited';
-        if (c.lastUpdated) {
-            const d = new Date(c.lastUpdated);
-            if (!isNaN(d.getTime())) {
-                const exactDate = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
-                // Add the time formatting (e.g. 12:25)
-                const exactTime = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-                const relativeTime = timeSince(c.lastUpdated);
-
-                // Shows: "Edited on 27/6/2025 at 12:25" and directly below it "15.7 days ago"
-                editInfo = `Edited on ${exactDate} at ${exactTime}<br><span style="opacity: 0.7;">${relativeTime}</span>`;
-            }
+        let editInfo = 'Created recently';
+        const dateVal = c.lastUpdated || c.createdAt;
+        const d = parseCounterDate(dateVal);
+        if (d) {
+            const exactDate = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+            const exactTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            const relativeTime = timeSince(d);
+            const isEdited = c.createdAt && c.lastUpdated && c.lastUpdated !== c.createdAt;
+            const prefix = isEdited ? 'Edited on' : 'Created on';
+            editInfo = `${prefix} ${exactDate} at ${exactTime}<br><span style="opacity: 0.7;">${relativeTime}</span>`;
         }
 
         return `
@@ -1536,11 +1566,11 @@ function saveAccount() {
 function openAccountDetail(id) { STATE.activeAccountId = id; const acc = STATE.accounts.find(a => a.id == id); if (!acc) return; document.getElementById('expensesMainView').style.display = 'none'; document.getElementById('transactionDetailView').style.display = 'block'; document.getElementById('accountNameTitle').innerHTML = `${acc.name} <span onclick="deleteAccount(${acc.id})" style="font-size:16px;cursor:pointer;color:var(--red);margin-left:12px;padding:4px;" title="Delete Account">🗑️</span>`; renderTransactions(id); }
 function hideTransactionDetail() { STATE.activeAccountId = null; document.getElementById('transactionDetailView').style.display = 'none'; document.getElementById('expensesMainView').style.display = 'block'; renderExpenses(); } function openTransactionModal() { const acc = STATE.accounts.find(a => a.id == STATE.activeAccountId); if (navigator.onLine && acc && acc.pendingSync) return toast('⏳ Waiting for cloud sync. Try again in a second!'); const m = document.getElementById('transactionModal'); if (!m) return toast('Modal not found!'); document.getElementById('transAmount').value = ''; document.getElementById('transNote').value = ''; document.getElementById('transCategory').value = 'Food'; m.classList.add('open'); }
 function openAddFundModal() { const acc = STATE.accounts.find(a => a.id == STATE.activeAccountId); if (navigator.onLine && acc && acc.pendingSync) return toast('⏳ Waiting for cloud sync. Try again in a second!'); const m = document.getElementById('addFundModal'); if (!m) return toast('Fund modal not found!'); document.getElementById('fundAmount').value = ''; document.getElementById('fundNote').value = ''; m.classList.add('open'); }
-function saveAddFund() { const amount = parseFloat(document.getElementById('fundAmount').value); const note = document.getElementById('fundNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = now.toISOString().split('T')[0]; const timeStr = now.toTimeString().slice(0, 5); const storedAmount = -Math.abs(amount); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount: storedAmount, category: 'Deposit', note: note || 'Added Funds', date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('addFundModal'); toast('Funds added! 💰'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
-function saveTransaction() { const amount = parseFloat(document.getElementById('transAmount').value); const category = document.getElementById('transCategory').value; const note = document.getElementById('transNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = now.toISOString().split('T')[0]; const timeStr = now.toTimeString().slice(0, 5); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount, category, note, date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('transactionModal'); toast('Saved! ✅'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
+function saveAddFund() { const amount = parseFloat(document.getElementById('fundAmount').value); const note = document.getElementById('fundNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = now.toISOString().split('T')[0]; const timeStr = now.toTimeString().slice(0, 8); const storedAmount = -Math.abs(amount); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount: storedAmount, category: 'Deposit', note: note || 'Added Funds', date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('addFundModal'); toast('Funds added! 💰'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
+function saveTransaction() { const amount = parseFloat(document.getElementById('transAmount').value); const category = document.getElementById('transCategory').value; const note = document.getElementById('transNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = now.toISOString().split('T')[0]; const timeStr = now.toTimeString().slice(0, 8); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount, category, note, date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('transactionModal'); toast('Saved! ✅'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
 function deleteExpense(btn) { const expenseId = btn.getAttribute('data-expense-id'); const accountId = btn.getAttribute('data-account-id'); if (!expenseId || expenseId === 'undefined') return toast('Cannot delete: missing ID.'); if (!confirm('Delete this transaction?')) return; STATE.expenses = STATE.expenses.filter(ex => ex.id != expenseId); renderTransactions(accountId); renderExpenses(); renderDashboard(); save(); toast('Transaction deleted 🗑️'); ofetch('delete_expense.php', { id: expenseId }); }
 function deleteAccount(id) { if (!confirm('Delete this account and all its transactions? This cannot be undone.')) return; STATE.accounts = STATE.accounts.filter(a => a.id != id); STATE.expenses = STATE.expenses.filter(e => e.accountId != id); renderExpenses(); hideTransactionDetail(); renderDashboard(); save(); toast('Account deleted 🗑️'); ofetch('delete_account.php', { id }); }
-function renderTransactions(accountId) { const list = document.getElementById('transactionList'); if (!list) return; const acc = STATE.accounts.find(a => a.id == accountId); const trans = STATE.expenses.filter(e => e.accountId == accountId).sort((a, b) => { const da = new Date((a.date || '1970-01-01') + 'T' + (a.time || '00:00')); const db = new Date((b.date || '1970-01-01') + 'T' + (b.time || '00:00')); return db - da; }); const expensesOnly = trans.filter(t => parseFloat(t.amount) > 0); const totalSpent = expensesOnly.reduce((s, t) => s + parseFloat(t.amount || 0), 0); const bal = getAccountBalance(accountId); const categoryIcons = { 'Food': '🍔', 'Transport': '🚗', 'Rent': '🏠', 'Shopping': '🛍️', 'Health': '💊', 'Entertainment': '🎮', 'Education': '📚', 'Utilities': '💡', 'Other': '📌', 'Deposit': '💰' }; const catColors = ['#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64']; const catTotals = {}; expensesOnly.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + parseFloat(t.amount || 0); }); const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]); let html = `<div style="background:linear-gradient(135deg,rgba(124,110,245,0.12),rgba(93,232,193,0.06));border:1px solid rgba(124,110,245,0.25);border-radius:var(--radius);padding:20px;margin-bottom:16px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Current Balance</div><div style="font-family:'Syne',sans-serif;font-size:38px;font-weight:800;color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};line-height:1;">$${bal.toFixed(2)}</div><div style="display:flex;gap:24px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Total Spent</div><div style="font-size:18px;font-weight:700;color:var(--red);margin-top:2px;">-$${totalSpent.toFixed(2)}</div></div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Transactions</div><div style="font-size:18px;font-weight:700;color:var(--text);margin-top:2px;">${trans.length}</div></div></div></div>`; if (catEntries.length > 0) { html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;"><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:14px;">Spending by Category</div>`; catEntries.forEach(([cat, amt], i) => { const pct = totalSpent > 0 ? (amt / totalSpent * 100) : 0; const color = catColors[i % catColors.length]; const icon = categoryIcons[cat] || '📌'; html += `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:6px;font-size:13px;"><span>${icon}</span><span style="font-weight:500;">${cat}</span></div><div><span style="font-size:13px;font-weight:700;color:var(--red);">-$${parseFloat(amt).toFixed(2)}</span><span style="font-size:10px;color:var(--text3);margin-left:6px;">${pct.toFixed(0)}%</span></div></div><div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 0.5s;"></div></div></div>`; }); html += `</div>`; } if (trans.length === 0) { html += `<div class="empty-state"><div class="empty-icon">💸</div><p>No expenses yet.<br>Tap + Expense to add one.</p></div>`; } else { const groups = {}; trans.forEach(t => { const d = t.date || 'Unknown'; if (!groups[d]) groups[d] = []; groups[d].push(t); }); const todayStr = new Date().toISOString().split('T')[0]; Object.keys(groups).sort((a, b) => new Date(b) - new Date(a)).forEach(date => { const dayTotal = groups[date].filter(t => t.amount > 0).reduce((s, t) => s + parseFloat(t.amount || 0), 0); let displayDate; try { displayDate = date === todayStr ? 'Today' : new Date(date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }); } catch (e) { displayDate = date; } html += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding:0 4px;"><span>${displayDate}</span><span style="color:var(--red);">-$${dayTotal.toFixed(2)}</span></div>`; groups[date].forEach(t => { const isIncome = parseFloat(t.amount) < 0; const displayAmt = Math.abs(parseFloat(t.amount)).toFixed(2); const amtSign = isIncome ? '+' : '-'; const amtColor = isIncome ? 'var(--green)' : 'var(--red)'; const icon = isIncome ? '💰' : (categoryIcons[t.category] || '📌'); let timeDisplay = ''; if (t.time) { const [h, m] = t.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const dh = h > 12 ? h - 12 : h === 0 ? 12 : h; timeDisplay = `${dh}:${String(m).padStart(2, '0')} ${ampm}`; } html += `<div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;"><div style="width:44px;height:44px;border-radius:12px;background:${isIncome ? 'rgba(93,232,193,0.1)' : 'rgba(245,100,124,0.1)'};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">${icon}</div><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">${t.category}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.note || 'No note'}</div>${timeDisplay ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;">🕐 ${timeDisplay}</div>` : ''}</div><div style="text-align:right;flex-shrink:0;"><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:${amtColor};">${amtSign}$${displayAmt}</div><button data-expense-id="${t.id}" data-account-id="${accountId}" onclick="deleteExpense(this)" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;margin-top:6px;padding:2px;">🗑</button></div></div>`; }); }); } list.innerHTML = html; }
+function renderTransactions(accountId) { const list = document.getElementById('transactionList'); if (!list) return; const acc = STATE.accounts.find(a => a.id == accountId); const trans = STATE.expenses.filter(e => e.accountId == accountId).sort((a, b) => { const da = new Date((a.date || '1970-01-01') + 'T' + (a.time || '00:00:00')); const db = new Date((b.date || '1970-01-01') + 'T' + (b.time || '00:00:00')); const diff = db - da; if (diff !== 0) return diff; const idxA = STATE.expenses.indexOf(a); const idxB = STATE.expenses.indexOf(b); if (idxA !== -1 && idxB !== -1 && idxA !== idxB) { return idxB - idxA; } return (Number(b.id) || 0) - (Number(a.id) || 0); }); const expensesOnly = trans.filter(t => parseFloat(t.amount) > 0); const totalSpent = expensesOnly.reduce((s, t) => s + parseFloat(t.amount || 0), 0); const bal = getAccountBalance(accountId); const categoryIcons = { 'Food': '🍔', 'Transport': '🚗', 'Rent': '🏠', 'Shopping': '🛍️', 'Health': '💊', 'Entertainment': '🎮', 'Education': '📚', 'Utilities': '💡', 'Other': '📌', 'Deposit': '💰' }; const catColors = ['#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64']; const catTotals = {}; expensesOnly.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + parseFloat(t.amount || 0); }); const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]); let html = `<div style="background:linear-gradient(135deg,rgba(124,110,245,0.12),rgba(93,232,193,0.06));border:1px solid rgba(124,110,245,0.25);border-radius:var(--radius);padding:20px;margin-bottom:16px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Current Balance</div><div style="font-family:'Syne',sans-serif;font-size:38px;font-weight:800;color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};line-height:1;">$${bal.toFixed(2)}</div><div style="display:flex;gap:24px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Total Spent</div><div style="font-size:18px;font-weight:700;color:var(--red);margin-top:2px;">-$${totalSpent.toFixed(2)}</div></div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Transactions</div><div style="font-size:18px;font-weight:700;color:var(--text);margin-top:2px;">${trans.length}</div></div></div></div>`; if (catEntries.length > 0) { html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;"><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:14px;">Spending by Category</div>`; catEntries.forEach(([cat, amt], i) => { const pct = totalSpent > 0 ? (amt / totalSpent * 100) : 0; const color = catColors[i % catColors.length]; const icon = categoryIcons[cat] || '📌'; html += `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:6px;font-size:13px;"><span>${icon}</span><span style="font-weight:500;">${cat}</span></div><div><span style="font-size:13px;font-weight:700;color:var(--red);">-$${parseFloat(amt).toFixed(2)}</span><span style="font-size:10px;color:var(--text3);margin-left:6px;">${pct.toFixed(0)}%</span></div></div><div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 0.5s;"></div></div></div>`; }); html += `</div>`; } if (trans.length === 0) { html += `<div class="empty-state"><div class="empty-icon">💸</div><p>No expenses yet.<br>Tap + Expense to add one.</p></div>`; } else { const groups = {}; trans.forEach(t => { const d = t.date || 'Unknown'; if (!groups[d]) groups[d] = []; groups[d].push(t); }); const todayStr = new Date().toISOString().split('T')[0]; Object.keys(groups).sort((a, b) => new Date(b) - new Date(a)).forEach(date => { const dayTotal = groups[date].filter(t => t.amount > 0).reduce((s, t) => s + parseFloat(t.amount || 0), 0); let displayDate; try { displayDate = date === todayStr ? 'Today' : new Date(date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }); } catch (e) { displayDate = date; } html += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding:0 4px;"><span>${displayDate}</span><span style="color:var(--red);">-$${dayTotal.toFixed(2)}</span></div>`; groups[date].forEach(t => { const isIncome = parseFloat(t.amount) < 0; const displayAmt = Math.abs(parseFloat(t.amount)).toFixed(2); const amtSign = isIncome ? '+' : '-'; const amtColor = isIncome ? 'var(--green)' : 'var(--red)'; const icon = isIncome ? '💰' : (categoryIcons[t.category] || '📌'); let timeDisplay = ''; if (t.time) { const [h, m] = t.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const dh = h > 12 ? h - 12 : h === 0 ? 12 : h; timeDisplay = `${dh}:${String(m).padStart(2, '0')} ${ampm}`; } html += `<div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;"><div style="width:44px;height:44px;border-radius:12px;background:${isIncome ? 'rgba(93,232,193,0.1)' : 'rgba(245,100,124,0.1)'};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">${icon}</div><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">${t.category}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.note || 'No note'}</div>${timeDisplay ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;">🕐 ${timeDisplay}</div>` : ''}</div><div style="text-align:right;flex-shrink:0;"><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:${amtColor};">${amtSign}$${displayAmt}</div><button data-expense-id="${t.id}" data-account-id="${accountId}" onclick="deleteExpense(this)" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;margin-top:6px;padding:2px;">🗑</button></div></div>`; }); }); } list.innerHTML = html; }
 
 // ===================== NOTES (Google Keep style) =====================
 const NOTE_COLORS = ['', '#7c6ef5', '#10b981', '#f59e0b', '#f5647c', '#06b6d4', '#c87cf5', '#f57c64', '#3b82f6'];
