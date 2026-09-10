@@ -14,7 +14,7 @@ const STATE = {
     dashHiddenWidgets: ['alarms', 'sleep', 'roadmap', 'specific_account', 'specific_counter', 'specific_note'],
     dashConfig: { accountId: null, counterId: null, noteId: null },
 
-    selectedDate: '', attSelectedDate: '', activeRoadmap: null, activeAccountId: null, taskFilter: 'active', moneyFilter: 'all'
+    selectedDate: '', attSelectedDate: '', activeRoadmap: null, activeAccountId: null, taskFilter: 'active', moneyFilter: 'all', taskCategories: ['Work', 'Personal']
 };
 
 const WIDGET_DICT = {
@@ -1198,39 +1198,165 @@ function formatTime(t) { const [h, m] = t.split(':'); const hr = parseInt(h); re
 // ============================================================
 // TASKS
 // ============================================================
-function openTaskModal() { document.getElementById('taskModalTitle').textContent = 'New Task'; document.getElementById('taskTitle').value = ''; document.getElementById('taskDesc').value = ''; document.getElementById('taskDue').value = fmtDate(new Date()); document.getElementById('taskReminder').value = ''; delete document.getElementById('taskModal').dataset.editId; document.getElementById('taskModal').classList.add('open'); }
-function openTaskModalById(id) { const t = STATE.tasks.find(x => x.id === id); if (!t) return; document.getElementById('taskModalTitle').textContent = 'Edit Task'; document.getElementById('taskTitle').value = t.title; document.getElementById('taskDesc').value = t.description || ''; document.getElementById('taskCategory').value = t.category || 'Work'; document.getElementById('taskPriority').value = t.priority || 0; document.getElementById('taskDue').value = t.due || ''; document.getElementById('taskReminder').value = t.reminder || ''; document.getElementById('taskModal').dataset.editId = t.id; document.getElementById('taskModal').classList.add('open'); }
+function renderTaskCategories() {
+    if (!STATE.taskCategories || !Array.isArray(STATE.taskCategories) || STATE.taskCategories.length === 0) {
+        STATE.taskCategories = ['Work', 'Personal'];
+    }
+
+    const catSelect = document.getElementById('taskCategory');
+    if (catSelect) {
+        const curVal = catSelect.value;
+        catSelect.innerHTML = STATE.taskCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+        if (STATE.taskCategories.includes(curVal)) {
+            catSelect.value = curVal;
+        }
+    }
+
+    const container = document.getElementById('taskFilters');
+    if (!container) return;
+
+    let html = `
+        <div class="filter-tab ${STATE.taskFilter === 'all' ? 'active' : ''}" data-filter="all" onclick="setTaskFilter('all',this)">All</div>
+        <div class="filter-tab ${STATE.taskFilter === 'active' ? 'active' : ''}" data-filter="active" onclick="setTaskFilter('active',this)">Active</div>
+        <div class="filter-tab ${STATE.taskFilter === 'done' ? 'active' : ''}" data-filter="done" onclick="setTaskFilter('done',this)">Done</div>
+        <div class="filter-tab ${STATE.taskFilter === 'high' ? 'active' : ''}" data-filter="high" onclick="setTaskFilter('high',this)">🔴 High</div>
+    `;
+
+    STATE.taskCategories.forEach(cat => {
+        const isActive = (STATE.taskFilter || '').toLowerCase() === cat.toLowerCase() ? 'active' : '';
+        const isCustom = cat !== 'Work' && cat !== 'Personal';
+        html += `<div class="filter-tab ${isActive}" data-filter="${cat}" onclick="setTaskFilter('${cat}',this)">${cat}${isCustom ? `<span onclick="event.stopPropagation(); removeTaskCategory('${cat}')" style="margin-left:6px; opacity:0.6; font-size:12px; cursor:pointer;" title="Remove Category">✕</span>` : ''}</div>`;
+    });
+
+    html += `<div class="filter-tab add-cat-btn" onclick="addNewTaskCategory()" style="padding: 4px 10px; cursor: pointer; font-weight: 800; background: var(--accent); color: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 14px;" title="Add Category">+</div>`;
+
+    container.innerHTML = html;
+}
+
+function addNewTaskCategory() {
+    const newCat = prompt('Enter new task category name:');
+    if (!newCat || !newCat.trim()) return;
+    const cleanCat = newCat.trim();
+    if (!STATE.taskCategories || !Array.isArray(STATE.taskCategories)) {
+        STATE.taskCategories = ['Work', 'Personal'];
+    }
+    if (STATE.taskCategories.some(c => c.toLowerCase() === cleanCat.toLowerCase())) {
+        return toast('Category already exists!');
+    }
+    STATE.taskCategories.push(cleanCat);
+    save();
+    renderTaskCategories();
+    setTaskFilter(cleanCat);
+    toast(`Category "${cleanCat}" added! 🎉`);
+}
+
+function removeTaskCategory(cat) {
+    if (!confirm(`Delete category "${cat}"?`)) return;
+    STATE.taskCategories = (STATE.taskCategories || []).filter(c => c !== cat);
+    if ((STATE.taskFilter || '').toLowerCase() === cat.toLowerCase()) {
+        STATE.taskFilter = 'active';
+    }
+    save();
+    renderTaskCategories();
+    renderTasks();
+    toast(`Category "${cat}" removed`);
+}
+
+function openTaskModal() {
+    renderTaskCategories();
+    document.getElementById('taskModalTitle').textContent = 'New Task';
+    document.getElementById('taskTitle').value = '';
+    document.getElementById('taskDesc').value = '';
+    document.getElementById('taskDue').value = fmtDate(new Date());
+    document.getElementById('taskReminder').value = '';
+    delete document.getElementById('taskModal').dataset.editId;
+    document.getElementById('taskModal').classList.add('open');
+}
+
+function openTaskModalById(id) {
+    renderTaskCategories();
+    const t = STATE.tasks.find(x => x.id === id);
+    if (!t) return;
+    document.getElementById('taskModalTitle').textContent = 'Edit Task';
+    document.getElementById('taskTitle').value = t.title;
+    document.getElementById('taskDesc').value = t.description || '';
+    document.getElementById('taskCategory').value = t.category || 'Work';
+    document.getElementById('taskPriority').value = t.priority || 0;
+    document.getElementById('taskDue').value = t.due || '';
+    document.getElementById('taskReminder').value = t.reminder || '';
+    document.getElementById('taskModal').dataset.editId = t.id;
+    document.getElementById('taskModal').classList.add('open');
+}
+
 function saveTask() {
-    const title = document.getElementById('taskTitle').value.trim(); if (!title) return toast('Please enter a task title');
+    const title = document.getElementById('taskTitle').value.trim();
+    if (!title) return toast('Please enter a task title');
     const editId = document.getElementById('taskModal').dataset.editId;
-    const taskData = { title, description: document.getElementById('taskDesc').value, category: document.getElementById('taskCategory').value, priority: parseInt(document.getElementById('taskPriority').value), due: document.getElementById('taskDue').value, reminder: document.getElementById('taskReminder').value };
+    const taskData = {
+        title,
+        description: document.getElementById('taskDesc').value,
+        category: document.getElementById('taskCategory').value,
+        priority: parseInt(document.getElementById('taskPriority').value),
+        due: document.getElementById('taskDue').value,
+        reminder: document.getElementById('taskReminder').value
+    };
     if (editId) {
-        taskData.id = parseInt(editId); const idx = STATE.tasks.findIndex(x => x.id === taskData.id); if (idx >= 0) { taskData.completed = STATE.tasks[idx].completed; STATE.tasks[idx] = taskData; }
+        taskData.id = parseInt(editId);
+        const idx = STATE.tasks.findIndex(x => x.id === taskData.id);
+        if (idx >= 0) {
+            taskData.completed = STATE.tasks[idx].completed;
+            STATE.tasks[idx] = taskData;
+        }
         renderTasks(); renderDashboard(); closeModal('taskModal'); save(); ofetch('update_task_details.php', taskData, () => toast('Task updated! ✅'));
     } else {
-        const tempId = Date.now(); taskData.id = tempId; taskData.completed = false; STATE.tasks.unshift(taskData);
+        const tempId = Date.now();
+        taskData.id = tempId;
+        taskData.completed = false;
+        STATE.tasks.unshift(taskData);
         renderTasks(); renderDashboard(); closeModal('taskModal'); save(); toast('Saved! ✅');
         ofetch('add_task.php', taskData, d => { const t = STATE.tasks.find(x => x.id === tempId); if (t) t.id = Number(d.id); renderTasks(); save(); });
     }
     if (taskData.reminder) scheduleReminderToast(taskData);
 }
-function toggleTask(e, id) { if (e) e.stopPropagation(); const t = STATE.tasks.find(x => x.id === id); if (!t) return; t.completed = !t.completed; renderTasks(); renderDashboard(); save(); toast(t.completed ? 'Task done! 🎉' : 'Task reopened'); ofetch('update_task.php', { id, completed: t.completed }); }
-function deleteTask(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this task?')) return; STATE.tasks = STATE.tasks.filter(t => t.id !== id); renderTasks(); renderDashboard(); save(); toast('Task deleted 🗑️'); ofetch('delete_task.php', { id }); }
+
+function toggleTask(e, id) {
+    if (e) e.stopPropagation();
+    const t = STATE.tasks.find(x => x.id === id);
+    if (!t) return;
+    t.completed = !t.completed;
+    renderTasks(); renderDashboard(); save(); toast(t.completed ? 'Task done! 🎉' : 'Task reopened');
+    ofetch('update_task.php', { id, completed: t.completed });
+}
+
+function deleteTask(e, id) {
+    if (e) e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this task?')) return;
+    STATE.tasks = STATE.tasks.filter(t => t.id !== id);
+    renderTasks(); renderDashboard(); save(); toast('Task deleted 🗑️');
+    ofetch('delete_task.php', { id });
+}
+
 function setTaskFilter(f, el) {
     STATE.taskFilter = f || 'active';
-    document.querySelectorAll('#taskFilters .filter-tab').forEach(t => t.classList.remove('active'));
-    if (el) {
-        el.classList.add('active');
-    } else {
-        const tab = document.querySelector(`#taskFilters [data-filter="${STATE.taskFilter}"]`);
-        if (tab) tab.classList.add('active');
-    }
+    renderTaskCategories();
     renderTasks();
 }
+
 function renderTasks() {
+    renderTaskCategories();
     let tasks = [...STATE.tasks];
-    if (STATE.taskFilter === 'active') tasks = tasks.filter(t => !t.completed); else if (STATE.taskFilter === 'done') tasks = tasks.filter(t => t.completed); else if (STATE.taskFilter === 'high') tasks = tasks.filter(t => t.priority === 2 && !t.completed); else if (STATE.taskFilter === 'work') tasks = tasks.filter(t => t.category === 'Work'); else if (STATE.taskFilter === 'personal') tasks = tasks.filter(t => t.category === 'Personal');
-    const el = document.getElementById('taskList'); if (tasks.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No tasks here</p></div>';
+    const tf = (STATE.taskFilter || 'active').toLowerCase();
+    if (tf === 'active') {
+        tasks = tasks.filter(t => !t.completed);
+    } else if (tf === 'done') {
+        tasks = tasks.filter(t => t.completed);
+    } else if (tf === 'high') {
+        tasks = tasks.filter(t => t.priority === 2 && !t.completed);
+    } else if (tf !== 'all') {
+        tasks = tasks.filter(t => (t.category || '').toLowerCase() === tf);
+    }
+    const el = document.getElementById('taskList');
+    if (tasks.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No tasks here</p></div>';
     el.innerHTML = tasks.map(t => `<div class="task-item ${t.completed ? 'done' : ''}" onclick="openTaskModalById(${t.id})" style="cursor:pointer;"><div class="task-check ${t.completed ? 'checked' : ''}" onclick="toggleTask(event, ${t.id})"></div><div class="task-body"><div class="task-title">${t.title}</div><div class="task-meta"><span class="priority-dot p${t.priority}"></span><span class="pill pill-accent" style="font-size:10px;padding:2px 7px">${t.category}</span>${t.due ? `<span class="task-due">📅 ${fmtDisplay(t.due)}</span>` : ''} ${t.priority === 2 ? '<span style="font-size:11px;color:var(--red)">🔴 High</span>' : ''}</div></div><div class="task-delete" onclick="deleteTask(event, ${t.id})">🗑</div></div>`).join('');
 }
 
