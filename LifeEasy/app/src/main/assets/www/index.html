@@ -1982,6 +1982,26 @@
                 <button class="btn-primary" style="width:100%;" onclick="testInstantNotification()">Test Notification 🔔</button>
             </div>
 
+            <!-- DAILY REMINDERS CARD -->
+            <div class="card">
+                <div class="section-title" style="margin-bottom:12px;">Daily Reminders</div>
+                <p style="font-size:12px; color:var(--text2); margin-bottom:12px;">Set recurring daily notifications for prayers, habits, or routines.</p>
+
+                <div class="form-row">
+                    <label class="label">Message *</label>
+                    <input class="input" id="dailyReminderMsg" placeholder="e.g. Namaj, Drink Water, Medicine...">
+                </div>
+
+                <div class="form-row">
+                    <label class="label">Time *</label>
+                    <input class="input" type="time" id="dailyReminderTime" value="21:00">
+                </div>
+
+                <button class="btn-primary" style="width:100%; margin-bottom:16px;" onclick="addDailyReminder()">+ Add Daily Reminder 🔔</button>
+
+                <div id="dailyRemindersList" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+
             <!-- ADD THIS NEW CARD -->
             <div class="card">
                 <div class="section-title" style="margin-bottom:15px;">Customize Navigation</div>

@@ -2,6 +2,7 @@ package com.example.lifeeasy   // change to match your actual package name
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -244,6 +245,51 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun scheduleAlarm(id: Int, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
+        try {
+            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+            val intent = Intent(this, AlarmReceiver::class.java).apply {
+                putExtra("id", id)
+                putExtra("title", title)
+                putExtra("message", message)
+                putExtra("isRecurring", isRecurring)
+            }
+            val pendingIntent = PendingIntent.getBroadcast(
+                this,
+                id,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            } else {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun cancelAlarm(id: Int) {
+        try {
+            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+            val intent = Intent(this, AlarmReceiver::class.java)
+            val pendingIntent = PendingIntent.getBroadcast(
+                this,
+                id,
+                intent,
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            )
+            if (pendingIntent != null) {
+                alarmManager.cancel(pendingIntent)
+                pendingIntent.cancel()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun downloadFile(url: String, filename: String) {
         try {
             val request = DownloadManager.Request(Uri.parse(url)).apply {
@@ -311,7 +357,14 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun scheduleAlarm(id: Int, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
             activity.runOnUiThread {
-                activity.sendNotification(title, message)
+                activity.scheduleAlarm(id, triggerAtMillis, title, message, isRecurring)
+            }
+        }
+
+        @JavascriptInterface
+        fun cancelAlarm(id: Int) {
+            activity.runOnUiThread {
+                activity.cancelAlarm(id)
             }
         }
 

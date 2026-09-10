@@ -4,7 +4,7 @@
 const STATE = {
     tasks: [], plans: [], counters: [], money: [], alarms: [], roadmaps: [], steps: [], attendance: [], academic: [],
     attendanceRoutines: [], attendanceLogs: [], accounts: [], expenses: [], notes: [], sleepLogs: [], syncQueue: [], customTags: [], tabs: [],
-    vaultFolders: [], vaultFiles: [], // <-- ADD THIS HERE
+    vaultFolders: [], vaultFiles: [], links: [], dailyReminders: [],
 
     navPreferences: ['dash', 'planner', 'tasks', 'counter', 'money', 'alarms', 'roadmap', 'attendance', 'academic', 'vault', 'expenses', 'notes', 'sleep', 'tabs', 'settings'],
     hiddenNavModules: [],
@@ -400,6 +400,7 @@ function renderAll() {
     renderTasks(); renderPlanner(); renderCounters(); renderMoney(); renderAlarms(); renderRoadmaps();
     renderAttendance(); renderAcademic(); renderDashboard(); renderVault(); renderNotes(); renderSleep();
     if (typeof renderLinks === 'function') renderLinks();
+    if (typeof renderDailyReminders === 'function') renderDailyReminders();
     renderAttCalendar(); initColorPickers();
 }
 
@@ -434,7 +435,7 @@ function navTo(screen) {
     if (screen === 'notes') renderNotes();
     if (screen === 'sleep') renderSleep();
     if (screen === 'links') renderLinks();
-    if (screen === 'settings') { renderNavSettings(); renderDashSettings(); }
+    if (screen === 'settings') { renderNavSettings(); renderDashSettings(); if (typeof renderDailyReminders === 'function') renderDailyReminders(); }
     if (screen === 'tasks') { setTaskFilter('active'); }
     if (screen === 'attendance') { STATE.attSelectedDate = fmtDate(new Date()); attCurrentDate = new Date(); renderAttCalendar(); renderAttendance(); }
 
@@ -1843,7 +1844,7 @@ function deleteAlarm(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you 
 function openAlarmModal() { document.getElementById('alarmTime').value = ''; document.getElementById('alarmLabel').value = ''; document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected')); document.getElementById('alarmModal').classList.add('open'); }
 function toggleDay(el) { el.classList.toggle('selected'); }
 function renderAlarms() { const el = document.getElementById('alarmList'); if (STATE.alarms.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏰</div><p>No alarms set</p></div>'; el.innerHTML = STATE.alarms.map(a => { const [h, m] = a.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h; const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']; const daysStr = a.days ? a.days.split('').map(d => dayNames[parseInt(d)]).join(' ') : 'Once'; return `<div class="alarm-item ${!a.enabled ? 'money-settled' : ''}"><div style="flex:1"><div class="alarm-time">${String(displayH).padStart(2, '0')}:${String(m).padStart(2, '0')}<span class="alarm-time-ampm">${ampm}</span></div><div class="alarm-label">${a.label}</div><div class="alarm-days">${daysStr}</div></div><label class="alarm-toggle"><input type="checkbox" ${a.enabled ? 'checked' : ''} onchange="toggleAlarm(event, ${a.id})"><span class="toggle-slider"></span></label><div class="alarm-delete" onclick="deleteAlarm(event, ${a.id})">🗑</div></div>`; }).join(''); }
-function setupAlarmTicks() { setInterval(() => { const now = new Date(); const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds(); if (s !== 0) return; STATE.alarms.filter(a => a.enabled && a.time).forEach(a => { const [ah, am] = a.time.split(':').map(Number); if (ah !== h || am !== m) return; const dayOfWeek = now.getDay().toString(); if (!a.days || a.days === '' || a.days.includes(dayOfWeek)) { sendSystemNotification("Alarm: " + a.label, formatTime(a.time)); try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA==').play(); } catch (e) { } } }); }, 1000); }
+function setupAlarmTicks() { setInterval(() => { const now = new Date(); const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds(); if (s === 0) { STATE.alarms.filter(a => a.enabled && a.time).forEach(a => { const [ah, am] = a.time.split(':').map(Number); if (ah !== h || am !== m) return; const dayOfWeek = now.getDay().toString(); if (!a.days || a.days === '' || a.days.includes(dayOfWeek)) { sendSystemNotification("Alarm: " + a.label, formatTime(a.time)); try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA==').play(); } catch (e) { } } }); } if (typeof checkDailyReminders === 'function') checkDailyReminders(); }, 1000); }
 
 // ============================================================
 // ROADMAPS
@@ -3440,7 +3441,10 @@ function initColorPickers() { const pickers = { plan: 'planColorPicker', counter
 function selectColor(key, color, el) { selectedColors[key] = color; el.parentElement.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected')); el.classList.add('selected'); }
 const reminderTimers = {};
 function scheduleReminderToast(task) { if (reminderTimers[task.id]) clearTimeout(reminderTimers[task.id]); if (!task.reminder) return; const diff = new Date(task.reminder) - new Date(); if (diff > 0 && diff < 86400000) { reminderTimers[task.id] = setTimeout(() => sendSystemNotification("Task Reminder", task.title), diff); } }
-function rescheduleAllReminders() { STATE.tasks.forEach(t => { if (t.reminder && !t.completed) scheduleReminderToast(t); }); }
+function rescheduleAllReminders() {
+    STATE.tasks.forEach(t => { if (t.reminder && !t.completed) scheduleReminderToast(t); });
+    if (typeof rescheduleAllDailyReminders === 'function') rescheduleAllDailyReminders();
+}
 function requestNotificationPermission() { if ("Notification" in window) { if (Notification.permission !== "granted" && Notification.permission !== "denied") { Notification.requestPermission(); } } }
 function sendSystemNotification(title, bodyText) { if (window.AndroidInterface && typeof window.AndroidInterface.sendNotification === 'function') { try { window.AndroidInterface.sendNotification(title, bodyText || ""); return; } catch(e) { console.error("Native notification failed:", e); } } toast(`🔔 ${title} ${bodyText ? '- ' + bodyText : ''}`); if ("Notification" in window && Notification.permission === "granted") { try { if (navigator.serviceWorker) { navigator.serviceWorker.ready.then(function (registration) { registration.showNotification(title, { body: bodyText, vibrate: [200, 100, 200] }); }).catch(function () { new Notification(title, { body: bodyText }); }); } else { new Notification(title, { body: bodyText }); } } catch (e) { console.log("Notification failed", e); } } }
 
@@ -3895,6 +3899,169 @@ function toggleNavModuleVisibility(key) {
     save();
     renderNavSettings();
     renderNavbar();
+}
+
+// ============================================================
+// DAILY REMINDERS MODULE (SYSTEM NOTIFICATIONS)
+// ============================================================
+function formatTimeDisplay(timeStr) {
+    if (!timeStr) return '';
+    const [h, m] = timeStr.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const dispH = h % 12 === 0 ? 12 : h % 12;
+    return `${dispH}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function calculateNextAlarmMillis(timeStr) {
+    if (!timeStr) return Date.now() + 60000;
+    const [h, m] = timeStr.split(':').map(Number);
+    const now = new Date();
+    const target = new Date();
+    target.setHours(h, m, 0, 0);
+
+    if (target.getTime() <= now.getTime()) {
+        target.setDate(target.getDate() + 1);
+    }
+    return target.getTime();
+}
+
+function scheduleDailyReminderAlarm(reminder) {
+    if (!reminder || !reminder.enabled) return;
+
+    const triggerAtMillis = calculateNextAlarmMillis(reminder.time);
+
+    if (window.AndroidInterface && typeof window.AndroidInterface.scheduleAlarm === 'function') {
+        try {
+            window.AndroidInterface.scheduleAlarm(
+                reminder.id,
+                triggerAtMillis,
+                "Daily Reminder 🔔",
+                reminder.message,
+                true
+            );
+        } catch (e) {
+            console.warn('Native scheduleAlarm failed:', e);
+        }
+    }
+}
+
+function cancelDailyReminderAlarm(reminderId) {
+    if (window.AndroidInterface && typeof window.AndroidInterface.cancelAlarm === 'function') {
+        try {
+            window.AndroidInterface.cancelAlarm(reminderId);
+        } catch (e) {
+            console.warn('Native cancelAlarm failed:', e);
+        }
+    }
+}
+
+function addDailyReminder() {
+    const msgInput = document.getElementById('dailyReminderMsg');
+    const timeInput = document.getElementById('dailyReminderTime');
+
+    const msg = msgInput ? msgInput.value.trim() : '';
+    const time = timeInput ? timeInput.value : '';
+
+    if (!msg) return toast('Please enter a reminder message');
+    if (!time) return toast('Please select a time');
+
+    if (!STATE.dailyReminders) STATE.dailyReminders = [];
+
+    const tempId = Math.floor(Math.random() * 899999) + 100000;
+    const reminder = {
+        id: tempId,
+        message: msg,
+        time: time,
+        enabled: true,
+        lastFiredDate: ''
+    };
+
+    STATE.dailyReminders.push(reminder);
+    save();
+    renderDailyReminders();
+
+    scheduleDailyReminderAlarm(reminder);
+
+    if (msgInput) msgInput.value = '';
+    toast(`Daily reminder '${msg}' added for ${formatTimeDisplay(time)}! 🔔`);
+    requestNotificationPermission();
+}
+
+function toggleDailyReminder(id) {
+    if (!STATE.dailyReminders) return;
+    const r = STATE.dailyReminders.find(x => x.id === id);
+    if (r) {
+        r.enabled = !r.enabled;
+        save();
+        renderDailyReminders();
+        if (r.enabled) {
+            scheduleDailyReminderAlarm(r);
+            toast('Reminder enabled 🔔');
+        } else {
+            cancelDailyReminderAlarm(r.id);
+            toast('Reminder paused ⏸️');
+        }
+    }
+}
+
+function deleteDailyReminder(id) {
+    if (!confirm('Delete this daily reminder?')) return;
+    cancelDailyReminderAlarm(id);
+    STATE.dailyReminders = (STATE.dailyReminders || []).filter(x => x.id !== id);
+    save();
+    renderDailyReminders();
+    toast('Reminder deleted 🗑️');
+}
+
+function renderDailyReminders() {
+    const listEl = document.getElementById('dailyRemindersList');
+    if (!listEl) return;
+
+    const list = STATE.dailyReminders || [];
+    if (!list.length) {
+        listEl.innerHTML = '<div style="font-size:12px; color:var(--text3); text-align:center; padding:8px;">No daily reminders set yet.</div>';
+        return;
+    }
+
+    listEl.innerHTML = list.map(r => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface2); border:1px solid var(--border); padding:10px 14px; border-radius:12px;">
+            <div>
+                <div style="font-size:14px; font-weight:700; color:var(--text);">${escapeHtml(r.message)}</div>
+                <div style="font-size:12px; color:var(--accent); font-weight:600; margin-top:2px;">🔔 Every day at ${formatTimeDisplay(r.time)}</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button class="btn-secondary" style="padding:4px 10px; font-size:11px; ${r.enabled ? 'color:var(--green); border-color:var(--green);' : 'opacity:0.5;'}" onclick="toggleDailyReminder(${r.id})">${r.enabled ? 'Active' : 'Paused'}</button>
+                <button class="btn-secondary" style="padding:4px 8px; font-size:12px; color:var(--red);" onclick="deleteDailyReminder(${r.id})">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function rescheduleAllDailyReminders() {
+    (STATE.dailyReminders || []).forEach(r => {
+        if (r.enabled) {
+            scheduleDailyReminderAlarm(r);
+        }
+    });
+}
+
+function checkDailyReminders() {
+    // When running inside Android app, native AlarmManager handles notifications via AlarmReceiver
+    if (window.AndroidInterface) return;
+
+    if (!STATE.dailyReminders || !STATE.dailyReminders.length) return;
+
+    const now = new Date();
+    const todayStr = fmtDate(now);
+    const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    STATE.dailyReminders.forEach(r => {
+        if (r.enabled && r.time === currentHHMM && r.lastFiredDate !== todayStr) {
+            r.lastFiredDate = todayStr;
+            save();
+            sendSystemNotification("Daily Reminder 🔔", r.message);
+        }
+    });
 }
 
 // ============================================================
