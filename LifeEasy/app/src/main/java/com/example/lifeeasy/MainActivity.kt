@@ -8,6 +8,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.view.WindowManager
 import android.content.pm.PackageManager
 import android.media.RingtoneManager
 import android.net.ConnectivityManager
@@ -20,9 +21,12 @@ import android.os.Build
 import android.os.Bundle
 import android.app.DownloadManager
 import android.content.ContentValues
+import android.content.pm.ActivityInfo
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Base64
+import android.view.View
+import android.view.WindowInsets
 import android.webkit.JavascriptInterface
 import android.webkit.SslErrorHandler
 import android.webkit.URLUtil
@@ -290,6 +294,42 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun hideSystemBars() {
+        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.hide(
+                WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            )
+        }
+    }
+
+    fun showSystemBars() {
+        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.show(
+                WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+        }
+    }
+
+    fun lockLandscape() {
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+    }
+
+    fun unlockOrientation() {
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    }
+
     fun downloadFile(url: String, filename: String) {
         try {
             val request = DownloadManager.Request(Uri.parse(url)).apply {
@@ -391,6 +431,34 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Toast.makeText(activity, "Could not open link: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
+            }
+        }
+
+        @JavascriptInterface
+        fun hideSystemBars() {
+            activity.runOnUiThread {
+                activity.hideSystemBars()
+            }
+        }
+
+        @JavascriptInterface
+        fun showSystemBars() {
+            activity.runOnUiThread {
+                activity.showSystemBars()
+            }
+        }
+
+        @JavascriptInterface
+        fun lockLandscape() {
+            activity.runOnUiThread {
+                activity.lockLandscape()
+            }
+        }
+
+        @JavascriptInterface
+        fun unlockOrientation() {
+            activity.runOnUiThread {
+                activity.unlockOrientation()
             }
         }
     }

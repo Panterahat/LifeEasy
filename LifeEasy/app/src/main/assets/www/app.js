@@ -34,7 +34,8 @@ const WIDGET_DICT = {
     redzone: { icon: '🚨', label: 'Urgent Deadlines (Full)' },
     schedule: { icon: '📅', label: 'Today\'s Schedule (Full)' },
     tasks: { icon: '📋', label: 'Upcoming Tasks (Full)' },
-    classes: { icon: '🎓', label: 'Today\'s Classes (Full)' }
+    classes: { icon: '🎓', label: 'Today\'s Classes (Full)' },
+    sleep_full: { icon: '😴', label: 'Sleep Tracker Overview (Full)' }
 };
 
 // NEW: Master Dictionary of all App Modules
@@ -636,6 +637,12 @@ function renderDashboard() {
             migrated = true;
         }
     });
+
+    if (!STATE.dashWidgets.includes('sleep_full') && !STATE.dashHiddenWidgets.includes('sleep_full')) {
+        STATE.dashWidgets.push('sleep_full');
+        migrated = true;
+    }
+
     if (migrated) save();
 
     let html = '';
@@ -658,11 +665,11 @@ function renderDashboard() {
                 /* ------------------ MINI WIDGETS ------------------ */
                 case 'pending_tasks': {
                     const activeTasks = STATE.tasks.filter(t => !t.completed).length;
-                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('tasks')"><div class="stat-icon">✅</div><div class="stat-num">${activeTasks}</div><div class="stat-label">Pending Tasks</div></div>`;
+                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('tasks')"><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px;">✅</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Pending Tasks</span></div><div class="stat-num">${activeTasks}</div></div>`;
                     break;
                 }
                 case 'todays_events': {
-                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('planner')"><div class="stat-icon">📅</div><div class="stat-num">${STATE.plans.filter(p => isEventOnDate(p, todayStr)).length}</div><div class="stat-label">Today's Events</div></div>`;
+                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('planner')"><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px;">📅</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Today's Events</span></div><div class="stat-num">${STATE.plans.filter(p => isEventOnDate(p, todayStr)).length}</div></div>`;
                     break;
                 }
                 case 'net_money': {
@@ -670,29 +677,29 @@ function renderDashboard() {
                     const owedTotal = STATE.money.filter(m => m.type === 'borrowed' && !m.settled).reduce((s, m) => s + parseFloat(m.amount || 0), 0);
                     const netMoney = lentTotal - owedTotal;
                     const netColor = netMoney >= 0 ? 'var(--green)' : 'var(--red)';
-                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('money')"><div class="stat-icon">💰</div><div class="stat-num" style="color:${netColor}">${netMoney >= 0 ? '+' : '-'}${Math.abs(netMoney).toFixed(0)}</div><div class="stat-label">Net Money</div></div>`;
+                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('money')"><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px;">💰</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Net Money</span></div><div class="stat-num" style="color:${netColor}">${netMoney >= 0 ? '+' : '-'}${Math.abs(netMoney).toFixed(0)}</div></div>`;
                     break;
                 }
                 case 'active_counters': {
-                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('counter')"><div class="stat-icon">🔢</div><div class="stat-num">${STATE.counters.length}</div><div class="stat-label">Active Counters</div></div>`;
+                    wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('counter')"><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px;">🔢</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Active Counters</span></div><div class="stat-num">${STATE.counters.length}</div></div>`;
                     break;
                 }
                 case 'alarms': {
                     const activeAlarms = STATE.alarms.filter(a => a.enabled && a.time).sort((a, b) => a.time > b.time ? 1 : -1);
-                    if (activeAlarms.length === 0) wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('alarms')"><div class="stat-icon">⏰</div><div class="stat-num" style="font-size:20px; padding:4px 0;">Off</div><div class="stat-label">Next Alarm</div></div>`;
-                    else wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('alarms')"><div class="stat-icon">⏰</div><div class="stat-num" style="font-size:22px; padding:2px 0;">${formatTime(activeAlarms[0].time)}</div><div class="stat-label">${activeAlarms[0].label || 'Next Alarm'}</div></div>`;
+                    if (activeAlarms.length === 0) wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('alarms')"><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px;">⏰</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Next Alarm</span></div><div class="stat-num" style="font-size:20px; padding:4px 0;">Off</div></div>`;
+                    else wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('alarms')"><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px;">⏰</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(activeAlarms[0].label || 'Next Alarm')}</span></div><div class="stat-num" style="font-size:22px; padding:2px 0;">${formatTime(activeAlarms[0].time)}</div></div>`;
                     break;
                 }
                 case 'sleep': {
-                    if (STATE.sleepLogs.length === 0) wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('sleep')"><div class="stat-icon">😴</div><div class="stat-num" style="font-size:20px; padding:4px 0;">No Data</div><div class="stat-label">Last Night</div></div>`;
+                    if (STATE.sleepLogs.length === 0) wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('sleep')"><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px;">😴</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Last Night</span></div><div class="stat-num" style="font-size:20px; padding:4px 0;">No Data</div></div>`;
                     else {
                         const latest = [...STATE.sleepLogs].sort((a, b) => (a.date || '').localeCompare(b.date || '')).pop();
-                        wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('sleep')"><div class="stat-icon">😴</div><div class="stat-num" style="color:var(--accent2);">${(latest.durationMins / 60).toFixed(1)}h</div><div class="stat-label">Last Night</div></div>`;
+                        wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('sleep')"><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px;">😴</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Last Night</span></div><div class="stat-num" style="color:var(--accent2);">${(latest.durationMins / 60).toFixed(1)}h</div></div>`;
                     }
                     break;
                 }
                 case 'roadmap': {
-                    if (STATE.roadmaps.length === 0) wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('roadmap')"><div class="stat-icon">🗺️</div><div class="stat-num" style="font-size:20px; padding:4px 0;">None</div><div class="stat-label">Active Roadmap</div></div>`;
+                    if (STATE.roadmaps.length === 0) wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('roadmap')"><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px;">🗺️</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Active Roadmap</span></div><div class="stat-num" style="font-size:20px; padding:4px 0;">None</div></div>`;
                     else {
                         let bestR = STATE.roadmaps[0]; let bestPct = -1;
                         STATE.roadmaps.forEach(r => {
@@ -702,7 +709,7 @@ function renderDashboard() {
                             if (pct > bestPct && pct < 100) { bestPct = pct; bestR = r; }
                         });
                         if (bestPct === -1) { bestR = STATE.roadmaps[0]; bestPct = STATE.steps.filter(s => s.roadmapId === bestR.id && s.completed).length / (STATE.steps.filter(s => s.roadmapId === bestR.id).length || 1) * 100; }
-                        wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('roadmap')"><div class="stat-icon">🗺️</div><div class="stat-num" style="font-size:24px; padding:2px 0;">${bestPct.toFixed(0)}%</div><div class="stat-label" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${bestR.title}</div></div>`;
+                        wHtml = `<div class="stat-card" style="cursor:pointer;" onclick="navTo('roadmap')"><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px;">🗺️</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(bestR.title)}</span></div><div class="stat-num" style="font-size:24px; padding:2px 0;">${bestPct.toFixed(0)}%</div></div>`;
                     }
                     break;
                 }
@@ -713,7 +720,7 @@ function renderDashboard() {
                         if (!acc) wHtml = `<div class="stat-card"><div class="stat-icon">💳</div><div class="stat-num" style="font-size:16px; padding:8px 0; color:var(--red);">Deleted</div><div class="stat-label" onclick="STATE.dashConfig.accountId = null; save(); renderDashboard();" style="cursor:pointer; text-decoration:underline;">Reset</div></div>`;
                         else {
                             const bal = typeof getAccountBalance === 'function' ? getAccountBalance(acc.id) : 0;
-                            wHtml = `<div class="stat-card" style="position:relative; cursor:pointer;" onclick="navTo('expenses')"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="event.stopPropagation(); STATE.dashConfig.accountId = null; save(); renderDashboard();">⚙️</span><div class="stat-icon">💳</div><div class="stat-num" style="font-size:20px; padding:4px 0; color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};">${bal.toFixed(0)}</div><div class="stat-label" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${acc.name}</div></div>`;
+                            wHtml = `<div class="stat-card" style="position:relative; cursor:pointer;" onclick="navTo('expenses')"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="event.stopPropagation(); STATE.dashConfig.accountId = null; save(); renderDashboard();">⚙️</span><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px;">💳</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(acc.name)}</span></div><div class="stat-num" style="font-size:20px; padding:4px 0; color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};">${bal.toFixed(0)}</div></div>`;
                         }
                     }
                     break;
@@ -724,7 +731,7 @@ function renderDashboard() {
                         const c = STATE.counters.find(x => x.id == STATE.dashConfig.counterId);
                         if (!c) wHtml = `<div class="stat-card"><div class="stat-icon">🔢</div><div class="stat-num" style="font-size:16px; padding:8px 0; color:var(--red);">Deleted</div><div class="stat-label" onclick="STATE.dashConfig.counterId = null; save(); renderDashboard();" style="cursor:pointer; text-decoration:underline;">Reset</div></div>`;
                         else {
-                            wHtml = `<div class="stat-card" style="position:relative; cursor:pointer;" onclick="navTo('counter')"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="event.stopPropagation(); STATE.dashConfig.counterId = null; save(); renderDashboard();">⚙️</span><div class="stat-icon" style="color:${c.color};">🔢</div><div class="stat-num" style="font-size:24px; padding:2px 0;">${c.value}</div><div style="display:flex; justify-content:center; gap:4px; margin-top:4px;"><button class="btn-secondary" style="padding:2px 8px; font-size:12px;" onclick="event.stopPropagation(); adjustCounter(${c.id},-1); setTimeout(renderDashboard, 50)">-</button><button class="btn-secondary" style="padding:2px 8px; font-size:12px;" onclick="event.stopPropagation(); adjustCounter(${c.id},1); setTimeout(renderDashboard, 50)">+</button></div><div class="stat-label" style="margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.name}</div></div>`;
+                            wHtml = `<div class="stat-card" style="position:relative; cursor:pointer;" onclick="navTo('counter')"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="event.stopPropagation(); STATE.dashConfig.counterId = null; save(); renderDashboard();">⚙️</span><div style="display:flex; align-items:center; justify-content:flex-start; gap:6px; margin-bottom:4px;"><span style="font-size:16px; color:${c.color};">🔢</span><span style="font-size:11px; font-weight:700; color:var(--text2); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(c.name)}</span></div><div class="stat-num" style="font-size:24px; padding:2px 0;">${c.value}</div><div style="display:flex; justify-content:center; gap:4px; margin-top:4px;"><button class="btn-secondary" style="padding:2px 8px; font-size:12px;" onclick="event.stopPropagation(); adjustCounter(${c.id},-1); setTimeout(renderDashboard, 50)">-</button><button class="btn-secondary" style="padding:2px 8px; font-size:12px;" onclick="event.stopPropagation(); adjustCounter(${c.id},1); setTimeout(renderDashboard, 50)">+</button></div></div>`;
                         }
                     }
                     break;
@@ -740,7 +747,7 @@ function renderDashboard() {
                                 rawText = n.checklist.map(c => c.text).join('\n');
                             }
                             const preview = escapeHtml(rawText).substring(0, 40) + (rawText.length > 40 ? '...' : '');
-                            wHtml = `<div class="stat-card" style="position:relative; text-align:left; display:flex; flex-direction:column; justify-content:space-between; cursor:pointer;" onclick="navTo('notes')"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="event.stopPropagation(); STATE.dashConfig.noteId = null; save(); renderDashboard();">⚙️</span><div style="font-size:11px; color:var(--text2); text-transform:uppercase; margin-bottom:4px; font-weight:700;">📝 ${n.title || 'Note'}</div><div style="font-size:11px; line-height:1.4; color:var(--text); white-space:pre-wrap;">${preview}</div></div>`;
+                            wHtml = `<div class="stat-card" style="position:relative; text-align:left; display:flex; flex-direction:column; justify-content:space-between; cursor:pointer;" onclick="navTo('notes')"><span style="position:absolute; top:8px; right:8px; font-size:10px; opacity:0.5; cursor:pointer;" onclick="event.stopPropagation(); STATE.dashConfig.noteId = null; save(); renderDashboard();">⚙️</span><div style="font-size:11px; color:var(--text2); text-transform:uppercase; margin-bottom:4px; font-weight:700;">📝 ${escapeHtml(n.title || 'Note')}</div><div style="font-size:11px; line-height:1.4; color:var(--text); white-space:pre-wrap;">${preview}</div></div>`;
                         }
                     }
                     break;
@@ -801,6 +808,51 @@ function renderDashboard() {
                     wHtml = cHtml;
                     break;
                 }
+                case 'sleep_full': {
+                    const sorted = [...STATE.sleepLogs].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+                    const last7 = sorted.slice(-7).map(e => ({
+                        ...e,
+                        hours: (e.durationMins || 0) / 60
+                    }));
+
+                    const avgHours = last7.length ? (last7.reduce((s, e) => s + e.hours, 0) / last7.length).toFixed(1) : '—';
+                    const latest = sorted[sorted.length - 1];
+
+                    const bedtimes = last7.map(e => e.bedtime).filter(Boolean);
+                    const waketimes = last7.map(e => e.wake).filter(Boolean);
+                    const avgBed = typeof getAvgTime === 'function' ? getAvgTime(bedtimes) : '—';
+                    const avgWake = typeof getAvgTime === 'function' ? getAvgTime(waketimes) : '—';
+
+                    let sFullHtml = `<div class="card" style="margin-bottom:12px; cursor:pointer;" onclick="navTo('sleep')">`;
+                    sFullHtml += `<div class="section-header" style="margin-bottom:12px;"><div class="section-title" style="display:flex; align-items:center; gap:8px;"><span>😴</span> Sleep Tracker Overview</div><span style="font-size:12px; color:var(--accent); font-weight:700;">View Diary →</span></div>`;
+                    sFullHtml += `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">`;
+
+                    sFullHtml += `
+                        <div style="background:var(--surface2); padding:12px; border-radius:12px; border:1px solid var(--border);">
+                            <div style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:700;">Last Night Sleep</div>
+                            <div style="font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:var(--text); margin-top:2px;">${latest ? (latest.durationMins / 60).toFixed(1) + 'h' : '—'}</div>
+                        </div>
+
+                        <div style="background:var(--surface2); padding:12px; border-radius:12px; border:1px solid var(--border);">
+                            <div style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:700;">Average Sleep</div>
+                            <div style="font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:var(--accent2); margin-top:2px;">${avgHours}${avgHours !== '—' ? 'h' : ''}</div>
+                        </div>
+
+                        <div style="background:var(--surface2); padding:12px; border-radius:12px; border:1px solid var(--border);">
+                            <div style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:700;">Average Bedtime</div>
+                            <div style="font-size:14px; font-weight:800; color:var(--text); margin-top:4px;">🛏 ${avgBed}</div>
+                        </div>
+
+                        <div style="background:var(--surface2); padding:12px; border-radius:12px; border:1px solid var(--border);">
+                            <div style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:700;">Average Wakeup Time</div>
+                            <div style="font-size:14px; font-weight:800; color:var(--text); margin-top:4px;">⏰ ${avgWake}</div>
+                        </div>
+                    `;
+
+                    sFullHtml += `</div></div>`;
+                    wHtml = sFullHtml;
+                    break;
+                }
             }
         } catch (e) {
             console.error("Widget crashed:", widget, e);
@@ -830,9 +882,13 @@ function renderDashSettings() {
     const el = document.getElementById('dashSettingsList');
     if (!el) return;
 
-    // FIX: Ensure the settings menu defaults exactly match the dashboard defaults if it resets.
-    if (!STATE.dashWidgets) STATE.dashWidgets = ['pending_tasks', 'todays_events', 'net_money', 'active_counters', 'redzone', 'schedule', 'classes', 'tasks'];
+    if (!STATE.dashWidgets) STATE.dashWidgets = ['pending_tasks', 'todays_events', 'net_money', 'active_counters', 'redzone', 'schedule', 'classes', 'tasks', 'sleep_full'];
     if (!STATE.dashHiddenWidgets) STATE.dashHiddenWidgets = ['alarms', 'sleep', 'roadmap', 'specific_account', 'specific_counter', 'specific_note'];
+
+    if (!STATE.dashWidgets.includes('sleep_full') && !STATE.dashHiddenWidgets.includes('sleep_full')) {
+        STATE.dashWidgets.push('sleep_full');
+        save();
+    }
 
     let html = '<div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--accent); margin-bottom:10px;">Active on Home Screen</div>';
     //... the rest of the function remains the same
@@ -3541,13 +3597,125 @@ function sendSystemNotification(title, bodyText) { if (window.AndroidInterface &
 // STANDBY MODE LOGIC
 // ============================================================
 let standbyClockInterval, standbyPomoInterval; let pomoTimeLeft = 25 * 60; let isPomoRunning = false;
-function openStandby() { document.getElementById('zenStandby').style.display = 'flex'; try { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => { }); } catch (e) { } switchStandbyMode('clock'); }
-function exitStandby() { document.getElementById('zenStandby').style.display = 'none'; clearInterval(standbyClockInterval); clearInterval(standbyPomoInterval); try { if (document.exitFullscreen) document.exitFullscreen(); if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) { } }
+function openStandby() {
+    document.getElementById('zenStandby').style.display = 'flex';
+    if (window.AndroidInterface) {
+        if (typeof window.AndroidInterface.lockLandscape === 'function') {
+            window.AndroidInterface.lockLandscape();
+        }
+        if (typeof window.AndroidInterface.hideSystemBars === 'function') {
+            window.AndroidInterface.hideSystemBars();
+        }
+    }
+    try {
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+        if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => { });
+    } catch (e) { }
+    switchStandbyMode('clock');
+}
+
+function exitStandby() {
+    document.getElementById('zenStandby').style.display = 'none';
+    clearInterval(standbyClockInterval);
+    clearInterval(standbyPomoInterval);
+
+    if (window.AndroidInterface) {
+        if (typeof window.AndroidInterface.unlockOrientation === 'function') {
+            window.AndroidInterface.unlockOrientation();
+        }
+    }
+    try {
+        if (document.exitFullscreen && document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+        }
+        if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+        }
+    } catch (e) { }
+
+    setTimeout(() => {
+        if (window.AndroidInterface && typeof window.AndroidInterface.showSystemBars === 'function') {
+            window.AndroidInterface.showSystemBars();
+        }
+    }, 100);
+}
+
 function setStandbyTheme(themeClass, el) { document.getElementById('zenStandby').className = themeClass; document.querySelectorAll('.zen-theme-dot').forEach(d => { d.classList.remove('active'); d.style.borderColor = 'transparent'; }); el.classList.add('active'); el.style.borderColor = '#fff'; }
-function switchStandbyMode(mode) { document.getElementById('nav-clock').classList.remove('active'); document.getElementById('nav-pomo').classList.remove('active'); document.getElementById('nav-' + mode).classList.add('active'); if (mode === 'clock') { document.getElementById('zenClock').style.display = 'flex'; document.getElementById('zenPomo').style.display = 'none'; clearInterval(standbyClockInterval); standbyClockInterval = setInterval(updateStandbyClock, 1000); updateStandbyClock(); } else { document.getElementById('zenClock').style.display = 'none'; document.getElementById('zenPomo').style.display = 'flex'; clearInterval(standbyClockInterval); updatePomoDisplay(); } }
-function updateStandbyClock() { const d = new Date(); document.getElementById('zenTimeDisplay').textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; document.getElementById('zenSecDisplay').textContent = String(d.getSeconds()).padStart(2, '0'); document.getElementById('zenDateDisplay').textContent = d.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' }); }
-function togglePomodoro() { isPomoRunning = !isPomoRunning; document.getElementById('zenPomoBtn').textContent = isPomoRunning ? 'Pause' : 'Start'; if (isPomoRunning) { standbyPomoInterval = setInterval(() => { if (pomoTimeLeft > 0) { pomoTimeLeft--; updatePomoDisplay(); } else { resetPomodoro(); toast('Focus Session Complete! 🍅'); try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA==').play(); } catch (e) { } } }, 1000); } else { clearInterval(standbyPomoInterval); } }
-function resetPomodoro() { isPomoRunning = false; clearInterval(standbyPomoInterval); document.getElementById('zenPomoBtn').textContent = 'Start'; pomoTimeLeft = 25 * 60; updatePomoDisplay(); }
+
+function switchStandbyMode(mode) {
+    document.getElementById('nav-clock').classList.remove('active');
+    document.getElementById('nav-pomo').classList.remove('active');
+    document.getElementById('nav-' + mode).classList.add('active');
+    if (mode === 'clock') {
+        document.getElementById('zenClock').style.display = 'flex';
+        document.getElementById('zenPomo').style.display = 'none';
+        clearInterval(standbyClockInterval);
+        standbyClockInterval = setInterval(updateStandbyClock, 1000);
+        updateStandbyClock();
+    } else {
+        document.getElementById('zenClock').style.display = 'none';
+        document.getElementById('zenPomo').style.display = 'flex';
+        clearInterval(standbyClockInterval);
+        updatePomoDisplay();
+    }
+}
+
+function setPomoPreset(mins) {
+    pomoTimeLeft = mins * 60;
+    isPomoRunning = false;
+    clearInterval(standbyPomoInterval);
+    const btn = document.getElementById('zenPomoBtn');
+    const presetsEl = document.getElementById('zenPomoPresets');
+    if (btn) btn.textContent = 'Start';
+    if (presetsEl) presetsEl.style.display = 'flex';
+    updatePomoDisplay();
+    toast(`Pomodoro set to ${mins} minutes ⏱️`);
+}
+
+function updateStandbyClock() {
+    const d = new Date();
+    const timeEl = document.getElementById('zenTimeDisplay');
+    const secEl = document.getElementById('zenSecDisplay');
+    const dateEl = document.getElementById('zenDateDisplay');
+
+    if (timeEl) timeEl.textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    if (secEl) secEl.textContent = String(d.getSeconds()).padStart(2, '0');
+    if (dateEl) dateEl.textContent = d.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function togglePomodoro() {
+    isPomoRunning = !isPomoRunning;
+    const btn = document.getElementById('zenPomoBtn');
+    const presetsEl = document.getElementById('zenPomoPresets');
+
+    if (btn) btn.textContent = isPomoRunning ? 'Pause' : 'Start';
+    if (presetsEl) presetsEl.style.display = isPomoRunning ? 'none' : 'flex';
+
+    if (isPomoRunning) {
+        standbyPomoInterval = setInterval(() => {
+            if (pomoTimeLeft > 0) {
+                pomoTimeLeft--;
+                updatePomoDisplay();
+            } else {
+                resetPomodoro();
+                toast('Focus Session Complete! 🍅');
+            }
+        }, 1000);
+    } else {
+        clearInterval(standbyPomoInterval);
+    }
+}
+
+function resetPomodoro() {
+    isPomoRunning = false;
+    clearInterval(standbyPomoInterval);
+    const btn = document.getElementById('zenPomoBtn');
+    const presetsEl = document.getElementById('zenPomoPresets');
+    if (btn) btn.textContent = 'Start';
+    if (presetsEl) presetsEl.style.display = 'flex';
+    pomoTimeLeft = 25 * 60;
+    updatePomoDisplay();
+}
 function updatePomoDisplay() { const m = Math.floor(pomoTimeLeft / 60); const s = pomoTimeLeft % 60; document.getElementById('zenPomoDisplay').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; const C = 282.74; const offset = C - (pomoTimeLeft / (25 * 60)) * C; document.getElementById('zenPomoRing').style.strokeDasharray = C; document.getElementById('zenPomoRing').style.strokeDashoffset = offset; }
 
 // ============================================================

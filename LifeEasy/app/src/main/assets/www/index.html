@@ -1513,15 +1513,27 @@
 
         .zen-close {
             position: absolute;
-            top: 30px;
-            left: 30px;
-            font-size: 20px;
-            color: rgba(255, 255, 255, 0.4);
+            top: 18px;
+            right: 18px;
+            font-size: 14px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            color: rgba(255, 255, 255, 0.5);
             cursor: pointer;
-            background: none;
-            border: none;
-            padding: 10px;
-            z-index: 10;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            transition: all 0.2s ease;
+        }
+
+        .zen-close:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.1);
         }
 
         .zen-nav {
@@ -1766,7 +1778,7 @@
 
 <!-- ================= STANDBY MODE ================= -->
 <div id="zenStandby" class="theme-void">
-    <button class="zen-close" onclick="exitStandby()">✕ Close</button>
+    <button class="zen-close" onclick="exitStandby()" title="Close">✕</button>
 
     <div class="zen-nav">
         <span id="nav-clock" class="active" onclick="switchStandbyMode('clock')">Clock</span>
@@ -1790,6 +1802,15 @@
         </svg>
         <div class="zen-pomo-label">Focus Time</div>
         <div class="zen-pomo-time" id="zenPomoDisplay">25:00</div>
+
+        <!-- Preset Buttons -->
+        <div id="zenPomoPresets" style="display:flex; gap:8px; margin:10px 0;">
+            <button class="zen-btn" style="padding:4px 10px; font-size:11px;" onclick="setPomoPreset(15)">15m</button>
+            <button class="zen-btn" style="padding:4px 10px; font-size:11px;" onclick="setPomoPreset(25)">25m</button>
+            <button class="zen-btn" style="padding:4px 10px; font-size:11px;" onclick="setPomoPreset(45)">45m</button>
+            <button class="zen-btn" style="padding:4px 10px; font-size:11px;" onclick="setPomoPreset(60)">60m</button>
+        </div>
+
         <div class="zen-controls">
             <button class="zen-btn" id="zenPomoBtn" onclick="togglePomodoro()">Start</button>
             <button class="zen-btn" onclick="resetPomodoro()">Reset</button>
