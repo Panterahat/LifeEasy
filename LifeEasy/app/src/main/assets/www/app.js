@@ -484,7 +484,8 @@ function navTo(screen) {
     if (screen === 'attendance') { STATE.attSelectedDate = fmtDate(new Date()); attCurrentDate = new Date(); renderAttCalendar(); renderAttendance(); }
 
     const fab = document.querySelector('.fab');
-    if (fab) fab.style.display = (screen === 'expenses' || screen === 'vault' || screen.startsWith('settings') || screen === 'notes' || screen === 'sleep') ? 'none' : 'flex';
+    if (fab) fab.style.display = (screen === 'vault' || screen === 'expenses' || screen === 'notes' || screen.startsWith('settings') || screen === 'standby') ? 'none' : 'flex';
+    if (screen === 'settings' && typeof renderSettingsSyncQueue === 'function') renderSettingsSyncQueue();
 }
 
 function handleAndroidBack() {
@@ -568,6 +569,11 @@ function handleFabClick() {
     else if (currentScreen === 'roadmap') openRoadmapModal();
     else if (currentScreen === 'attendance') openAttRoutineModal();
     else if (currentScreen === 'academic') openAcademicModal();
+    else if (currentScreen === 'notes') openNoteModal();
+    else if (currentScreen === 'expenses') openTransactionModal();
+    else if (currentScreen === 'sleep') openSleepModal();
+    else if (currentScreen === 'vault') document.getElementById('fileInput')?.click();
+    else if (currentScreen === 'links') openLinkModal();
     else openTaskModal();
 }
 

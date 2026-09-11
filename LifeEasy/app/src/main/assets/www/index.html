@@ -2030,6 +2030,17 @@
                 </div>
             </div>
 
+            <!-- Cover Page Generator Button Card -->
+            <div class="card" style="margin-bottom:16px; cursor:pointer;" onclick="navTo('settings-cover')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--text);">📄 Cover Page Generator</div>
+                        <div style="font-size:12px; color:var(--text2); margin-top:2px;">Create, customize &amp; generate cover pages for assignments &amp; lab reports</div>
+                    </div>
+                    <span style="font-size:18px; color:var(--text3);">→</span>
+                </div>
+            </div>
+
             <!-- Change Password Button Card -->
             <div class="card" style="margin-bottom:16px; cursor:pointer;" onclick="openChangePasswordModal()">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -2040,6 +2051,27 @@
                     <span style="font-size:18px; color:var(--text3);">→</span>
                 </div>
             </div>
+
+            <!-- Cloud Sync Status Card -->
+            <div class="card" style="margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--text);">📶 Cloud Synchronization</div>
+                    <button class="btn-secondary" style="padding:4px 12px; font-size:12px; font-weight:700; color:var(--accent);" onclick="triggerFullTwoWaySync()">🔄 Sync Now</button>
+                </div>
+                <div id="settingsSyncQueueList"></div>
+            </div>
+        </div>
+
+        <!-- COVER PAGE GENERATOR SUB-SCREEN -->
+        <div class="screen" id="screen-settings-cover">
+            <div class="back-btn" onclick="navTo('settings')">← Back to Settings</div>
+            <div class="section-header">
+                <div class="section-title">Cover Page Templates</div>
+                <button class="btn-add" onclick="openCoverTemplateEditor()">➕ New Template</button>
+            </div>
+
+            <!-- Templates Grid List -->
+            <div id="coverTemplatesList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;"></div>
         </div>
 
         <!-- CUSTOMIZE NAVIGATION SUB-SCREEN -->
@@ -2216,13 +2248,12 @@
         <div class="screen" id="screen-attendance">
             <div class="section-header">
                 <div class="section-title">Attendance Tracker</div>
-                <!-- নতুন AI Upload বাটন এবং Add Routine বাটন -->
+                <!-- AI Upload Button -->
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <input type="file" id="routineUploadInput" accept=".pdf" style="display:none"
                            onchange="handleRoutineUpload(event)">
                     <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
                             onclick="document.getElementById('routineUploadInput').click()">📄 AI Upload</button>
-                    <button class="btn-add" onclick="openAttRoutineModal()">+ Add Routine</button>
                 </div>
             </div>
 
@@ -2370,7 +2401,6 @@
         <div class="screen" id="screen-links">
             <div class="section-header">
                 <div class="section-title">Saved Links</div>
-                <button class="btn-add" onclick="openLinkModal()">🔗 + Add Link</button>
             </div>
 
             <!-- Search Links -->
@@ -2394,7 +2424,6 @@
         <div class="screen" id="screen-sleep">
             <div class="section-header">
                 <div class="section-title">Sleep Tracker</div>
-                <button class="btn-add" onclick="openSleepModal()">+ Log Sleep</button>
             </div>
 
             <div id="sleepMeterCard" style="margin-bottom:16px"></div>
