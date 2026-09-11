@@ -308,27 +308,37 @@ async function load() {
         const saved = localStorage.getItem('proflow_state');
         if (saved) { try { Object.assign(STATE, JSON.parse(saved)); } catch (e) { } }
 
-        const [rTasks, rCounters, rPlans, rMoney, rAlarms, rRoadmaps, rSteps, rAcademic, rAccounts, rExpenses, rNotes, rSleep, rAttRoutines, rAttLogs] = await Promise.all([
-            supabaseClient.from('tasks').select('*'), supabaseClient.from('counters').select('*'), supabaseClient.from('plans').select('*'),
-            supabaseClient.from('money').select('*'), supabaseClient.from('alarms').select('*'), supabaseClient.from('roadmaps').select('*'),
-            supabaseClient.from('steps').select('*'), supabaseClient.from('academic').select('*'), supabaseClient.from('accounts').select('*'),
-            supabaseClient.from('expenses').select('*'), supabaseClient.from('notes').select('*'), supabaseClient.from('sleep_logs').select('*'),
-            supabaseClient.from('attendance_routines').select('*'), supabaseClient.from('attendance_logs').select('*')
+        const [rTasks, rCounters, rPlans, rMoney, rAlarms, rRoadmaps, rSteps, rAcademic, rAccounts, rExpenses, rNotes, rSleep, rAttRoutines, rAttLogs, rLinks, rCover] = await Promise.all([
+            supabaseClient.from('tasks').select('*'),
+            supabaseClient.from('counters').select('*'),
+            supabaseClient.from('plans').select('*'),
+            supabaseClient.from('money').select('*'),
+            supabaseClient.from('alarms').select('*'),
+            supabaseClient.from('roadmaps').select('*'),
+            supabaseClient.from('steps').select('*'),
+            supabaseClient.from('academic').select('*'),
+            supabaseClient.from('accounts').select('*'),
+            supabaseClient.from('expenses').select('*'),
+            supabaseClient.from('notes').select('*'),
+            supabaseClient.from('sleep_logs').select('*'),
+            supabaseClient.from('attendance_routines').select('*'),
+            supabaseClient.from('attendance_logs').select('*'),
+            supabaseClient.from('links').select('*'),
+            supabaseClient.from('cover_templates').select('*')
         ]);
 
         if (rTasks.error?.status === 401 || rCounters.error?.status === 401) { document.getElementById('authModal').style.display = 'flex'; return; }
 
-        if (rTasks.data) STATE.tasks = rTasks.data.map(t => ({ ...t, id: t.task_id }));
-        if (rCounters.data) STATE.counters = rCounters.data.map(c => ({ ...c, lastUpdated: c.last_updated || c.lastUpdated || c.created_at || c.createdAt || new Date().toISOString() }));
-        if (rPlans.data) STATE.plans = rPlans.data;
-        if (rMoney.data) STATE.money = rMoney.data;
-        if (rAlarms.data) STATE.alarms = rAlarms.data;
-        if (rRoadmaps.data) STATE.roadmaps = rRoadmaps.data;
-        if (rSteps.data) STATE.steps = rSteps.data.map(s => ({ ...s, roadmapId: s.roadmap_id }));
-        if (rAcademic.data) STATE.academic = rAcademic.data;
-        if (rAccounts.data) STATE.accounts = rAccounts.data;
-        if (rExpenses.data) STATE.expenses = rExpenses.data.map(e => ({ ...e, accountId: e.account_id }));
-        // FIX: Ensure checklists and tags are parsed into strict arrays, preventing dashboard crashes
+        if (rTasks.data) STATE.tasks = rTasks.data.map(t => ({ ...t, id: Number(t.task_id || t.id), due: t.due_date || t.due }));
+        if (rCounters.data) STATE.counters = rCounters.data.map(c => ({ ...c, id: Number(c.id), lastUpdated: c.last_updated || c.lastUpdated || c.created_at || c.createdAt || new Date().toISOString() }));
+        if (rPlans.data) STATE.plans = rPlans.data.map(p => ({ ...p, id: Number(p.id) }));
+        if (rMoney.data) STATE.money = rMoney.data.map(m => ({ ...m, id: Number(m.id) }));
+        if (rAlarms.data) STATE.alarms = rAlarms.data.map(a => ({ ...a, id: Number(a.id) }));
+        if (rRoadmaps.data) STATE.roadmaps = rRoadmaps.data.map(r => ({ ...r, id: Number(r.id) }));
+        if (rSteps.data) STATE.steps = rSteps.data.map(s => ({ ...s, id: Number(s.id), roadmapId: Number(s.roadmap_id || s.roadmapId) }));
+        if (rAcademic.data) STATE.academic = rAcademic.data.map(a => ({ ...a, id: Number(a.id) }));
+        if (rAccounts.data) STATE.accounts = rAccounts.data.map(a => ({ ...a, id: Number(a.id) }));
+        if (rExpenses.data) STATE.expenses = rExpenses.data.map(e => ({ ...e, id: Number(e.id), accountId: Number(e.account_id || e.accountId) }));
         if (rNotes.data) STATE.notes = rNotes.data.map(n => {
             let parsedChecklist = n.checklist;
             if (typeof parsedChecklist === 'string') { try { parsedChecklist = JSON.parse(parsedChecklist); } catch (e) { parsedChecklist = null; } }
@@ -341,23 +351,30 @@ async function load() {
 
             return {
                 ...n,
-                updatedAt: n.updated_at,
+                id: Number(n.id),
+                updatedAt: n.updated_at || n.updatedAt,
                 tags: parsedTags || [],
                 checklist: Array.isArray(parsedChecklist) ? parsedChecklist : null,
                 isWhiteboard: n.is_whiteboard || false,
                 wbData: parsedWb
             };
         });
-        if (rSleep.data) STATE.sleepLogs = rSleep.data.map(s => ({ ...s, wake: s.wake_time, durationMins: s.duration_mins }));
-        if (rLinks && rLinks.data) STATE.links = rLinks.data;
-        if (rAttRoutines && rAttRoutines.data) STATE.attendanceRoutines = rAttRoutines.data.map(r => ({ ...r, dayOfWeek: r.day_of_week, startTime: r.start_time || r.time, endTime: r.end_time || r.time }));
-        if (rAttLogs && rAttLogs.data) STATE.attendanceLogs = rAttLogs.data.map(l => ({ ...l, routineId: l.routine_id }));
+        if (rSleep.data) STATE.sleepLogs = rSleep.data.map(s => ({ ...s, id: Number(s.id), wake: s.wake_time || s.wake, durationMins: s.duration_mins || s.durationMins }));
+        if (rLinks && rLinks.data) STATE.links = rLinks.data.map(l => ({ ...l, id: Number(l.id) }));
+        if (rCover && rCover.data) STATE.coverTemplates = rCover.data.map(c => ({ ...c, id: Number(c.id), bgData: c.bg_data || c.bgData }));
+        if (rAttRoutines && rAttRoutines.data) STATE.attendanceRoutines = rAttRoutines.data.map(r => ({ ...r, id: Number(r.id), dayOfWeek: r.day_of_week !== undefined ? r.day_of_week : r.dayOfWeek, startTime: r.start_time || r.startTime || r.time, endTime: r.end_time || r.endTime || r.time }));
+        if (rAttLogs && rAttLogs.data) STATE.attendanceLogs = rAttLogs.data.map(l => ({ ...l, id: Number(l.id), routineId: Number(l.routine_id || l.routineId) }));
 
-        save(); renderAll();
+        save();
+        renderAll();
         loadVault();
         if (typeof updateGreeting === 'function') updateGreeting();
         if ((STATE.syncQueue || []).length > 0) showSyncBadge(); else hideSyncBadge();
-    } catch (err) { console.log('Offline mode — using cached data', err); if ((STATE.syncQueue || []).length > 0) showSyncBadge(); }
+    } catch (err) {
+        console.log('Offline mode — using cached data', err);
+        renderAll();
+        if ((STATE.syncQueue || []).length > 0) showSyncBadge();
+    }
 }
 
 // ============================================================
@@ -1000,26 +1017,24 @@ if (!STATE.vaultFiles) STATE.vaultFiles = [];
 
 async function loadVault() {
     try {
-        const { data: sessionData } = await supabaseClient.auth.getSession();
-        const userId = sessionData?.session?.user?.id;
+        const [rFolders, rFiles] = await Promise.all([
+            supabaseClient.from('vault_folders').select('*'),
+            supabaseClient.from('vault').select('*')
+        ]);
 
-        let folderQuery = supabaseClient.from('vault_folders').select('*');
-        let fileQuery = supabaseClient.from('vault').select('*');
-
-        if (userId) {
-            folderQuery = folderQuery.eq('user_id', userId);
-            fileQuery = fileQuery.eq('user_id', userId);
-        }
-
-        const [rFolders, rFiles] = await Promise.all([folderQuery, fileQuery]);
-
-        if (rFolders.data) STATE.vaultFolders = rFolders.data;
-        if (rFiles.data) STATE.vaultFiles = rFiles.data;
+        if (rFolders.data) STATE.vaultFolders = rFolders.data.map(f => ({ ...f, id: Number(f.id) }));
+        if (rFiles.data) STATE.vaultFiles = rFiles.data.map(f => ({
+            ...f,
+            id: Number(f.id),
+            filename: f.filename || f.name || 'File',
+            filepath: f.filepath || f.url || '',
+            folder_id: f.folder_id ? Number(f.folder_id) : null
+        }));
 
         save();
         renderVault();
     } catch (e) {
-        console.warn('Vault load fallback', e);
+        console.warn('Vault load fallback:', e);
         renderVault();
     }
 }
@@ -1651,19 +1666,83 @@ function isEventOnDate(plan, checkDateStr) {
     if (plan.recurrence === 'yearly') return pDate.getDate() === cDate.getDate() && pDate.getMonth() === cDate.getMonth();
     return false;
 }
-function openPlannerModal() { document.getElementById('planTitle').value = ''; document.getElementById('planDesc').value = ''; document.getElementById('planDate').value = STATE.selectedDate; document.getElementById('planRecurrence').value = 'none'; document.getElementById('plannerModal').classList.add('open'); }
+function openPlannerModal(id = null) {
+    const titleEl = document.querySelector('#plannerModal .modal-title');
+    const titleInput = document.getElementById('planTitle');
+    const descInput = document.getElementById('planDesc');
+    const dateInput = document.getElementById('planDate');
+    const timeInput = document.getElementById('planTime');
+    const recSelect = document.getElementById('planRecurrence');
+    const remOptEl = document.getElementById('planReminderOpt');
+
+    if (id) {
+        const p = STATE.plans.find(x => x.id === id);
+        if (p) {
+            if (titleEl) titleEl.textContent = 'Edit Event';
+            if (titleInput) titleInput.value = p.title || '';
+            if (descInput) descInput.value = p.desc || '';
+            if (dateInput) dateInput.value = p.date || STATE.selectedDate;
+            if (timeInput) timeInput.value = p.time || '09:00';
+            if (recSelect) recSelect.value = p.recurrence || 'none';
+            if (remOptEl) remOptEl.value = p.reminder || 'none';
+            document.getElementById('plannerModal').dataset.editId = p.id;
+        }
+    } else {
+        if (titleEl) titleEl.textContent = 'Add Event';
+        if (titleInput) titleInput.value = '';
+        if (descInput) descInput.value = '';
+        if (dateInput) dateInput.value = STATE.selectedDate;
+        if (timeInput) timeInput.value = '09:00';
+        if (recSelect) recSelect.value = 'none';
+        if (remOptEl) remOptEl.value = 'none';
+        delete document.getElementById('plannerModal').dataset.editId;
+    }
+
+    document.getElementById('plannerModal').classList.add('open');
+}
+
 function savePlan() {
-    const title = document.getElementById('planTitle').value.trim(); if (!title) return toast('Please enter a title');
-    const planData = { title, desc: document.getElementById('planDesc').value, date: document.getElementById('planDate').value, time: document.getElementById('planTime').value || '09:00', color: selectedColors.plan, recurrence: document.getElementById('planRecurrence').value };
-    const tempId = Date.now(); planData.id = tempId; planData.completed = false; STATE.plans.push(planData);
+    const title = document.getElementById('planTitle').value.trim();
+    if (!title) return toast('Please enter a title');
+
+    const editId = document.getElementById('plannerModal').dataset.editId;
+    const planData = {
+        title,
+        desc: document.getElementById('planDesc').value,
+        date: document.getElementById('planDate').value,
+        time: document.getElementById('planTime').value || '09:00',
+        color: selectedColors.plan,
+        recurrence: document.getElementById('planRecurrence').value,
+        reminder: document.getElementById('planReminderOpt')?.value || 'none'
+    };
 
     const remOpt = document.getElementById('planReminderOpt')?.value || 'none';
     const customVal = document.getElementById('planCustomPicker')?.value || '';
     const triggerAtMillis = calculateReminderTimestamp(remOpt, planData.date, planData.time, customVal);
-    scheduleItemNotification(tempId, "Event Reminder 📅", planData.title, triggerAtMillis);
 
-    renderCalendar(); renderPlanner(); renderDashboard(); closeModal('plannerModal'); save(); toast('Event added 📅');
-    ofetch('add_plan.php', planData, d => { const p = STATE.plans.find(x => x.id === tempId); if (p) p.id = d.id; renderCalendar(); renderPlanner(); renderDashboard(); save(); });
+    if (editId) {
+        planData.id = parseInt(editId);
+        const idx = STATE.plans.findIndex(x => x.id === planData.id);
+        if (idx >= 0) {
+            planData.completed = STATE.plans[idx].completed;
+            STATE.plans[idx] = planData;
+        }
+        scheduleItemNotification(planData.id, "Event Reminder 📅", planData.title, triggerAtMillis);
+        renderCalendar(); renderPlanner(); renderDashboard(); closeModal('plannerModal'); save(); toast('Event updated! ✏️');
+        ofetch('update_plan.php', planData);
+    } else {
+        const tempId = Date.now();
+        planData.id = tempId;
+        planData.completed = false;
+        STATE.plans.push(planData);
+        scheduleItemNotification(tempId, "Event Reminder 📅", planData.title, triggerAtMillis);
+        renderCalendar(); renderPlanner(); renderDashboard(); closeModal('plannerModal'); save(); toast('Event added 📅');
+        ofetch('add_plan.php', planData, d => {
+            const p = STATE.plans.find(x => x.id === tempId);
+            if (p) p.id = d.id;
+            renderCalendar(); renderPlanner(); renderDashboard(); save();
+        });
+    }
 }
 function togglePlan(e, id) { if (e) e.stopPropagation(); const p = STATE.plans.find(x => x.id === id); if (!p) return; p.completed = !p.completed; renderPlanner(); renderDashboard(); save(); ofetch('update_plan.php', { id, completed: p.completed }); }
 function deletePlan(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this event series?')) return; STATE.plans = STATE.plans.filter(x => x.id !== id); renderCalendar(); renderPlanner(); renderDashboard(); save(); toast('Deleted 🗑️'); ofetch('delete_plan.php', { id }); }
@@ -1672,7 +1751,7 @@ function renderPlanner() {
     let html = `<div class="section-header"><div class="section-title">Events on ${selDisplay}</div></div>`;
     const selPlans = STATE.plans.filter(p => isEventOnDate(p, STATE.selectedDate)).sort((a, b) => a.time > b.time ? 1 : -1);
     if (selPlans.length === 0) { html += `<div style="text-align:center; color:var(--text3); font-size:13px; margin-bottom:24px;">No events scheduled for this day.</div>`; } else {
-        html += selPlans.map(p => `<div class="time-slot"><div class="time-label">${formatTime(p.time)}</div><div class="time-line" style="background:${p.color}"></div><div class="time-events" style="flex:1"><div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${p.color}" onclick="togglePlan(event, ${p.id})"><div class="event-title">${p.title}</div>${p.desc ? `<div class="event-desc">${p.desc}</div>` : ''}<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:10px;color:var(--text3)">${p.completed ? '✓ Done' : (p.recurrence && p.recurrence !== 'none' ? '🔁 ' + p.recurrence : '⏰ ' + p.time)}</span><span onclick="deletePlan(event, ${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px">🗑</span></div></div></div></div>`).join('');
+        html += selPlans.map(p => `<div class="time-slot"><div class="time-label">${formatTime(p.time)}</div><div class="time-line" style="background:${p.color}"></div><div class="time-events" style="flex:1"><div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${p.color}" onclick="togglePlan(event, ${p.id})"><div class="event-title">${p.title}</div>${p.desc ? `<div class="event-desc">${p.desc}</div>` : ''}<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:10px;color:var(--text3)">${p.completed ? '✓ Done' : (p.recurrence && p.recurrence !== 'none' ? '🔁 ' + p.recurrence : '⏰ ' + p.time)}</span><div style="display:flex;gap:6px;align-items:center;"><span onclick="event.stopPropagation(); openPlannerModal(${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;" title="Edit Event">✏️</span><span onclick="deletePlan(event, ${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px" title="Delete Event">🗑</span></div></div></div></div></div>`).join('');
     }
     html += `<div class="section-header" style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;"><div class="section-title">Upcoming (Next 2 Months)</div></div>`;
     const todayObj = new Date(); todayObj.setHours(0, 0, 0, 0); const twoMonths = new Date(todayObj); twoMonths.setDate(todayObj.getDate() + 60);
@@ -1768,7 +1847,14 @@ function openTaskModal() {
     document.getElementById('taskTitle').value = '';
     document.getElementById('taskDesc').value = '';
     document.getElementById('taskDue').value = fmtDate(new Date());
-    document.getElementById('taskReminder').value = '';
+
+    const remOptEl = document.getElementById('taskReminderOpt');
+    if (remOptEl) remOptEl.value = 'none';
+    const customPickerEl = document.getElementById('taskCustomPicker');
+    if (customPickerEl) customPickerEl.value = '';
+    const customRowEl = document.getElementById('taskCustomPickerRow');
+    if (customRowEl) customRowEl.style.display = 'none';
+
     delete document.getElementById('taskModal').dataset.editId;
     document.getElementById('taskModal').classList.add('open');
 }
@@ -1778,12 +1864,17 @@ function openTaskModalById(id) {
     const t = STATE.tasks.find(x => x.id === id);
     if (!t) return;
     document.getElementById('taskModalTitle').textContent = 'Edit Task';
-    document.getElementById('taskTitle').value = t.title;
+    document.getElementById('taskTitle').value = t.title || '';
     document.getElementById('taskDesc').value = t.description || '';
     document.getElementById('taskCategory').value = t.category || 'Work';
     document.getElementById('taskPriority').value = t.priority || 0;
     document.getElementById('taskDue').value = t.due || '';
-    document.getElementById('taskReminder').value = t.reminder || '';
+
+    const remOptEl = document.getElementById('taskReminderOpt');
+    if (remOptEl) remOptEl.value = t.reminder || 'none';
+    const customRowEl = document.getElementById('taskCustomPickerRow');
+    if (customRowEl) customRowEl.style.display = (t.reminder === 'custom') ? 'block' : 'none';
+
     document.getElementById('taskModal').dataset.editId = t.id;
     document.getElementById('taskModal').classList.add('open');
 }
@@ -2063,7 +2154,7 @@ function renderAcademic() { const el = document.getElementById('academicList'); 
 // EXPENSES
 // ============================================================
 function getAccountBalance(accountId) { const acc = STATE.accounts.find(a => a.id == accountId); const opening = parseFloat(acc ? acc.balance : 0) || 0; const txSum = STATE.expenses.filter(e => e.accountId == accountId).reduce((s, e) => s - (parseFloat(e.amount) || 0), 0); return opening + txSum; }
-function renderExpenses() { if (!STATE.activeAccountId) { const mv = document.getElementById('expensesMainView'); const dv = document.getElementById('transactionDetailView'); if (mv) mv.style.display = 'block'; if (dv) dv.style.display = 'none'; } const el = document.getElementById('accountDisplay'); if (!el) return; if (!STATE.accounts || STATE.accounts.length === 0) { el.innerHTML = `<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">💳</div><p>No accounts yet.<br>Tap <strong>+ Account</strong> to create one.</p></div>`; return; } el.innerHTML = STATE.accounts.map(acc => { const txCount = STATE.expenses.filter(e => e.accountId == acc.id).length; const bal = getAccountBalance(acc.id); return `<div onclick="openAccountDetail(${acc.id})" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;cursor:pointer;transition:all 0.2s;min-width:0;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Account</div><div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${acc.name}</div><div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};">${bal >= 0 ? '' : '-'}$${Math.abs(Math.round(bal))}</div><div style="font-size:10px;color:var(--text3);margin-top:8px;">${txCount} transaction${txCount !== 1 ? 's' : ''}</div></div>`; }).join(''); }
+function renderExpenses() { if (!STATE.activeAccountId) { const mv = document.getElementById('expensesMainView'); const dv = document.getElementById('transactionDetailView'); if (mv) mv.style.display = 'block'; if (dv) dv.style.display = 'none'; } const el = document.getElementById('accountDisplay'); if (!el) return; if (!STATE.accounts || STATE.accounts.length === 0) { el.innerHTML = `<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">💳</div><p>No accounts yet.<br>Tap <strong>+ Account</strong> to create one.</p></div>`; return; } el.innerHTML = STATE.accounts.map(acc => { const txCount = STATE.expenses.filter(e => e.accountId == acc.id).length; const bal = getAccountBalance(acc.id); return `<div onclick="openAccountDetail(${acc.id})" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;cursor:pointer;transition:all 0.2s;min-width:0;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Account</div><div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(acc.name)}</div><div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};">${bal >= 0 ? '' : '-'}${Math.abs(Math.round(bal))}</div><div style="font-size:10px;color:var(--text3);margin-top:8px;">${txCount} transaction${txCount !== 1 ? 's' : ''}</div></div>`; }).join(''); }
 function openAccountModal() { const m = document.getElementById('accountModal'); if (!m) return; document.getElementById('accountName').value = ''; document.getElementById('accountInitial').value = '0'; m.classList.add('open'); }
 function saveAccount() {
     const name = document.getElementById('accountName').value.trim();
@@ -2084,14 +2175,14 @@ function saveAccount() {
     });
 } // <--- THIS WAS THE FATAL MISSING BRACKET
 
-function openAccountDetail(id) { STATE.activeAccountId = id; const acc = STATE.accounts.find(a => a.id == id); if (!acc) return; document.getElementById('expensesMainView').style.display = 'none'; document.getElementById('transactionDetailView').style.display = 'block'; document.getElementById('accountNameTitle').innerHTML = `${acc.name} <span onclick="deleteAccount(${acc.id})" style="font-size:16px;cursor:pointer;color:var(--red);margin-left:12px;padding:4px;" title="Delete Account">🗑️</span>`; renderTransactions(id); }
+function openAccountDetail(id) { STATE.activeAccountId = id; const acc = STATE.accounts.find(a => a.id == id); if (!acc) return; document.getElementById('expensesMainView').style.display = 'none'; document.getElementById('transactionDetailView').style.display = 'block'; document.getElementById('accountNameTitle').innerHTML = `${escapeHtml(acc.name)} <span onclick="deleteAccount(${acc.id})" style="font-size:16px;cursor:pointer;color:var(--red);margin-left:12px;padding:4px;" title="Delete Account">🗑️</span>`; renderTransactions(id); }
 function hideTransactionDetail() { STATE.activeAccountId = null; document.getElementById('transactionDetailView').style.display = 'none'; document.getElementById('expensesMainView').style.display = 'block'; renderExpenses(); } function openTransactionModal() { const acc = STATE.accounts.find(a => a.id == STATE.activeAccountId); if (navigator.onLine && acc && acc.pendingSync) return toast('⏳ Waiting for cloud sync. Try again in a second!'); const m = document.getElementById('transactionModal'); if (!m) return toast('Modal not found!'); document.getElementById('transAmount').value = ''; document.getElementById('transNote').value = ''; document.getElementById('transCategory').value = 'Food'; m.classList.add('open'); }
 function openAddFundModal() { const acc = STATE.accounts.find(a => a.id == STATE.activeAccountId); if (navigator.onLine && acc && acc.pendingSync) return toast('⏳ Waiting for cloud sync. Try again in a second!'); const m = document.getElementById('addFundModal'); if (!m) return toast('Fund modal not found!'); document.getElementById('fundAmount').value = ''; document.getElementById('fundNote').value = ''; m.classList.add('open'); }
 function saveAddFund() { const amount = parseFloat(document.getElementById('fundAmount').value); const note = document.getElementById('fundNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = now.toISOString().split('T')[0]; const timeStr = now.toTimeString().slice(0, 8); const storedAmount = -Math.abs(amount); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount: storedAmount, category: 'Deposit', note: note || 'Added Funds', date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('addFundModal'); toast('Funds added! 💰'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
 function saveTransaction() { const amount = parseFloat(document.getElementById('transAmount').value); const category = document.getElementById('transCategory').value; const note = document.getElementById('transNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = now.toISOString().split('T')[0]; const timeStr = now.toTimeString().slice(0, 8); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount, category, note, date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('transactionModal'); toast('Saved! ✅'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
 function deleteExpense(btn) { const expenseId = btn.getAttribute('data-expense-id'); const accountId = btn.getAttribute('data-account-id'); if (!expenseId || expenseId === 'undefined') return toast('Cannot delete: missing ID.'); if (!confirm('Delete this transaction?')) return; STATE.expenses = STATE.expenses.filter(ex => ex.id != expenseId); renderTransactions(accountId); renderExpenses(); renderDashboard(); save(); toast('Transaction deleted 🗑️'); ofetch('delete_expense.php', { id: expenseId }); }
 function deleteAccount(id) { if (!confirm('Delete this account and all its transactions? This cannot be undone.')) return; STATE.accounts = STATE.accounts.filter(a => a.id != id); STATE.expenses = STATE.expenses.filter(e => e.accountId != id); renderExpenses(); hideTransactionDetail(); renderDashboard(); save(); toast('Account deleted 🗑️'); ofetch('delete_account.php', { id }); }
-function renderTransactions(accountId) { const list = document.getElementById('transactionList'); if (!list) return; const acc = STATE.accounts.find(a => a.id == accountId); const trans = STATE.expenses.filter(e => e.accountId == accountId).sort((a, b) => { const da = new Date((a.date || '1970-01-01') + 'T' + (a.time || '00:00:00')); const db = new Date((b.date || '1970-01-01') + 'T' + (b.time || '00:00:00')); const diff = db - da; if (diff !== 0) return diff; const idxA = STATE.expenses.indexOf(a); const idxB = STATE.expenses.indexOf(b); if (idxA !== -1 && idxB !== -1 && idxA !== idxB) { return idxB - idxA; } return (Number(b.id) || 0) - (Number(a.id) || 0); }); const expensesOnly = trans.filter(t => parseFloat(t.amount) > 0); const totalSpent = expensesOnly.reduce((s, t) => s + parseFloat(t.amount || 0), 0); const bal = getAccountBalance(accountId); const categoryIcons = { 'Food': '🍔', 'Transport': '🚗', 'Rent': '🏠', 'Shopping': '🛍️', 'Health': '💊', 'Entertainment': '🎮', 'Education': '📚', 'Utilities': '💡', 'Other': '📌', 'Deposit': '💰' }; const catColors = ['#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64']; const catTotals = {}; expensesOnly.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + parseFloat(t.amount || 0); }); const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]); let html = `<div style="background:linear-gradient(135deg,rgba(124,110,245,0.12),rgba(93,232,193,0.06));border:1px solid rgba(124,110,245,0.25);border-radius:var(--radius);padding:20px;margin-bottom:16px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Current Balance</div><div style="font-family:'Syne',sans-serif;font-size:38px;font-weight:800;color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};line-height:1;">$${bal.toFixed(2)}</div><div style="display:flex;gap:24px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Total Spent</div><div style="font-size:18px;font-weight:700;color:var(--red);margin-top:2px;">-$${totalSpent.toFixed(2)}</div></div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Transactions</div><div style="font-size:18px;font-weight:700;color:var(--text);margin-top:2px;">${trans.length}</div></div></div></div>`; if (catEntries.length > 0) { html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;"><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:14px;">Spending by Category</div>`; catEntries.forEach(([cat, amt], i) => { const pct = totalSpent > 0 ? (amt / totalSpent * 100) : 0; const color = catColors[i % catColors.length]; const icon = categoryIcons[cat] || '📌'; html += `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:6px;font-size:13px;"><span>${icon}</span><span style="font-weight:500;">${cat}</span></div><div><span style="font-size:13px;font-weight:700;color:var(--red);">-$${parseFloat(amt).toFixed(2)}</span><span style="font-size:10px;color:var(--text3);margin-left:6px;">${pct.toFixed(0)}%</span></div></div><div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 0.5s;"></div></div></div>`; }); html += `</div>`; } if (trans.length === 0) { html += `<div class="empty-state"><div class="empty-icon">💸</div><p>No expenses yet.<br>Tap + Expense to add one.</p></div>`; } else { const groups = {}; trans.forEach(t => { const d = t.date || 'Unknown'; if (!groups[d]) groups[d] = []; groups[d].push(t); }); const todayStr = new Date().toISOString().split('T')[0]; Object.keys(groups).sort((a, b) => new Date(b) - new Date(a)).forEach(date => { const dayTotal = groups[date].filter(t => t.amount > 0).reduce((s, t) => s + parseFloat(t.amount || 0), 0); let displayDate; try { displayDate = date === todayStr ? 'Today' : new Date(date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }); } catch (e) { displayDate = date; } html += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding:0 4px;"><span>${displayDate}</span><span style="color:var(--red);">-$${dayTotal.toFixed(2)}</span></div>`; groups[date].forEach(t => { const isIncome = parseFloat(t.amount) < 0; const displayAmt = Math.abs(parseFloat(t.amount)).toFixed(2); const amtSign = isIncome ? '+' : '-'; const amtColor = isIncome ? 'var(--green)' : 'var(--red)'; const icon = isIncome ? '💰' : (categoryIcons[t.category] || '📌'); let timeDisplay = ''; if (t.time) { const [h, m] = t.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const dh = h > 12 ? h - 12 : h === 0 ? 12 : h; timeDisplay = `${dh}:${String(m).padStart(2, '0')} ${ampm}`; } html += `<div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;"><div style="width:44px;height:44px;border-radius:12px;background:${isIncome ? 'rgba(93,232,193,0.1)' : 'rgba(245,100,124,0.1)'};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">${icon}</div><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">${t.category}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.note || 'No note'}</div>${timeDisplay ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;">🕐 ${timeDisplay}</div>` : ''}</div><div style="text-align:right;flex-shrink:0;"><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:${amtColor};">${amtSign}$${displayAmt}</div><button data-expense-id="${t.id}" data-account-id="${accountId}" onclick="deleteExpense(this)" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;margin-top:6px;padding:2px;">🗑</button></div></div>`; }); }); } list.innerHTML = html; }
+function renderTransactions(accountId) { const list = document.getElementById('transactionList'); if (!list) return; const acc = STATE.accounts.find(a => a.id == accountId); const trans = STATE.expenses.filter(e => e.accountId == accountId).sort((a, b) => { const da = new Date((a.date || '1970-01-01') + 'T' + (a.time || '00:00:00')); const db = new Date((b.date || '1970-01-01') + 'T' + (b.time || '00:00:00')); const diff = db - da; if (diff !== 0) return diff; const idxA = STATE.expenses.indexOf(a); const idxB = STATE.expenses.indexOf(b); if (idxA !== -1 && idxB !== -1 && idxA !== idxB) { return idxB - idxA; } return (Number(b.id) || 0) - (Number(a.id) || 0); }); const expensesOnly = trans.filter(t => parseFloat(t.amount) > 0); const totalSpent = expensesOnly.reduce((s, t) => s + parseFloat(t.amount || 0), 0); const bal = getAccountBalance(accountId); const categoryIcons = { 'Food': '🍔', 'Transport': '🚗', 'Rent': '🏠', 'Shopping': '🛍️', 'Health': '💊', 'Entertainment': '🎮', 'Education': '📚', 'Utilities': '💡', 'Other': '📌', 'Deposit': '💰' }; const catColors = ['#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64']; const catTotals = {}; expensesOnly.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + parseFloat(t.amount || 0); }); const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]); let html = `<div style="background:linear-gradient(135deg,rgba(124,110,245,0.12),rgba(93,232,193,0.06));border:1px solid rgba(124,110,245,0.25);border-radius:var(--radius);padding:20px;margin-bottom:16px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Current Balance</div><div style="font-family:'Syne',sans-serif;font-size:38px;font-weight:800;color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};line-height:1;">${bal.toFixed(2)}</div><div style="display:flex;gap:24px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Total Spent</div><div style="font-size:18px;font-weight:700;color:var(--red);margin-top:2px;">-${totalSpent.toFixed(2)}</div></div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Transactions</div><div style="font-size:18px;font-weight:700;color:var(--text);margin-top:2px;">${trans.length}</div></div></div></div>`; if (catEntries.length > 0) { html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;"><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:14px;">Spending by Category</div>`; catEntries.forEach(([cat, amt], i) => { const pct = totalSpent > 0 ? (amt / totalSpent * 100) : 0; const color = catColors[i % catColors.length]; const icon = categoryIcons[cat] || '📌'; html += `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:6px;font-size:13px;"><span>${icon}</span><span style="font-weight:500;">${escapeHtml(cat)}</span></div><div><span style="font-size:13px;font-weight:700;color:var(--red);">-${parseFloat(amt).toFixed(2)}</span><span style="font-size:10px;color:var(--text3);margin-left:6px;">${pct.toFixed(0)}%</span></div></div><div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 0.5s;"></div></div></div>`; }); html += `</div>`; } if (trans.length === 0) { html += `<div class="empty-state"><div class="empty-icon">💸</div><p>No expenses yet.<br>Tap + Expense to add one.</p></div>`; } else { const groups = {}; trans.forEach(t => { const d = t.date || 'Unknown'; if (!groups[d]) groups[d] = []; groups[d].push(t); }); const todayStr = new Date().toISOString().split('T')[0]; Object.keys(groups).sort((a, b) => new Date(b) - new Date(a)).forEach(date => { const dayTotal = groups[date].filter(t => t.amount > 0).reduce((s, t) => s + parseFloat(t.amount || 0), 0); let displayDate; try { displayDate = date === todayStr ? 'Today' : new Date(date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }); } catch (e) { displayDate = date; } html += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding:0 4px;"><span>${displayDate}</span><span style="color:var(--red);">-${dayTotal.toFixed(2)}</span></div>`; groups[date].forEach(t => { const isIncome = parseFloat(t.amount) < 0; const displayAmt = Math.abs(parseFloat(t.amount)).toFixed(2); const amtSign = isIncome ? '+' : '-'; const amtColor = isIncome ? 'var(--green)' : 'var(--red)'; const icon = isIncome ? '💰' : (categoryIcons[t.category] || '📌'); let timeDisplay = ''; if (t.time) { const [h, m] = t.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const dh = h > 12 ? h - 12 : h === 0 ? 12 : h; timeDisplay = `${dh}:${String(m).padStart(2, '0')} ${ampm}`; } html += `<div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;"><div style="width:44px;height:44px;border-radius:12px;background:${isIncome ? 'rgba(93,232,193,0.1)' : 'rgba(245,100,124,0.1)'};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">${icon}</div><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">${escapeHtml(t.category)}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(t.note || 'No note')}</div>${timeDisplay ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;">🕐 ${timeDisplay}</div>` : ''}</div><div style="text-align:right;flex-shrink:0;"><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:${amtColor};">${amtSign}${displayAmt}</div><button data-expense-id="${t.id}" data-account-id="${accountId}" onclick="deleteExpense(this)" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;margin-top:6px;padding:2px;">🗑</button></div></div>`; }); }); } list.innerHTML = html; }
 
 function handleSharedLink(sharedText) {
     if (!sharedText || !sharedText.trim()) return;
