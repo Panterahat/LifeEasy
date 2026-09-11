@@ -113,7 +113,7 @@ async function executeSupabaseOperation(endpoint, payload) {
                 description: payload.description || '',
                 category: payload.category || 'Work',
                 priority: payload.priority || 0,
-                due_date: payload.due ? payload.due : null,
+                due_date: (payload.due && payload.due.trim() !== '') ? payload.due : null,
                 completed: payload.completed || false
             };
             if (payload.reminder && payload.reminder !== 'none') {
