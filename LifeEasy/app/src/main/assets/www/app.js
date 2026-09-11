@@ -105,8 +105,30 @@ async function executeSupabaseOperation(endpoint, payload) {
     else if (endpoint.startsWith('delete_')) { action = 'delete'; }
 
     switch (endpoint) {
-        case 'add_task.php': table = 'tasks'; if (payload.due === "") data.due_date = null; else if (payload.due) data.due_date = payload.due; delete data.due; if (payload.reminder === "") data.reminder = null; break;
-        case 'update_task_details.php': table = 'tasks'; matchField = 'task_id'; if (payload.due === "") data.due_date = null; else if (payload.due) data.due_date = payload.due; delete data.due; if (payload.reminder === "") data.reminder = null; break;
+        case 'add_task.php':
+        case 'update_task_details.php': {
+            table = 'tasks'; matchField = 'task_id';
+            data = {
+                title: payload.title,
+                description: payload.description || '',
+                category: payload.category || 'Work',
+                priority: payload.priority || 0,
+                due_date: payload.due ? payload.due : null,
+                completed: payload.completed || false
+            };
+            if (payload.reminder && payload.reminder !== 'none') {
+                const customVal = payload.customReminderTime || '';
+                const millis = typeof calculateReminderTimestamp === 'function' ? calculateReminderTimestamp(payload.reminder, payload.due, '09:00', customVal) : null;
+                if (millis && millis > 0) {
+                    data.reminder = new Date(millis).toISOString();
+                } else {
+                    data.reminder = null;
+                }
+            } else {
+                data.reminder = null;
+            }
+            break;
+        }
         case 'update_task.php': table = 'tasks'; matchField = 'task_id'; data = { completed: payload.completed }; break;
         case 'delete_task.php': table = 'tasks'; matchField = 'task_id'; break;
         case 'add_plan.php': case 'update_plan.php': case 'delete_plan.php': table = 'plans'; if (endpoint === 'update_plan.php') data = { completed: payload.completed }; if (endpoint === 'add_plan.php') { data = { title: payload.title, desc: payload.desc, date: payload.date, time: payload.time, color: payload.color, recurrence: payload.recurrence }; } break;
@@ -5042,4 +5064,103 @@ function testScheduledNotification() {
         sendSystemNotification("⏱️ Scheduled Test", "5-second scheduled test notification working properly!");
         toast("Notification sent! ⏱️");
     }
+}
+
+// ============================================================
+// SECURITY & PASSWORD CHANGE MODULE
+// ============================================================
+function openChangePasswordModal() {
+    const modal = document.getElementById('changePasswordModal');
+    const p1 = document.getElementById('newPasswordInput');
+    const p2 = document.getElementById('confirmPasswordInput');
+    if (p1) p1.value = '';
+    if (p2) p2.value = '';
+    if (modal) modal.classList.add('open');
+}
+
+async function changeUserPassword() {
+    const newPass = document.getElementById('newPasswordInput').value.trim();
+    const confirmPass = document.getElementById('confirmPasswordInput').value.trim();
+
+    if (!newPass || newPass.length < 6) return toast('Password must be at least 6 characters!');
+    if (newPass !== confirmPass) return toast('Passwords do not match!');
+
+    try {
+        const { data, error } = await supabaseClient.auth.updateUser({ password: newPass });
+        if (error) throw error;
+        toast('Password changed successfully! 🔒');
+        closeModal('changePasswordModal');
+        document.getElementById('newPasswordInput').value = '';
+        document.getElementById('confirmPasswordInput').value = '';
+    } catch (err) {
+        toast('Failed to update password: ' + (err.message || 'Error occurred'));
+    }
+}
+
+// ============================================================
+// INFINITE VECTOR SVG WHITEBOARD EXPORT
+// ============================================================
+function exportWbSVG() {
+    const curPage = getCurrentWbPage();
+    const title = document.getElementById('wbTitle').value.trim() || 'whiteboard';
+    const filename = `${title.toLowerCase().replace(/\s+/g, '_')}_page${wbActivePage + 1}.svg`;
+
+    let minX = 0, minY = 0, maxX = 1200, maxY = 800;
+    const bounds = getWbGroupBounds(curPage.paths ? curPage.paths.map(p => ({ obj: p, type: 'path' })) : []);
+    if (bounds) {
+        minX = Math.min(0, bounds.x - 50);
+        minY = Math.min(0, bounds.y - 50);
+        maxX = Math.max(1200, bounds.x + bounds.w + 50);
+        maxY = Math.max(800, bounds.y + bounds.h + 50);
+    }
+    const svgW = Math.max(800, maxX - minX);
+    const svgH = Math.max(600, maxY - minY);
+
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="${minX} ${minY} ${svgW} ${svgH}" style="background:#ffffff;">\n`;
+
+    (curPage.images || []).forEach(img => {
+        if (img.src) svg += `<image href="${img.src}" x="${img.x}" y="${img.y}" width="${img.w}" height="${img.h}" />\n`;
+    });
+
+    (curPage.shapes || []).forEach(s => {
+        const stroke = s.color || '#000000'; const sw = s.size || 4; let fill = 'none';
+        if (s.fillStyle === 'solid') fill = s.color; else if (s.fillStyle === 'semi') fill = s.color + '44';
+        if (s.type === 'rect') svg += `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />\n`;
+        else if (s.type === 'circle') svg += `<ellipse cx="${s.x + s.w/2}" cy="${s.y + s.h/2}" rx="${Math.abs(s.w/2)}" ry="${Math.abs(s.h/2)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />\n`;
+        else if (s.type === 'arrow') svg += `<line x1="${s.x1}" y1="${s.y1}" x2="${s.x2}" y2="${s.y2}" stroke="${stroke}" stroke-width="${sw}" />\n`;
+    });
+
+    (curPage.stickies || []).forEach(st => {
+        svg += `<rect x="${st.x}" y="${st.y}" width="${st.w || 140}" height="${st.h || 140}" fill="${st.bgColor || '#fef08a'}" rx="8" />\n`;
+        svg += `<text x="${st.x + 12}" y="${st.y + 28}" font-family="sans-serif" font-size="14" fill="${st.color || '#1e293b'}">${escapeHtml(st.text || '')}</text>\n`;
+    });
+
+    (curPage.paths || []).forEach(p => {
+        if (p.points && p.points.length > 0) {
+            let d = `M ${p.points[0].x} ${p.points[0].y}`;
+            for (let i = 1; i < p.points.length; i++) d += ` L ${p.points[i].x} ${p.points[i].y}`;
+            svg += `<path d="${d}" fill="none" stroke="${p.color}" stroke-width="${p.size}" stroke-linecap="round" stroke-linejoin="round" />\n`;
+        }
+    });
+
+    (curPage.texts || []).forEach(t => {
+        svg += `<text x="${t.x}" y="${t.y}" font-family="sans-serif" font-size="${t.size || 18}" fill="${t.color}">${escapeHtml(t.text || '')}</text>\n`;
+    });
+
+    svg += `</svg>`;
+
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        if (window.AndroidInterface && typeof window.AndroidInterface.downloadBase64File === 'function') {
+            window.AndroidInterface.downloadBase64File(dataUrl, filename, 'image/svg+xml');
+            toast('Exported Infinite Vector SVG! 🎨');
+        } else {
+            const a = document.createElement('a'); a.href = dataUrl; a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            toast('Exported Infinite Vector SVG! 🎨');
+        }
+    };
+    reader.readAsDataURL(blob);
 }

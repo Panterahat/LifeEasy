@@ -2029,6 +2029,17 @@
                     <span style="font-size:18px; color:var(--text3);">→</span>
                 </div>
             </div>
+
+            <!-- Change Password Button Card -->
+            <div class="card" style="margin-bottom:16px; cursor:pointer;" onclick="openChangePasswordModal()">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--text);">🔒 Change Password</div>
+                        <div style="font-size:12px; color:var(--text2); margin-top:2px;">Update your account login password</div>
+                    </div>
+                    <span style="font-size:18px; color:var(--text3);">→</span>
+                </div>
+            </div>
         </div>
 
         <!-- CUSTOMIZE NAVIGATION SUB-SCREEN -->
@@ -2831,7 +2842,8 @@
                 <button class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="redoWb()" title="Redo">↷</button>
                 <button class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="resetWbView()" title="Fit View">🔲 Fit</button>
                 <button class="btn-secondary" style="padding:4px 8px; font-size:11px; color:var(--red);" onclick="clearWbCanvas()" title="Clear Canvas">🗑 Clear</button>
-                <button class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="exportWbImage()" title="Export PNG">📷 Export</button>
+                <button class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="exportWbImage()" title="Export PNG">📷 PNG</button>
+                <button class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="exportWbSVG()" title="Export Vector SVG for Infinite Sharp Zoom">📐 SVG</button>
                 <button class="btn-primary" style="padding:4px 12px; font-size:11px;" onclick="saveWhiteboardNote()">💾 Save</button>
                 <button class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="closeModal('whiteboardModal')">✕</button>
             </div>
@@ -3047,6 +3059,30 @@
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeModal('linkModal')">Cancel</button>
             <button class="btn-primary" onclick="saveLink()">Save Link</button>
+        </div>
+    </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal-overlay" id="changePasswordModal">
+    <div class="modal" style="max-width:440px; width:92vw;">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Change Password</div>
+        <p style="font-size:12px; color:var(--text2); margin-bottom:14px;">Enter a new password for your account.</p>
+
+        <div class="form-row">
+            <label class="label">New Password *</label>
+            <input class="input" type="password" id="newPasswordInput" placeholder="Minimum 6 characters">
+        </div>
+
+        <div class="form-row">
+            <label class="label">Confirm New Password *</label>
+            <input class="input" type="password" id="confirmPasswordInput" placeholder="Re-enter new password">
+        </div>
+
+        <div class="modal-footer" style="margin-top:16px;">
+            <button class="btn-secondary" onclick="closeModal('changePasswordModal')">Cancel</button>
+            <button class="btn-primary" onclick="changeUserPassword()">Update Password 🔒</button>
         </div>
     </div>
 </div>
