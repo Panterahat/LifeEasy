@@ -2080,9 +2080,7 @@ function renderCounters() {
             const exactDate = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
             const exactTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
             const relativeTime = timeSince(d);
-            const isEdited = c.createdAt && c.lastUpdated && c.lastUpdated !== c.createdAt;
-            const prefix = isEdited ? 'Edited on' : 'Created on';
-            editInfo = `${prefix} ${exactDate} at ${exactTime}<br><span style="opacity: 0.7;">${relativeTime}</span>`;
+            editInfo = `Last edited on ${exactDate} at ${exactTime}<br><span style="opacity: 0.7;">${relativeTime}</span>`;
         }
 
         return `
@@ -5104,8 +5102,182 @@ async function changeUserPassword() {
 }
 
 // ============================================================
-// INFINITE VECTOR SVG WHITEBOARD EXPORT
+// OFFLINE SYNC QUEUE & TWO-WAY CLOUD SYNC
 // ============================================================
+function renderSettingsSyncQueue() {
+    const listEl = document.getElementById('settingsSyncQueueList');
+    if (!listEl) return;
+
+    const queue = STATE.syncQueue || [];
+
+    if (queue.length === 0) {
+        listEl.innerHTML = '<div style="font-size:12px; color:var(--green); text-align:center; padding:10px; background:rgba(93,232,193,0.1); border-radius:10px; border:1px solid rgba(93,232,193,0.2);">✓ All data is synced with the cloud!</div>';
+        return;
+    }
+
+    listEl.innerHTML = `
+        <div style="font-size:11px; color:var(--accent3); font-weight:700; margin-bottom:8px;">${queue.length} item(s) pending cloud upload:</div>
+        <div style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto;">
+            ${queue.map(item => {
+                const action = item.endpoint.replace('.php', '').replace(/_/g, ' ').toUpperCase();
+                const name = item.payload.title || item.payload.name || item.payload.subject || (item.payload.amount ? 'Record ' + item.payload.amount : '') || 'Item Data';
+                return `
+                    <div style="background:var(--surface2); border:1px solid var(--border); padding:8px 12px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+                        <div>
+                            <span style="font-size:10px; color:var(--text3); font-weight:700; text-transform:uppercase;">${action}</span>
+                            <div style="font-weight:600;">${escapeHtml(name.toString())}</div>
+                        </div>
+                        <span style="font-size:10px; color:var(--red); font-weight:700;">Retries: ${item.retries || 0}/3</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+async function triggerFullTwoWaySync() {
+    toast('Syncing with cloud... ☁️');
+    try {
+        await processSyncQueue();
+        await load();
+        renderSettingsSyncQueue();
+        toast('Sync Complete! ☁️');
+    } catch (e) {
+        toast('Sync failed: ' + (e.message || 'Error occurred'));
+    }
+}
+
+// ============================================================
+// ULTRA HD 4K/8K CANVAS WHITEBOARD EXPORT
+// ============================================================
+function exportWbUltraHD() {
+    const curPage = getCurrentWbPage();
+    const title = document.getElementById('wbTitle').value.trim() || 'whiteboard';
+    const filename = `${title.toLowerCase().replace(/\s+/g, '_')}_page${wbActivePage + 1}_hd.png`;
+
+    let minX = 0, minY = 0, maxX = 1200, maxY = 800;
+    const allItems = [
+        ...(curPage.paths || []).map(p => ({ obj: p, type: 'path' })),
+        ...(curPage.shapes || []).map(s => ({ obj: s, type: 'shape' })),
+        ...(curPage.stickies || []).map(st => ({ obj: st, type: 'sticky' })),
+        ...(curPage.texts || []).map(t => ({ obj: t, type: 'text' })),
+        ...(curPage.images || []).map(i => ({ obj: i, type: 'image' }))
+    ];
+
+    const bounds = getWbGroupBounds(allItems);
+    if (bounds) {
+        minX = Math.min(0, bounds.x - 60);
+        minY = Math.min(0, bounds.y - 60);
+        maxX = Math.max(1200, bounds.x + bounds.w + 60);
+        maxY = Math.max(800, bounds.y + bounds.h + 60);
+    }
+
+    const contentW = Math.max(1200, maxX - minX);
+    const contentH = Math.max(800, maxY - minY);
+
+    const scale = 3;
+    const off = document.createElement('canvas');
+    off.width = Math.round(contentW * scale);
+    off.height = Math.round(contentH * scale);
+    const ctx = off.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, off.width, off.height);
+
+    ctx.save();
+    ctx.scale(scale, scale);
+    ctx.translate(-minX, -minY);
+
+    (curPage.images || []).forEach(img => {
+        if (img.src) {
+            try {
+                const el = new Image();
+                el.src = img.src;
+                ctx.drawImage(el, img.x, img.y, img.w, img.h);
+            } catch(e) {}
+        }
+    });
+
+    (curPage.shapes || []).forEach(s => {
+        ctx.save();
+        ctx.strokeStyle = s.color || '#000000';
+        ctx.lineWidth = s.size || 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (s.lineStyle === 'dashed') ctx.setLineDash([10, 8]);
+        else if (s.lineStyle === 'dotted') ctx.setLineDash([3, 6]);
+
+        if (s.fillStyle === 'solid') ctx.fillStyle = s.color;
+        else if (s.fillStyle === 'semi') ctx.fillStyle = s.color + '44';
+        else ctx.fillStyle = 'transparent';
+
+        ctx.beginPath();
+        if (s.type === 'rect') {
+            ctx.fillRect(s.x, s.y, s.w, s.h);
+            ctx.strokeRect(s.x, s.y, s.w, s.h);
+        } else if (s.type === 'circle') {
+            ctx.ellipse(s.x + s.w/2, s.y + s.h/2, Math.abs(s.w/2), Math.abs(s.h/2), 0, 0, Math.PI * 2);
+            if (s.fillStyle !== 'none') ctx.fill();
+            ctx.stroke();
+        } else if (s.type === 'arrow') {
+            ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); ctx.stroke();
+        }
+        ctx.restore();
+    });
+
+    (curPage.stickies || []).forEach(st => {
+        ctx.save();
+        ctx.fillStyle = st.bgColor || '#fef08a';
+        ctx.fillRect(st.x, st.y, st.w || 140, st.h || 140);
+        ctx.fillStyle = st.color || '#1e293b';
+        ctx.font = "14px 'Syne', sans-serif";
+        wrapWbText(ctx, st.text, st.x + 12, st.y + 24, (st.w || 140) - 24, 18);
+        ctx.restore();
+    });
+
+    (curPage.paths || []).forEach(path => {
+        if (!path.points || path.points.length < 1) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = path.color;
+        ctx.lineWidth = path.size;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.moveTo(path.points[0].x, path.points[0].y);
+        for (let i = 1; i < path.points.length; i++) {
+            ctx.lineTo(path.points[i].x, path.points[i].y);
+        }
+        ctx.stroke();
+        ctx.restore();
+    });
+
+    (curPage.texts || []).forEach(t => {
+        ctx.save();
+        ctx.font = `${t.size || 18}px 'Syne', sans-serif`;
+        ctx.fillStyle = t.color;
+        ctx.fillText(t.text, t.x, t.y);
+        ctx.restore();
+    });
+
+    ctx.restore();
+
+    const dataUrl = off.toDataURL('image/png');
+
+    if (window.AndroidInterface && typeof window.AndroidInterface.downloadBase64File === 'function') {
+        window.AndroidInterface.downloadBase64File(dataUrl, filename, 'image/png');
+        toast('Saved Ultra HD 4K Image to Downloads! 📥');
+    } else {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        toast('Exported Ultra HD 4K Image! 📷');
+    }
+}
 function exportWbSVG() {
     const curPage = getCurrentWbPage();
     const title = document.getElementById('wbTitle').value.trim() || 'whiteboard';
