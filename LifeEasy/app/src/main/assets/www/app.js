@@ -14,7 +14,7 @@ const STATE = {
     dashHiddenWidgets: ['alarms', 'sleep', 'roadmap', 'specific_account', 'specific_counter', 'specific_note'],
     dashConfig: { accountId: null, counterId: null, noteId: null },
 
-    selectedDate: '', attSelectedDate: '', activeRoadmap: null, activeAccountId: null, taskFilter: 'active', moneyFilter: 'all', taskCategories: ['Work', 'Personal']
+    selectedDate: '', attSelectedDate: '', activeRoadmap: null, activeAccountId: null, taskFilter: 'active', moneyFilter: 'all', taskCategories: ['Work', 'Personal'], eventCategories: ['Personal', 'Work', 'Academic']
 };
 
 const WIDGET_DICT = {
@@ -329,6 +329,16 @@ async function load() {
     try {
         const saved = localStorage.getItem('proflow_state');
         if (saved) { try { Object.assign(STATE, JSON.parse(saved)); } catch (e) { } }
+
+        if (!STATE.eventCategories || !Array.isArray(STATE.eventCategories)) {
+            STATE.eventCategories = ['Personal', 'Work', 'Academic'];
+        } else {
+            ['Personal', 'Work', 'Academic'].forEach(defCat => {
+                if (!STATE.eventCategories.includes(defCat)) {
+                    STATE.eventCategories.unshift(defCat);
+                }
+            });
+        }
 
         const [rTasks, rCounters, rPlans, rMoney, rAlarms, rRoadmaps, rSteps, rAcademic, rAccounts, rExpenses, rNotes, rSleep, rAttRoutines, rAttLogs, rLinks, rCover] = await Promise.all([
             supabaseClient.from('tasks').select('*'),
@@ -1700,11 +1710,11 @@ function openPlannerModal(id = null) {
     const descInput = document.getElementById('planDesc');
     const dateInput = document.getElementById('planDate');
     const timeInput = document.getElementById('planTime');
-    const catSelect = document.getElementById('planCategory');
-    const durSelect = document.getElementById('planDuration');
+    const endTimeInput = document.getElementById('planEndTime');
     const recSelect = document.getElementById('planRecurrence');
     const remOptEl = document.getElementById('planReminderOpt');
 
+    let selCat = 'Personal';
     if (id) {
         const p = STATE.plans.find(x => x.id === id);
         if (p) {
@@ -1713,8 +1723,8 @@ function openPlannerModal(id = null) {
             if (descInput) descInput.value = p.desc || '';
             if (dateInput) dateInput.value = p.date || STATE.selectedDate;
             if (timeInput) timeInput.value = p.time || '09:00';
-            if (catSelect) catSelect.value = p.category || 'Personal';
-            if (durSelect) durSelect.value = p.duration || '30m';
+            if (endTimeInput) endTimeInput.value = p.endTime || computeEndTimeFromDuration(p.time || '09:00', p.duration || '30m');
+            selCat = p.category || 'Personal';
             if (recSelect) recSelect.value = p.recurrence || 'none';
             if (remOptEl) remOptEl.value = p.reminder || 'none';
             document.getElementById('plannerModal').dataset.editId = p.id;
@@ -1725,13 +1735,14 @@ function openPlannerModal(id = null) {
         if (descInput) descInput.value = '';
         if (dateInput) dateInput.value = STATE.selectedDate;
         if (timeInput) timeInput.value = '09:00';
-        if (catSelect) catSelect.value = 'Personal';
-        if (durSelect) durSelect.value = '30m';
+        if (endTimeInput) endTimeInput.value = '09:30';
+        selCat = 'Personal';
         if (recSelect) recSelect.value = 'none';
         if (remOptEl) remOptEl.value = 'none';
         delete document.getElementById('plannerModal').dataset.editId;
     }
 
+    renderCategoryOptions(selCat);
     document.getElementById('plannerModal').classList.add('open');
 }
 
@@ -1740,14 +1751,19 @@ function savePlan() {
     if (!title) return toast('Please enter a title');
 
     const editId = document.getElementById('plannerModal').dataset.editId;
+    const startTime = document.getElementById('planTime').value || '09:00';
+    const endTime = document.getElementById('planEndTime')?.value || '09:30';
+    const calcDuration = getDurationBetween(startTime, endTime);
+
     const planData = {
         title,
         desc: document.getElementById('planDesc').value,
         date: document.getElementById('planDate').value,
-        time: document.getElementById('planTime').value || '09:00',
+        time: startTime,
+        endTime: endTime,
         color: selectedColors.plan,
         category: document.getElementById('planCategory')?.value || 'Personal',
-        duration: document.getElementById('planDuration')?.value || '30m',
+        duration: calcDuration,
         recurrence: document.getElementById('planRecurrence').value,
         reminder: document.getElementById('planReminderOpt')?.value || 'none'
     };
@@ -2011,13 +2027,120 @@ function renderWeeklyQuickChips() {
 function getCategoryIcon(cat) {
     switch (cat) {
         case 'Work': return '💼';
+        case 'Personal': return '📅';
+        case 'Academic': return '🎓';
         case 'Wellness': return '🧘';
         case 'Calendar': return '🗓️';
-        case 'Academic': return '🎓';
         case 'Meal': return '🍔';
         case 'Reminder': return '⏰';
-        default: return '📅';
+        default: return '🏷️';
     }
+}
+
+document.addEventListener('click', (e) => {
+    const dd = document.getElementById('catDropdown');
+    if (dd && !dd.contains(e.target)) {
+        const menu = document.getElementById('catDropdownMenu');
+        if (menu) menu.style.display = 'none';
+    }
+});
+
+function toggleCategoryDropdown(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('catDropdownMenu');
+    if (!menu) return;
+    const isOpen = menu.style.display !== 'none';
+    menu.style.display = isOpen ? 'none' : 'flex';
+}
+
+function selectCategory(catName) {
+    const hiddenInput = document.getElementById('planCategory');
+    const triggerText = document.getElementById('catTriggerText');
+    if (hiddenInput) hiddenInput.value = catName;
+    if (triggerText) {
+        const icon = getCategoryIcon(catName);
+        triggerText.textContent = `${icon} ${catName}`;
+    }
+    const menu = document.getElementById('catDropdownMenu');
+    if (menu) menu.style.display = 'none';
+    renderCategoryOptions(catName);
+}
+
+function renderCategoryOptions(selectedVal = 'Personal') {
+    const hiddenInput = document.getElementById('planCategory');
+    const triggerText = document.getElementById('catTriggerText');
+    const menuEl = document.getElementById('catDropdownMenu');
+
+    if (!STATE.eventCategories || !Array.isArray(STATE.eventCategories)) {
+        STATE.eventCategories = ['Personal', 'Work', 'Academic'];
+    }
+
+    if (selectedVal && !STATE.eventCategories.includes(selectedVal) && selectedVal !== '__ADD_NEW__') {
+        STATE.eventCategories.push(selectedVal);
+    }
+
+    const defaultCats = ['Personal', 'Work', 'Academic'];
+    const currentCat = (selectedVal && STATE.eventCategories.includes(selectedVal)) ? selectedVal : (STATE.eventCategories[0] || 'Personal');
+
+    if (hiddenInput) hiddenInput.value = currentCat;
+    if (triggerText) {
+        const icon = getCategoryIcon(currentCat);
+        triggerText.textContent = `${icon} ${currentCat}`;
+    }
+
+    if (menuEl) {
+        let html = '';
+        STATE.eventCategories.forEach(cat => {
+            const icon = getCategoryIcon(cat);
+            const isDefault = defaultCats.includes(cat);
+            const isActive = cat === currentCat;
+            html += `
+                <div class="cat-menu-item ${isActive ? 'active' : ''}" onclick="selectCategory('${escapeHtml(cat)}')">
+                    <span>${icon} ${escapeHtml(cat)}</span>
+                    ${!isDefault ? `<button type="button" class="cat-del-btn" onclick="event.stopPropagation(); deleteCategory('${escapeHtml(cat)}')" title="Delete Category">🗑</button>` : ''}
+                </div>
+            `;
+        });
+        html += `
+            <div class="cat-menu-item add-btn-item" onclick="event.stopPropagation(); addNewCategoryPrompt()">
+                <span>➕ Add Category...</span>
+            </div>
+        `;
+        menuEl.innerHTML = html;
+    }
+}
+
+function addNewCategoryPrompt() {
+    const menu = document.getElementById('catDropdownMenu');
+    if (menu) menu.style.display = 'none';
+    const name = prompt('Enter new category name:');
+    if (!name || !name.trim()) return;
+    const cleanName = name.trim();
+    if (!STATE.eventCategories.includes(cleanName)) {
+        STATE.eventCategories.push(cleanName);
+        save();
+        toast(`Category "${cleanName}" added! ✨`);
+    } else {
+        toast(`Category "${cleanName}" already exists.`);
+    }
+    selectCategory(cleanName);
+}
+
+function deleteCategory(catName) {
+    if (['Personal', 'Work', 'Academic'].includes(catName)) {
+        toast('Default categories (Personal, Work, Academic) cannot be deleted.');
+        return;
+    }
+    if (!confirm(`Delete category "${catName}"?`)) return;
+
+    STATE.eventCategories = STATE.eventCategories.filter(c => c !== catName);
+    save();
+    toast(`Category "${catName}" deleted. 🗑`);
+
+    const hiddenInput = document.getElementById('planCategory');
+    const currentVal = hiddenInput ? hiddenInput.value : 'Personal';
+    const nextCat = (currentVal === catName) ? 'Personal' : currentVal;
+    selectCategory(nextCat);
 }
 
 function getEventCardStyle(plan) {
@@ -2038,8 +2161,50 @@ function getEventCardStyle(plan) {
     return { bg: 'var(--surface2)', border: c, text: 'var(--text)', tagBg: 'var(--border)', tagText: 'var(--text)' };
 }
 
-function formatTimeRange(timeStr, durationStr) {
+function getDurationBetween(startTimeStr, endTimeStr) {
+    if (!startTimeStr || !endTimeStr) return '30m';
+    const [sh, sm] = startTimeStr.split(':').map(Number);
+    const [eh, em] = endTimeStr.split(':').map(Number);
+    let startMins = (sh || 0) * 60 + (sm || 0);
+    let endMins = (eh || 0) * 60 + (em || 0);
+    if (endMins < startMins) {
+        endMins += 24 * 60;
+    }
+    const diff = endMins - startMins;
+    if (diff <= 0) return '0m';
+    if (diff < 60) return `${diff}m`;
+    const hrs = Math.floor(diff / 60);
+    const mins = diff % 60;
+    return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+}
+
+function computeEndTimeFromDuration(timeStr, durationStr) {
+    if (!timeStr) return '09:30';
+    const [hStr, mStr] = timeStr.split(':');
+    let h = parseInt(hStr, 10) || 9;
+    let m = parseInt(mStr, 10) || 0;
+    let addMins = 30;
+    if (durationStr) {
+        if (durationStr === '15m') addMins = 15;
+        else if (durationStr === '30m') addMins = 30;
+        else if (durationStr === '45m') addMins = 45;
+        else if (durationStr === '60m') addMins = 60;
+        else if (durationStr === '75m') addMins = 75;
+        else if (durationStr === '90m') addMins = 90;
+        else if (durationStr === '120m') addMins = 120;
+    }
+    let total = h * 60 + m + addMins;
+    let endH = Math.floor(total / 60) % 24;
+    let endM = total % 60;
+    return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+}
+
+function formatTimeRange(timeStr, durationStr, endTimeStr) {
     if (!timeStr) return '';
+    const startFormatted = formatTime(timeStr);
+    if (endTimeStr) {
+        return `${startFormatted} - ${formatTime(endTimeStr)}`;
+    }
     const [hStr, mStr] = timeStr.split(':');
     let h = parseInt(hStr, 10);
     let m = parseInt(mStr, 10);
@@ -2055,8 +2220,6 @@ function formatTimeRange(timeStr, durationStr) {
         else if (durationStr === '120m') addMins = 120;
         else if (durationStr === 'All Day') return 'All Day';
     }
-
-    const startFormatted = formatTime(timeStr);
 
     let endTotal = h * 60 + m + addMins;
     let endH = Math.floor(endTotal / 60) % 24;
@@ -2130,10 +2293,10 @@ function renderWeeklyTimeline() {
                         `;
                     } else {
                         const style = getEventCardStyle(item);
-                        const duration = item.duration || '30m';
+                        const duration = item.endTime ? getDurationBetween(item.time, item.endTime) : (item.duration || '30m');
                         const cat = item.category || 'Personal';
                         const icon = getCategoryIcon(cat);
-                        const timeRangeStr = formatTimeRange(item.time, duration);
+                        const timeRangeStr = formatTimeRange(item.time, item.duration, item.endTime);
 
                         html += `
                             <div class="timeline-event-card ${item.completed ? 'done' : ''}" style="background:${style.bg}; border-color:${style.border};" onclick="togglePlan(event, ${item.id})">
