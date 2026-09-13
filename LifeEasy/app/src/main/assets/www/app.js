@@ -131,7 +131,48 @@ async function executeSupabaseOperation(endpoint, payload) {
         }
         case 'update_task.php': table = 'tasks'; matchField = 'task_id'; data = { completed: payload.completed }; break;
         case 'delete_task.php': table = 'tasks'; matchField = 'task_id'; break;
-        case 'add_plan.php': case 'update_plan.php': case 'delete_plan.php': table = 'plans'; if (endpoint === 'update_plan.php') data = { completed: payload.completed }; if (endpoint === 'add_plan.php') { data = { title: payload.title, desc: payload.desc, date: payload.date, time: payload.time, color: payload.color, recurrence: payload.recurrence }; } break;
+        case 'add_plan.php':
+        case 'update_plan.php':
+        case 'delete_plan.php': {
+            table = 'plans';
+            if (endpoint === 'update_plan.php') {
+                const d = {};
+                if (payload.title !== undefined) d.title = payload.title;
+                if (payload.desc !== undefined) d.desc = payload.desc;
+                if (payload.date !== undefined) d.date = payload.date;
+                if (payload.time !== undefined) d.time = payload.time;
+                if (payload.endTime !== undefined) { d.endTime = payload.endTime; d.end_time = payload.endTime; }
+                if (payload.color !== undefined) d.color = payload.color;
+                if (payload.category !== undefined) d.category = payload.category;
+                if (payload.duration !== undefined) d.duration = payload.duration;
+                if (payload.recurrence !== undefined) d.recurrence = payload.recurrence;
+                if (payload.repeatDays !== undefined) { d.repeatDays = payload.repeatDays; d.repeat_days = payload.repeatDays; }
+                if (payload.reminder !== undefined) d.reminder = payload.reminder;
+                if (payload.completed !== undefined) d.completed = payload.completed;
+                if (payload.excludedDates !== undefined) { d.excludedDates = payload.excludedDates; d.excluded_dates = payload.excludedDates; }
+                data = d;
+            } else if (endpoint === 'add_plan.php') {
+                data = {
+                    title: payload.title,
+                    desc: payload.desc || '',
+                    date: payload.date,
+                    time: payload.time,
+                    endTime: payload.endTime || null,
+                    end_time: payload.endTime || null,
+                    color: payload.color || '#7c6ef5',
+                    category: payload.category || 'Personal',
+                    duration: payload.duration || '30m',
+                    recurrence: payload.recurrence || 'none',
+                    repeatDays: payload.repeatDays || null,
+                    repeat_days: payload.repeatDays || null,
+                    reminder: payload.reminder || 'none',
+                    completed: payload.completed || false,
+                    excludedDates: payload.excludedDates || [],
+                    excluded_dates: payload.excludedDates || []
+                };
+            }
+            break;
+        }
         case 'add_counter.php': table = 'counters'; data = { name: payload.name, value: payload.value, step: payload.step, color: payload.color, last_updated: payload.lastUpdated || new Date().toISOString() }; break;
         case 'update_counter.php': table = 'counters'; data = { value: payload.value, last_updated: payload.lastUpdated || new Date().toISOString() }; break;
         case 'delete_counter.php': table = 'counters'; break;
@@ -363,7 +404,7 @@ async function load() {
 
         if (rTasks.data) STATE.tasks = rTasks.data.map(t => ({ ...t, id: Number(t.task_id || t.id), due: t.due_date || t.due }));
         if (rCounters.data) STATE.counters = rCounters.data.map(c => ({ ...c, id: Number(c.id), lastUpdated: c.last_updated || c.lastUpdated || c.created_at || c.createdAt || new Date().toISOString() }));
-        if (rPlans.data) STATE.plans = rPlans.data.map(p => ({ ...p, id: Number(p.id) }));
+        if (rPlans.data) STATE.plans = rPlans.data.map(p => ({ ...p, id: Number(p.id), endTime: p.end_time || p.endTime || '09:30', repeatDays: p.repeat_days || p.repeatDays || null, excludedDates: p.excluded_dates || p.excludedDates || [] }));
         if (rMoney.data) STATE.money = rMoney.data.map(m => ({ ...m, id: Number(m.id) }));
         if (rAlarms.data) STATE.alarms = rAlarms.data.map(a => ({ ...a, id: Number(a.id) }));
         if (rRoadmaps.data) STATE.roadmaps = rRoadmaps.data.map(r => ({ ...r, id: Number(r.id) }));
