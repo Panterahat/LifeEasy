@@ -1003,7 +1003,7 @@
 
         .timeline-hour-row {
             display: flex;
-            height: 90px;
+            height: 120px;
             align-items: flex-start;
             position: relative;
             box-sizing: border-box;
@@ -1034,19 +1034,20 @@
             pointer-events: none;
         }
 
-        /* EVENT CARD BLOCK IN TIMELINE */
+        /* UNIFIED EVENT CARD BLOCK IN TIMELINE */
         .timeline-event-card {
             position: absolute;
             pointer-events: auto;
-            border-radius: 12px;
-            padding: 8px 10px;
+            border-radius: 10px;
+            padding: 4px 8px;
             border: 1px solid var(--border);
             box-sizing: border-box;
             transition: transform 0.15s ease, box-shadow 0.15s ease;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            justify-content: flex-start;
+            gap: 2px;
             overflow: hidden;
             z-index: 2;
             touch-action: none;
@@ -1079,53 +1080,6 @@
             pointer-events: none;
         }
 
-        .timeline-event-card.compact-card {
-            flex-direction: row;
-            align-items: center;
-            justify-content: space-between;
-            padding: 2px 8px;
-            gap: 6px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        .compact-title-group {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex: 1;
-            min-width: 0;
-            overflow: hidden;
-        }
-
-        .compact-card .timeline-event-title {
-            font-size: 12px;
-            font-weight: 700;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            flex-shrink: 1;
-            min-width: 0;
-        }
-
-        .compact-event-time {
-            font-size: 10px;
-            color: var(--text2);
-            white-space: nowrap;
-            flex-shrink: 0;
-            opacity: 0.85;
-        }
-
-        .compact-card .timeline-check-btn {
-            width: 18px;
-            height: 18px;
-            font-size: 10px;
-        }
-
-        .compact-card .timeline-action-btn {
-            font-size: 11px;
-            padding: 1px;
-        }
-
         .timeline-event-card:hover, .timeline-event-card:active {
             transform: translateY(-1px);
             box-shadow: 0 6px 18px rgba(0,0,0,0.12);
@@ -1142,42 +1096,133 @@
             opacity: 0.7;
         }
 
-        .timeline-card-header {
+        .timeline-card-top-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 6px;
+            gap: 4px;
             width: 100%;
         }
 
-        .timeline-title-group {
+        .timeline-title-and-cat {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             flex: 1;
             min-width: 0;
+            overflow: hidden;
         }
 
-        .timeline-cat-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
+        .timeline-category-pill {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            white-space: nowrap;
             flex-shrink: 0;
         }
 
         .timeline-event-title {
             font-family: 'Syne', sans-serif;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
             color: var(--text);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            flex-shrink: 1;
+            min-width: 0;
         }
 
         .timeline-event-actions {
             display: flex;
             align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .timeline-action-btn {
+            cursor: pointer;
+            font-size: 11px;
+            opacity: 0.7;
+            transition: 0.2s;
+            padding: 1px;
+        }
+
+        .timeline-action-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .timeline-check-btn {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: var(--surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            color: var(--text3);
+            opacity: 1 !important;
+        }
+
+        .timeline-check-btn:hover {
+            transform: scale(1.15);
+            border-color: #10b981;
+            color: #10b981;
+        }
+
+        .timeline-check-btn.checked {
+            background: #10b981 !important;
+            border-color: #10b981 !important;
+            color: #ffffff !important;
+            font-weight: 900 !important;
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+        }
+
+        .timeline-card-sub-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: var(--text2);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .timeline-event-time {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text2);
+            white-space: nowrap;
+        }
+
+        .timeline-duration-pill {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 3px;
+            background: rgba(0,0,0,0.06);
+            color: var(--text2);
+            white-space: nowrap;
+        }
+
+        .timeline-event-desc {
+            font-size: 10px;
+            color: var(--text3);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
             gap: 6px;
             flex-shrink: 0;
         }

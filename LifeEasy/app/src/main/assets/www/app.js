@@ -2381,7 +2381,7 @@ function renderWeeklyTimeline() {
     const dayPlans = STATE.plans.filter(p => isEventOnDate(p, selDateStr));
     const dayAcad = STATE.academic.filter(a => a.date === selDateStr);
 
-    const HOUR_HEIGHT = 90;
+    const HOUR_HEIGHT = 120;
 
     function calcYPosition(seqMins) {
         return (seqMins / 60) * HOUR_HEIGHT;
@@ -2523,47 +2523,30 @@ function renderWeeklyTimeline() {
         const topY = calcYPosition(item.startSeqMins);
         const rawEndY = calcYPosition(item.endSeqMins);
         const calculatedHeight = rawEndY - topY;
-        const heightPx = Math.max(calculatedHeight, 22);
+        const heightPx = Math.max(calculatedHeight, 30);
 
         const leftStyle = `left: calc(${item.leftPct}% + 1px);`;
         const widthStyle = `width: calc(${item.widthPct}% - 2px);`;
         const posStyle = `top: ${topY}px; height: ${heightPx}px; ${leftStyle} ${widthStyle}`;
 
-        const isShort = item.durMins < 35;
-
         if (item.isAcad) {
-            if (isShort) {
-                overlayHtml += `
-                    <div class="timeline-event-card compact-card" data-plan-id="${item.id}" style="${posStyle} background:#f3e5f5; border-color:var(--accent3);" onclick="if(!this.dataset.wasDragged || this.dataset.wasDragged === 'false') { navTo('academic'); openAcademicModalById(${item.id}); }">
-                        <div class="compact-title-group">
-                            <span class="timeline-cat-dot" style="background:var(--accent3)"></span>
+            overlayHtml += `
+                <div class="timeline-event-card" data-plan-id="${item.id}" style="${posStyle} background:#f3e5f5; border-color:var(--accent3);" onclick="if(!this.dataset.wasDragged || this.dataset.wasDragged === 'false') { navTo('academic'); openAcademicModalById(${item.id}); }">
+                    <div class="timeline-card-top-row">
+                        <div class="timeline-title-and-cat">
+                            <span class="timeline-category-pill" style="background:#f3e8ff; color:#7e22ce;">🎓 Academic</span>
                             <span class="timeline-event-title">${escapeHtml(item.subject)}</span>
                         </div>
                         <div class="timeline-event-actions">
                             <span class="timeline-action-btn" onclick="event.stopPropagation(); delAcademic(event, ${item.id})" title="Delete">🗑</span>
                         </div>
                     </div>
-                `;
-            } else {
-                overlayHtml += `
-                    <div class="timeline-event-card" data-plan-id="${item.id}" style="${posStyle} background:#f3e5f5; border-color:var(--accent3);" onclick="if(!this.dataset.wasDragged || this.dataset.wasDragged === 'false') { navTo('academic'); openAcademicModalById(${item.id}); }">
-                        <div class="timeline-card-header">
-                            <div class="timeline-title-group">
-                                <span class="timeline-cat-dot" style="background:var(--accent3)"></span>
-                                <span class="timeline-event-title">${escapeHtml(item.subject)}</span>
-                            </div>
-                            <div class="timeline-event-actions">
-                                <span class="timeline-action-btn" onclick="event.stopPropagation(); delAcademic(event, ${item.id})" title="Delete">🗑</span>
-                            </div>
-                        </div>
-                        <div class="timeline-card-meta">
-                            <span class="timeline-category-pill" style="background:#f3e8ff; color:#7e22ce;">🎓 Academic</span>
-                            <span class="timeline-duration-pill">${escapeHtml(item.type || 'Class')}</span>
-                        </div>
-                        ${item.topic ? `<div class="timeline-event-desc">📌 ${escapeHtml(item.topic)}</div>` : ''}
+                    <div class="timeline-card-sub-row">
+                        <span class="timeline-duration-pill">${escapeHtml(item.type || 'Class')}</span>
+                        ${item.topic ? `<span class="timeline-event-desc">📌 ${escapeHtml(item.topic)}</span>` : ''}
                     </div>
-                `;
-            }
+                </div>
+            `;
         } else {
             const style = getEventCardStyle(item);
             const duration = item.endTime ? getDurationBetween(item.time, item.endTime) : (item.duration || '30m');
@@ -2571,11 +2554,11 @@ function renderWeeklyTimeline() {
             const icon = getCategoryIcon(cat);
             const timeRangeStr = formatTimeRange(item.time, item.duration, item.endTime);
 
-            if (isShort) {
-                overlayHtml += `
-                    <div class="timeline-event-card compact-card ${item.completed ? 'done' : ''}" data-plan-id="${item.id}" style="${posStyle} background:${item.completed ? 'rgba(16,185,129,0.08)' : style.bg}; border-color:${item.completed ? '#10b981' : style.border};" onclick="if(!this.dataset.wasDragged || this.dataset.wasDragged === 'false') togglePlan(event, ${item.id})">
-                        <div class="compact-title-group">
-                            <span class="timeline-cat-dot" style="background:${style.border}"></span>
+            overlayHtml += `
+                <div class="timeline-event-card ${item.completed ? 'done' : ''}" data-plan-id="${item.id}" style="${posStyle} background:${item.completed ? 'rgba(16,185,129,0.08)' : style.bg}; border-color:${item.completed ? '#10b981' : style.border};" onclick="if(!this.dataset.wasDragged || this.dataset.wasDragged === 'false') togglePlan(event, ${item.id})">
+                    <div class="timeline-card-top-row">
+                        <div class="timeline-title-and-cat">
+                            <span class="timeline-category-pill" style="background:${style.tagBg}; color:${style.tagText};">${icon} ${escapeHtml(cat)}</span>
                             <span class="timeline-event-title" style="color:${style.text};">${escapeHtml(item.title)}</span>
                         </div>
                         <div class="timeline-event-actions">
@@ -2586,32 +2569,13 @@ function renderWeeklyTimeline() {
                             <span class="timeline-action-btn" onclick="event.stopPropagation(); deletePlan(event, ${item.id}, '${selDateStr}')" title="Delete">🗑</span>
                         </div>
                     </div>
-                `;
-            } else {
-                overlayHtml += `
-                    <div class="timeline-event-card ${item.completed ? 'done' : ''}" data-plan-id="${item.id}" style="${posStyle} background:${item.completed ? 'rgba(16,185,129,0.08)' : style.bg}; border-color:${item.completed ? '#10b981' : style.border};" onclick="if(!this.dataset.wasDragged || this.dataset.wasDragged === 'false') togglePlan(event, ${item.id})">
-                        <div class="timeline-card-header">
-                            <div class="timeline-title-group">
-                                <span class="timeline-cat-dot" style="background:${style.border}"></span>
-                                <span class="timeline-event-title" style="color:${style.text};">${escapeHtml(item.title)}</span>
-                            </div>
-                            <div class="timeline-event-actions">
-                                <div class="timeline-check-btn ${item.completed ? 'checked' : ''}" onclick="togglePlan(event, ${item.id})" title="${item.completed ? 'Mark incomplete' : 'Mark complete'}">
-                                    ${item.completed ? '✔' : ''}
-                                </div>
-                                <span class="timeline-action-btn" onclick="event.stopPropagation(); openPlannerModal(${item.id})" title="Edit">✏️</span>
-                                <span class="timeline-action-btn" onclick="event.stopPropagation(); deletePlan(event, ${item.id}, '${selDateStr}')" title="Delete">🗑</span>
-                            </div>
-                        </div>
-                        <div class="timeline-card-meta">
-                            <span class="timeline-category-pill" style="background:${style.tagBg}; color:${style.tagText};">${icon} ${escapeHtml(cat)}</span>
-                            <span class="timeline-event-time">🕒 ${timeRangeStr}</span>
-                            ${duration ? `<span class="timeline-duration-pill">${escapeHtml(duration)}</span>` : ''}
-                        </div>
-                        ${item.desc ? `<div class="timeline-event-desc">📍 ${escapeHtml(item.desc)}</div>` : ''}
+                    <div class="timeline-card-sub-row">
+                        <span class="timeline-event-time">🕒 ${timeRangeStr}</span>
+                        ${duration ? `<span class="timeline-duration-pill">${escapeHtml(duration)}</span>` : ''}
                     </div>
-                `;
-            }
+                    ${item.desc ? `<div class="timeline-event-desc">📍 ${escapeHtml(item.desc)}</div>` : ''}
+                </div>
+            `;
         }
     });
     overlayHtml += '</div>';
@@ -2640,7 +2604,7 @@ function initTimelineDragAndDrop() {
     let isDragging = false;
     let currentNewSeqMins = 0;
 
-    const HOUR_HEIGHT = 90;
+    const HOUR_HEIGHT = 120;
 
     function handleStart(e) {
         const card = e.target.closest('.timeline-event-card');
