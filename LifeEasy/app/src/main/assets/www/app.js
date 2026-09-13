@@ -2107,9 +2107,8 @@ function renderWeeklyQuickChips() {
 
     if (dayPlans.length === 0 && dayAcad.length === 0) {
         container.innerHTML = `
-            <div class="weekly-chip" onclick="openPlannerModal()">
-                <div class="weekly-chip-icon">➕</div>
-                <span>Add Event for ${fmtDisplay(selDateStr)}</span>
+            <div style="font-size: 13px; color: var(--text3); font-weight: 500; padding: 6px 4px;">
+                (No events)
             </div>
         `;
         return;
