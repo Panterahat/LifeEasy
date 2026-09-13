@@ -141,15 +141,15 @@ async function executeSupabaseOperation(endpoint, payload) {
                 if (payload.desc !== undefined) d.desc = payload.desc;
                 if (payload.date !== undefined) d.date = payload.date;
                 if (payload.time !== undefined) d.time = payload.time;
-                if (payload.endTime !== undefined) { d.endTime = payload.endTime; d.end_time = payload.endTime; }
+                if (payload.endTime !== undefined) d.end_time = payload.endTime;
                 if (payload.color !== undefined) d.color = payload.color;
                 if (payload.category !== undefined) d.category = payload.category;
                 if (payload.duration !== undefined) d.duration = payload.duration;
                 if (payload.recurrence !== undefined) d.recurrence = payload.recurrence;
-                if (payload.repeatDays !== undefined) { d.repeatDays = payload.repeatDays; d.repeat_days = payload.repeatDays; }
+                if (payload.repeatDays !== undefined) d.repeat_days = payload.repeatDays;
                 if (payload.reminder !== undefined) d.reminder = payload.reminder;
                 if (payload.completed !== undefined) d.completed = payload.completed;
-                if (payload.excludedDates !== undefined) { d.excludedDates = payload.excludedDates; d.excluded_dates = payload.excludedDates; }
+                if (payload.excludedDates !== undefined) d.excluded_dates = payload.excludedDates;
                 data = d;
             } else if (endpoint === 'add_plan.php') {
                 data = {
@@ -157,17 +157,14 @@ async function executeSupabaseOperation(endpoint, payload) {
                     desc: payload.desc || '',
                     date: payload.date,
                     time: payload.time,
-                    endTime: payload.endTime || null,
-                    end_time: payload.endTime || null,
+                    end_time: payload.endTime || '09:30',
                     color: payload.color || '#7c6ef5',
                     category: payload.category || 'Personal',
                     duration: payload.duration || '30m',
                     recurrence: payload.recurrence || 'none',
-                    repeatDays: payload.repeatDays || null,
                     repeat_days: payload.repeatDays || null,
                     reminder: payload.reminder || 'none',
                     completed: payload.completed || false,
-                    excludedDates: payload.excludedDates || [],
                     excluded_dates: payload.excludedDates || []
                 };
             }
