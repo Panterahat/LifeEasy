@@ -93,7 +93,7 @@ const supabaseUrl = 'https://awxqtgaffcdbnxltfdbk.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3eHF0Z2FmZmNkYm54bHRmZGJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NTY4NjcsImV4cCI6MjA5ODIzMjg2N30.4BCLCTVApXkozVkbhvWn251TO0eEiCz6DMxsgCQLSpk';
 const supabaseClient = window.supabase
     ? window.supabase.createClient(supabaseUrl, supabaseAnonKey)
-    : { from: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }), insert: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }), update: () => ({ eq: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }) }), delete: () => ({ eq: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }) }), auth: { getSession: () => Promise.resolve({ data: { session: null } }), signInWithPassword: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }), signUp: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }) } };
+    : { from: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }), insert: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }), update: () => ({ eq: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }) }), delete: () => ({ eq: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }) }), auth: { getSession: () => Promise.resolve({ data: { session: null } }), signInWithPassword: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }), signUp: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }), updateUser: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }) } };
 
 async function executeSupabaseOperation(endpoint, payload) {
     let table = ''; let action = ''; let data = { ...payload }; let matchField = 'id'; let matchValue = payload.id;
@@ -481,6 +481,7 @@ function navTo(screen) {
     }
 
     if (screen === 'dash') renderDashboard();
+    if (screen === 'planner') renderPlanner();
     if (screen === 'expenses') renderExpenses();
     if (screen === 'notes') renderNotes();
     if (screen === 'sleep') renderSleep();
@@ -1932,14 +1933,14 @@ function setPlannerView(mode) {
     if (mode === 'weekly') {
         if (btnMonthly) btnMonthly.classList.remove('active');
         if (btnWeekly) btnWeekly.classList.add('active');
-        if (monthlyView) monthlyView.style.display = 'none';
-        if (weeklyView) weeklyView.style.display = 'block';
+        if (monthlyView) monthlyView.style.setProperty('display', 'none', 'important');
+        if (weeklyView) weeklyView.style.setProperty('display', 'block', 'important');
         renderWeeklyPlanner();
     } else {
         if (btnWeekly) btnWeekly.classList.remove('active');
         if (btnMonthly) btnMonthly.classList.add('active');
-        if (weeklyView) weeklyView.style.display = 'none';
-        if (monthlyView) monthlyView.style.display = 'block';
+        if (weeklyView) weeklyView.style.setProperty('display', 'none', 'important');
+        if (monthlyView) monthlyView.style.setProperty('display', '', 'important');
         renderCalendar();
         renderMonthlyPlanner();
     }
@@ -1947,25 +1948,7 @@ function setPlannerView(mode) {
 
 function renderPlanner() {
     if (!STATE.plannerView) STATE.plannerView = 'monthly';
-    const mode = STATE.plannerView;
-    const btnMonthly = document.getElementById('btnPlannerMonthly');
-    const btnWeekly = document.getElementById('btnPlannerWeekly');
-    const monthlyView = document.getElementById('monthlyPlannerView');
-    const weeklyView = document.getElementById('weeklyPlannerView');
-
-    if (mode === 'weekly') {
-        if (btnMonthly) btnMonthly.classList.remove('active');
-        if (btnWeekly) btnWeekly.classList.add('active');
-        if (monthlyView) monthlyView.style.display = 'none';
-        if (weeklyView) weeklyView.style.display = 'block';
-        renderWeeklyPlanner();
-    } else {
-        if (btnWeekly) btnWeekly.classList.remove('active');
-        if (btnMonthly) btnMonthly.classList.add('active');
-        if (weeklyView) weeklyView.style.display = 'none';
-        if (monthlyView) monthlyView.style.display = 'block';
-        renderMonthlyPlanner();
-    }
+    setPlannerView(STATE.plannerView);
 }
 
 function getWeekDays(baseDate) {
@@ -2286,12 +2269,12 @@ function getDurationBetween(startTimeStr, endTimeStr) {
 }
 
 function computeEndTimeFromDuration(timeStr, durationStr) {
-    if (!timeStr) return '09:30';
+    if (!timeStr || typeof timeStr !== 'string') return '09:30';
     const [hStr, mStr] = timeStr.split(':');
     let h = parseInt(hStr, 10) || 9;
     let m = parseInt(mStr, 10) || 0;
     let addMins = 30;
-    if (durationStr) {
+    if (durationStr && typeof durationStr === 'string') {
         if (durationStr === '15m') addMins = 15;
         else if (durationStr === '30m') addMins = 30;
         else if (durationStr === '45m') addMins = 45;
@@ -2307,17 +2290,18 @@ function computeEndTimeFromDuration(timeStr, durationStr) {
 }
 
 function formatTimeRange(timeStr, durationStr, endTimeStr) {
-    if (!timeStr) return '';
+    if (!timeStr || typeof timeStr !== 'string') return '';
     const startFormatted = formatTime(timeStr);
-    if (endTimeStr) {
+    if (endTimeStr && typeof endTimeStr === 'string') {
         return `${startFormatted} - ${formatTime(endTimeStr)}`;
     }
+    if (!timeStr.includes(':')) return startFormatted;
     const [hStr, mStr] = timeStr.split(':');
-    let h = parseInt(hStr, 10);
-    let m = parseInt(mStr, 10);
+    let h = parseInt(hStr, 10) || 0;
+    let m = parseInt(mStr, 10) || 0;
 
     let addMins = 30;
-    if (durationStr) {
+    if (durationStr && typeof durationStr === 'string') {
         if (durationStr === '15m') addMins = 15;
         else if (durationStr === '30m') addMins = 30;
         else if (durationStr === '45m') addMins = 45;
@@ -2338,7 +2322,7 @@ function formatTimeRange(timeStr, durationStr, endTimeStr) {
 }
 
 function parseTimeToMins(timeStr) {
-    if (!timeStr) return 9 * 60;
+    if (!timeStr || typeof timeStr !== 'string') return 9 * 60;
     const parts = timeStr.split(':');
     const h = parseInt(parts[0], 10) || 0;
     const m = parseInt(parts[1], 10) || 0;
@@ -2346,12 +2330,12 @@ function parseTimeToMins(timeStr) {
 }
 
 function parseDurationMins(durationStr, startMins, endTimeStr) {
-    if (endTimeStr) {
+    if (endTimeStr && typeof endTimeStr === 'string') {
         let endMins = parseTimeToMins(endTimeStr);
         if (endMins <= startMins) endMins += 24 * 60;
         return Math.max(endMins - startMins, 15);
     }
-    if (!durationStr) return 30;
+    if (!durationStr || typeof durationStr !== 'string') return 30;
     if (durationStr === 'All Day') return 24 * 60;
     if (durationStr === '15m') return 15;
     if (durationStr === '30m') return 30;
@@ -2377,9 +2361,9 @@ function renderWeeklyTimeline() {
     const timelineEl = document.getElementById('weeklyTimeline');
     if (!timelineEl) return;
 
-    const selDateStr = STATE.selectedDate;
-    const dayPlans = STATE.plans.filter(p => isEventOnDate(p, selDateStr));
-    const dayAcad = STATE.academic.filter(a => a.date === selDateStr);
+    const selDateStr = STATE.selectedDate || fmtDate(new Date());
+    const dayPlans = (STATE.plans || []).filter(p => isEventOnDate(p, selDateStr));
+    const dayAcad = (STATE.academic || []).filter(a => a.date === selDateStr);
 
     const HOUR_HEIGHT = 120;
 
@@ -2750,7 +2734,7 @@ function renderMonthlyPlanner() {
     }
     el.innerHTML = html;
 }
-function formatTime(t) { const [h, m] = t.split(':'); const hr = parseInt(h); return `${hr > 12 ? hr - 12 : hr === 0 ? 12 : hr}:${m}${hr >= 12 ? 'pm' : 'am'}`; }
+function formatTime(t) { if (!t || typeof t !== 'string' || !t.includes(':')) return t || ''; const [h, m] = t.split(':'); const hr = parseInt(h, 10); if (isNaN(hr)) return t; return `${hr > 12 ? hr - 12 : hr === 0 ? 12 : hr}:${m}${hr >= 12 ? 'pm' : 'am'}`; }
 
 // ============================================================
 // TASKS
@@ -6055,7 +6039,16 @@ function testScheduledNotification() {
 // ============================================================
 // SECURITY & PASSWORD CHANGE MODULE
 // ============================================================
-function openChangePasswordModal() {
+async function openChangePasswordModal() {
+    try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        if (!sessionData?.session) {
+            toast('🔒 Please log in first to change your account password!');
+            if (typeof openAuthModal === 'function') openAuthModal();
+            return;
+        }
+    } catch (e) { }
+
     const modal = document.getElementById('changePasswordModal');
     const p1 = document.getElementById('newPasswordInput');
     const p2 = document.getElementById('confirmPasswordInput');
@@ -6072,8 +6065,29 @@ async function changeUserPassword() {
     if (newPass !== confirmPass) return toast('Passwords do not match!');
 
     try {
+        if (!supabaseClient || !supabaseClient.auth || typeof supabaseClient.auth.updateUser !== 'function') {
+            return toast('Authentication service unavailable. Check connection.');
+        }
+
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        if (!sessionData?.session) {
+            closeModal('changePasswordModal');
+            toast('🔒 Session expired. Please log in first to change your password!');
+            if (typeof openAuthModal === 'function') openAuthModal();
+            return;
+        }
+
         const { data, error } = await supabaseClient.auth.updateUser({ password: newPass });
-        if (error) throw error;
+        if (error) {
+            if (error.message && (error.message.includes('Auth session missing') || error.message.includes('session'))) {
+                closeModal('changePasswordModal');
+                toast('🔒 Session expired. Please log in first to change your password!');
+                if (typeof openAuthModal === 'function') openAuthModal();
+                return;
+            }
+            throw error;
+        }
+
         toast('Password changed successfully! 🔒');
         closeModal('changePasswordModal');
         document.getElementById('newPasswordInput').value = '';
