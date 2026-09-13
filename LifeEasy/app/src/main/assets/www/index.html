@@ -955,6 +955,22 @@
             transform: translateY(-1px);
         }
 
+        .weekly-chip.done {
+            opacity: 0.8;
+            border-color: #10b981 !important;
+        }
+
+        .weekly-chip.done .weekly-chip-icon {
+            background: rgba(16, 185, 129, 0.2) !important;
+            color: #10b981 !important;
+            font-weight: 900;
+        }
+
+        .weekly-chip.done span {
+            text-decoration: line-through;
+            opacity: 0.8;
+        }
+
         .weekly-chip-icon {
             width: 22px;
             height: 22px;
@@ -1040,11 +1056,13 @@
         }
 
         .timeline-event-card.done {
-            opacity: 0.6;
+            opacity: 0.82;
+            background: rgba(0,0,0,0.02);
         }
 
         .timeline-event-card.done .timeline-event-title {
             text-decoration: line-through;
+            opacity: 0.7;
         }
 
         .timeline-event-header {
@@ -1099,21 +1117,35 @@
         }
 
         .timeline-check-btn {
-            width: 22px;
-            height: 22px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
-            border: 2px solid currentColor;
+            border: 2px solid var(--border);
+            background: var(--surface);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 14px;
+            font-weight: 900;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            color: var(--text3);
+            opacity: 1 !important;
+        }
+
+        .timeline-check-btn:hover {
+            transform: scale(1.15);
+            border-color: #10b981;
+            color: #10b981;
         }
 
         .timeline-check-btn.checked {
-            background: currentColor;
-            color: #fff !important;
+            background: #10b981 !important;
+            border-color: #10b981 !important;
+            color: #ffffff !important;
+            font-weight: 900 !important;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
         }
 
         .timeline-event-title {
@@ -1187,8 +1219,12 @@
         }
 
         .event-block.done {
-            opacity: .5;
+            opacity: .8;
+        }
+
+        .event-block.done .event-title {
             text-decoration: line-through;
+            opacity: 0.7;
         }
 
         .event-title {

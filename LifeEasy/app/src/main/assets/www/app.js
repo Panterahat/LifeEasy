@@ -2119,8 +2119,8 @@ function renderWeeklyQuickChips() {
         const cat = p.category || 'Personal';
         const icon = getCategoryIcon(cat);
         html += `
-            <div class="weekly-chip" style="border-color:${p.color || 'var(--accent)'};" onclick="openPlannerModal(${p.id})">
-                <div class="weekly-chip-icon" style="background:${p.color || 'var(--accent)'}22;">${icon}</div>
+            <div class="weekly-chip ${p.completed ? 'done' : ''}" style="border-color:${p.completed ? '#10b981' : (p.color || 'var(--accent)')};" onclick="openPlannerModal(${p.id})">
+                <div class="weekly-chip-icon" style="background:${p.completed ? 'rgba(16,185,129,0.2)' : (p.color || 'var(--accent)') + '22'}; color:${p.completed ? '#10b981' : 'inherit'};">${p.completed ? '✔' : icon}</div>
                 <span>${escapeHtml(p.title)}</span>
             </div>
         `;
@@ -2406,15 +2406,15 @@ function renderWeeklyTimeline() {
                         const timeRangeStr = formatTimeRange(item.time, item.duration, item.endTime);
 
                         html += `
-                            <div class="timeline-event-card ${item.completed ? 'done' : ''}" style="background:${style.bg}; border-color:${style.border};" onclick="togglePlan(event, ${item.id})">
+                            <div class="timeline-event-card ${item.completed ? 'done' : ''}" style="background:${item.completed ? 'rgba(16,185,129,0.08)' : style.bg}; border-color:${item.completed ? '#10b981' : style.border};" onclick="togglePlan(event, ${item.id})">
                                 <div class="timeline-event-header">
                                     <div class="timeline-tags-group">
                                         <span class="timeline-category-pill" style="background:${style.tagBg}; color:${style.tagText};">${icon} ${escapeHtml(cat)}</span>
                                         <span class="timeline-duration-pill">${escapeHtml(duration)}</span>
                                     </div>
                                     <div class="timeline-event-actions">
-                                        <div class="timeline-check-btn ${item.completed ? 'checked' : ''}" style="color:${style.border};" onclick="togglePlan(event, ${item.id})">
-                                            ${item.completed ? '✓' : ''}
+                                        <div class="timeline-check-btn ${item.completed ? 'checked' : ''}" onclick="togglePlan(event, ${item.id})" title="${item.completed ? 'Mark incomplete' : 'Mark complete'}">
+                                            ${item.completed ? '✔' : ''}
                                         </div>
                                         <span class="timeline-action-btn" onclick="event.stopPropagation(); openPlannerModal(${item.id})" title="Edit">✏️</span>
                                         <span class="timeline-action-btn" onclick="deletePlan(event, ${item.id}, '${selDateStr}')" title="Delete">🗑</span>
@@ -2448,7 +2448,7 @@ function renderMonthlyPlanner() {
     if (selPlans.length === 0) { html += `<div style="text-align:center; color:var(--text3); font-size:13px; margin-bottom:24px;">No events scheduled for this day.</div>`; } else {
         html += selPlans.map(p => {
             const c = p.color || '#7c6ef5';
-            return `<div class="time-slot"><div class="time-label">${formatTime(p.time)}</div><div class="time-line" style="background:${c}"></div><div class="time-events" style="flex:1"><div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${c}; background:${c}1e;" onclick="togglePlan(event, ${p.id})"><div class="event-title">${escapeHtml(p.title)}</div>${p.desc ? `<div class="event-desc">${escapeHtml(p.desc)}</div>` : ''}<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:10px;color:var(--text3)">${p.completed ? '✓ Done' : (p.recurrence && p.recurrence !== 'none' ? '🔁 ' + p.recurrence : '⏰ ' + p.time)}</span><div style="display:flex;gap:6px;align-items:center;"><span onclick="event.stopPropagation(); openPlannerModal(${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;" title="Edit Event">✏️</span><span onclick="deletePlan(event, ${p.id}, '${STATE.selectedDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px" title="Delete Event">🗑</span></div></div></div></div></div>`;
+            return `<div class="time-slot"><div class="time-label">${formatTime(p.time)}</div><div class="time-line" style="background:${c}"></div><div class="time-events" style="flex:1"><div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${p.completed ? '#10b981' : c}; background:${p.completed ? 'rgba(16,185,129,0.1)' : c + '1e'};" onclick="togglePlan(event, ${p.id})"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div class="event-title">${escapeHtml(p.title)}</div><div class="timeline-check-btn ${p.completed ? 'checked' : ''}" style="flex-shrink:0;" onclick="togglePlan(event, ${p.id})" title="${p.completed ? 'Mark incomplete' : 'Mark complete'}">${p.completed ? '✔' : ''}</div></div>${p.desc ? `<div class="event-desc">${escapeHtml(p.desc)}</div>` : ''}<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><span style="font-size:11px;font-weight:${p.completed ? '700' : '400'};color:${p.completed ? '#10b981' : 'var(--text3)'}">${p.completed ? '✔ Completed' : (p.recurrence && p.recurrence !== 'none' ? '🔁 ' + p.recurrence : '⏰ ' + p.time)}</span><div style="display:flex;gap:6px;align-items:center;"><span onclick="event.stopPropagation(); openPlannerModal(${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;" title="Edit Event">✏️</span><span onclick="deletePlan(event, ${p.id}, '${STATE.selectedDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px" title="Delete Event">🗑</span></div></div></div></div></div>`;
         }).join('');
     }
     html += `<div class="section-header" style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;"><div class="section-title">Upcoming (Next 2 Months)</div></div>`;
@@ -2465,7 +2465,7 @@ function renderMonthlyPlanner() {
         allUpcoming.forEach(e => {
             if (e.virtualDate !== lastDate) { const disp = new Date(e.virtualDate + 'T00:00:00').toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }); html += `<div style="font-size:11px; font-weight:700; color:var(--accent); margin:16px 0 8px 0; text-transform:uppercase; letter-spacing:1px;">${disp}</div>`; lastDate = e.virtualDate; }
             if (e.isAcad) { html += `<div class="event-block" style="border-color:var(--accent3); margin-bottom:8px; cursor:pointer;" onclick="navTo('academic'); openAcademicModalById(${e.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div style="font-size:10px; color:var(--accent3); font-weight:600; text-transform:uppercase;">🎓 ${e.type}</div><span onclick="delAcademic(event, ${e.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div><div class="event-title">${e.subject}</div>${e.topic ? `<div class="event-desc">${e.topic}</div>` : ''}</div>`; }
-            else { const c = e.color || '#7c6ef5'; html += `<div class="event-block ${e.completed ? 'done' : ''}" style="border-color:${c}; background:${c}1e; margin-bottom:8px;" onclick="togglePlan(event, ${e.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="event-title">${escapeHtml(e.title)}</div><div style="display:flex; gap:8px; align-items:center;"><div style="font-size:10px; color:var(--text3)">${e.recurrence && e.recurrence !== 'none' ? '🔁' : '⏰'} ${formatTime(e.time)}</div><span onclick="deletePlan(event, ${e.id}, '${e.virtualDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div></div></div>`; }
+            else { const c = e.color || '#7c6ef5'; html += `<div class="event-block ${e.completed ? 'done' : ''}" style="border-color:${e.completed ? '#10b981' : c}; background:${e.completed ? 'rgba(16,185,129,0.1)' : c + '1e'}; margin-bottom:8px;" onclick="togglePlan(event, ${e.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="event-title">${escapeHtml(e.title)}</div><div style="display:flex; gap:8px; align-items:center;"><div class="timeline-check-btn ${e.completed ? 'checked' : ''}" style="flex-shrink:0;" onclick="togglePlan(event, ${e.id})" title="${e.completed ? 'Mark incomplete' : 'Mark complete'}">${e.completed ? '✔' : ''}</div><div style="font-size:10px; color:var(--text3)">${e.recurrence && e.recurrence !== 'none' ? '🔁' : '⏰'} ${formatTime(e.time)}</div><span onclick="deletePlan(event, ${e.id}, '${e.virtualDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div></div></div>`; }
         });
     }
     el.innerHTML = html;
