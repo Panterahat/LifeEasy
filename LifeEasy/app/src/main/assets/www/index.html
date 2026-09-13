@@ -668,6 +668,392 @@
         }
 
         /* DAILY PLANNER */
+        .planner-top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .planner-toggle-group {
+            display: inline-flex;
+            align-items: center;
+            background: var(--surface2);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            gap: 4px;
+        }
+
+        .planner-toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text2);
+            font-size: 13px;
+            font-weight: 600;
+            padding: 7px 14px;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .planner-toggle-btn.active {
+            background: var(--surface);
+            color: var(--text);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+            font-weight: 700;
+        }
+
+        /* WEEKLY PLANNER STYLES */
+        .weekly-header-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .weekly-nav-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .weekly-month-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .weekly-nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .weekly-nav-btn {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .weekly-nav-btn:hover {
+            background: var(--border);
+        }
+
+        .weekly-nav-btn.today-btn {
+            background: var(--accent);
+            color: #ffffff;
+            border-color: var(--accent);
+        }
+
+        .weekly-days-strip {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            text-align: center;
+            user-select: none;
+            touch-action: pan-y;
+        }
+
+        .weekly-day-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 4px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .weekly-day-col:hover {
+            background: var(--surface2);
+        }
+
+        .weekly-day-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text2);
+            margin-bottom: 4px;
+        }
+
+        .weekly-day-num {
+            font-size: 15px;
+            font-weight: 700;
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        .weekly-day-col.selected .weekly-day-num {
+            background: var(--accent);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(124, 110, 245, 0.4);
+        }
+
+        .weekly-day-col.selected .weekly-day-name {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .weekly-day-col.today:not(.selected) .weekly-day-num {
+            border: 2px solid var(--accent);
+            color: var(--accent);
+        }
+
+        .weekly-day-dot {
+            width: 5px;
+            height: 5px;
+            background: var(--accent2);
+            border-radius: 50%;
+            margin-top: 4px;
+        }
+
+        /* QUICK CHIPS */
+        .weekly-chips-container {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-top: 12px;
+            margin-top: 10px;
+            border-top: 1px solid var(--border);
+            scrollbar-width: none;
+        }
+
+        .weekly-chips-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .weekly-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .weekly-chip:hover {
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .weekly-chip-icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(124, 110, 245, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        /* WEEKLY TIMELINE CONTAINER */
+        .weekly-timeline-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .timeline-period-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 14px 0 6px 0;
+        }
+
+        .timeline-period-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .timeline-row {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            position: relative;
+            min-height: 48px;
+        }
+
+        .timeline-time-label {
+            width: 60px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text2);
+            padding-top: 10px;
+            flex-shrink: 0;
+        }
+
+        .timeline-content-slot {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-bottom: 8px;
+        }
+
+        .timeline-no-plans {
+            font-size: 13px;
+            color: var(--text3);
+            padding: 10px 0;
+            font-style: italic;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        /* EVENT CARD BLOCK IN TIMELINE */
+        .timeline-event-card {
+            border-radius: 14px;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            position: relative;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+
+        .timeline-event-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+        }
+
+        .timeline-event-card.done {
+            opacity: 0.6;
+        }
+
+        .timeline-event-card.done .timeline-event-title {
+            text-decoration: line-through;
+        }
+
+        .timeline-event-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .timeline-tags-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .timeline-category-pill {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .timeline-duration-pill {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.06);
+            color: var(--text2);
+        }
+
+        .timeline-event-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .timeline-action-btn {
+            cursor: pointer;
+            font-size: 14px;
+            opacity: 0.7;
+            transition: 0.2s;
+            padding: 2px;
+        }
+
+        .timeline-action-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .timeline-check-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .timeline-check-btn.checked {
+            background: currentColor;
+            color: #fff !important;
+        }
+
+        .timeline-event-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .timeline-event-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text2);
+            flex-wrap: wrap;
+        }
+
+        .timeline-event-time {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 600;
+        }
+
+        .timeline-event-loc {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
         .time-slot {
             display: flex;
             gap: 12px;
@@ -2133,34 +2519,67 @@
             </div>
         </div>
 
-        <!-- DAILY PLANNER (Full Calendar) -->
+        <!-- DAILY PLANNER (Monthly & Weekly Planner) -->
         <div class="screen" id="screen-planner">
-            <div class="section-header">
-                <div class="section-title">Monthly Planner</div>
-            </div>
-
-            <div class="calendar-wrapper">
-                <div class="calendar-header">
-                    <button onclick="prevMonth()">◀</button>
-                    <div id="calendarMonthYear">Month Year</div>
-                    <button onclick="nextMonth()">▶</button>
+            <div class="planner-top-header">
+                <div class="planner-toggle-group">
+                    <button id="btnPlannerMonthly" class="planner-toggle-btn active" onclick="setPlannerView('monthly')">
+                        <span style="font-size: 14px;">📅</span> Monthly Planner
+                    </button>
+                    <button id="btnPlannerWeekly" class="planner-toggle-btn" onclick="setPlannerView('weekly')">
+                        <span style="font-size: 14px;">📆</span> Weekly Planner
+                    </button>
                 </div>
-                <div class="calendar-grid-header">
-                    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                <button class="btn-primary" onclick="openPlannerModal()" style="padding: 8px 14px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                    <span>+ Add Event</span>
+                </button>
+            </div>
+
+            <!-- MONTHLY VIEW -->
+            <div id="monthlyPlannerView">
+                <div class="calendar-wrapper">
+                    <div class="calendar-header">
+                        <button onclick="prevMonth()">◀</button>
+                        <div id="calendarMonthYear">Month Year</div>
+                        <button onclick="nextMonth()">▶</button>
+                    </div>
+                    <div class="calendar-grid-header">
+                        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                    </div>
+                    <div class="calendar-grid" id="calendarGrid"></div>
                 </div>
-                <div class="calendar-grid" id="calendarGrid"></div>
+
+                <div class="card date-jump-card"
+                     style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
+                    <input type="date" id="goToDateInput" class="input" style="flex: 1;">
+                    <button class="btn-secondary" onclick="goToToday()"
+                            style="padding: 10px 16px; flex: 0 0 auto;">Today</button>
+                    <button class="btn-primary" onclick="goToDate()"
+                            style="padding: 10px 16px; flex: 0 0 auto;">Go</button>
+                </div>
+
+                <div id="plannerEvents"></div>
             </div>
 
-            <div class="card date-jump-card"
-                 style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
-                <input type="date" id="goToDateInput" class="input" style="flex: 1;">
-                <button class="btn-secondary" onclick="goToToday()"
-                        style="padding: 10px 16px; flex: 0 0 auto;">Today</button>
-                <button class="btn-primary" onclick="goToDate()"
-                        style="padding: 10px 16px; flex: 0 0 auto;">Go</button>
-            </div>
+            <!-- WEEKLY VIEW -->
+            <div id="weeklyPlannerView" style="display: none;">
+                <div class="weekly-header-card">
+                    <div class="weekly-nav-bar">
+                        <div class="weekly-month-title" id="weeklyMonthYear">Month 2026</div>
+                        <div class="weekly-nav-controls">
+                            <button class="weekly-nav-btn" onclick="prevWeek()" title="Previous Week">◀</button>
+                            <button class="weekly-nav-btn today-btn" onclick="goToTodayWeek()">Today</button>
+                            <button class="weekly-nav-btn" onclick="nextWeek()" title="Next Week">▶</button>
+                        </div>
+                    </div>
 
-            <div id="plannerEvents"></div>
+                    <div class="weekly-days-strip" id="weeklyDaysStrip"></div>
+
+                    <div class="weekly-chips-container" id="weeklyQuickChips"></div>
+                </div>
+
+                <div class="weekly-timeline-container" id="weeklyTimeline"></div>
+            </div>
         </div>
         <!-- cost tracker -->
         <!-- TASKS -->
@@ -2537,6 +2956,34 @@
             <div class="form-row"><label class="label">Time</label><input class="input" type="time" id="planTime">
             </div>
             <div class="form-row"><label class="label">Date</label><input class="input" type="date" id="planDate">
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-row">
+                <label class="label">Category</label>
+                <select class="input" id="planCategory">
+                    <option value="Personal">📅 Personal</option>
+                    <option value="Work">💼 Work</option>
+                    <option value="Wellness">🧘 Wellness</option>
+                    <option value="Calendar">🗓️ Calendar</option>
+                    <option value="Academic">🎓 Academic</option>
+                    <option value="Meal">🍔 Meal / Habit</option>
+                    <option value="Reminder">⏰ Reminder</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label class="label">Duration</label>
+                <select class="input" id="planDuration">
+                    <option value="15m">15m</option>
+                    <option value="30m" selected>30m</option>
+                    <option value="45m">45m</option>
+                    <option value="60m">60m (1h)</option>
+                    <option value="75m">75m</option>
+                    <option value="90m">90m (1.5h)</option>
+                    <option value="120m">120m (2h)</option>
+                    <option value="All Day">All Day</option>
+                </select>
             </div>
         </div>
 

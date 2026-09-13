@@ -200,36 +200,26 @@ body {
 
 /* ================= DESKTOP OPTIMIZATIONS ================= */
 @media (min-width: 768px) {
-    #screen-planner.active {
+    #monthlyPlannerView {
         display: grid;
-        /* Calendar 600px on left, rest of space on right */
-        grid-template-columns: 600px 1fr;
-        grid-template-rows: auto 1fr;
+        grid-template-columns: 500px 1fr;
         gap: 24px;
         align-items: start;
     }
 
-    #screen-planner .section-header {
-        grid-column: 1 / -1;
-        /* This forces the title to span the top row */
-    }
-
-    #screen-planner .calendar-wrapper {
+    #monthlyPlannerView .calendar-wrapper {
         grid-column: 1;
-        /* Forces calendar to left column */
     }
 
-    #screen-planner #plannerEvents {
+    #monthlyPlannerView .date-jump-card {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    #monthlyPlannerView #plannerEvents {
         grid-column: 2;
-        /* Forces events list to right column */
+        grid-row: 1 / span 2;
         margin-top: 0;
-        /* Removes extra gap */
-    }
-
-    /* ADD THIS: force the date-jump card to sit below the calendar */
-    #screen-planner .date-jump-card {
-        grid-column: 1;
-        grid-row: 3;
     }
 }
 

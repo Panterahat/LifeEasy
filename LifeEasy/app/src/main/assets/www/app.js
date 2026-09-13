@@ -1700,6 +1700,8 @@ function openPlannerModal(id = null) {
     const descInput = document.getElementById('planDesc');
     const dateInput = document.getElementById('planDate');
     const timeInput = document.getElementById('planTime');
+    const catSelect = document.getElementById('planCategory');
+    const durSelect = document.getElementById('planDuration');
     const recSelect = document.getElementById('planRecurrence');
     const remOptEl = document.getElementById('planReminderOpt');
 
@@ -1711,6 +1713,8 @@ function openPlannerModal(id = null) {
             if (descInput) descInput.value = p.desc || '';
             if (dateInput) dateInput.value = p.date || STATE.selectedDate;
             if (timeInput) timeInput.value = p.time || '09:00';
+            if (catSelect) catSelect.value = p.category || 'Personal';
+            if (durSelect) durSelect.value = p.duration || '30m';
             if (recSelect) recSelect.value = p.recurrence || 'none';
             if (remOptEl) remOptEl.value = p.reminder || 'none';
             document.getElementById('plannerModal').dataset.editId = p.id;
@@ -1721,6 +1725,8 @@ function openPlannerModal(id = null) {
         if (descInput) descInput.value = '';
         if (dateInput) dateInput.value = STATE.selectedDate;
         if (timeInput) timeInput.value = '09:00';
+        if (catSelect) catSelect.value = 'Personal';
+        if (durSelect) durSelect.value = '30m';
         if (recSelect) recSelect.value = 'none';
         if (remOptEl) remOptEl.value = 'none';
         delete document.getElementById('plannerModal').dataset.editId;
@@ -1740,6 +1746,8 @@ function savePlan() {
         date: document.getElementById('planDate').value,
         time: document.getElementById('planTime').value || '09:00',
         color: selectedColors.plan,
+        category: document.getElementById('planCategory')?.value || 'Personal',
+        duration: document.getElementById('planDuration')?.value || '30m',
         recurrence: document.getElementById('planRecurrence').value,
         reminder: document.getElementById('planReminderOpt')?.value || 'none'
     };
@@ -1774,8 +1782,397 @@ function savePlan() {
 }
 function togglePlan(e, id) { if (e) e.stopPropagation(); const p = STATE.plans.find(x => x.id === id); if (!p) return; p.completed = !p.completed; renderPlanner(); renderDashboard(); save(); ofetch('update_plan.php', { id, completed: p.completed }); }
 function deletePlan(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this event series?')) return; STATE.plans = STATE.plans.filter(x => x.id !== id); renderCalendar(); renderPlanner(); renderDashboard(); save(); toast('Deleted 🗑️'); ofetch('delete_plan.php', { id }); }
+
+// ============================================================
+// PLANNER VIEW SWITCHER & WEEKLY PLANNER
+// ============================================================
+let weeklyBaseDate = new Date();
+let weeklySwipeInit = false;
+
+function setPlannerView(mode) {
+    STATE.plannerView = mode;
+    save();
+
+    const btnMonthly = document.getElementById('btnPlannerMonthly');
+    const btnWeekly = document.getElementById('btnPlannerWeekly');
+    const monthlyView = document.getElementById('monthlyPlannerView');
+    const weeklyView = document.getElementById('weeklyPlannerView');
+
+    if (mode === 'weekly') {
+        if (btnMonthly) btnMonthly.classList.remove('active');
+        if (btnWeekly) btnWeekly.classList.add('active');
+        if (monthlyView) monthlyView.style.display = 'none';
+        if (weeklyView) weeklyView.style.display = 'block';
+        renderWeeklyPlanner();
+    } else {
+        if (btnWeekly) btnWeekly.classList.remove('active');
+        if (btnMonthly) btnMonthly.classList.add('active');
+        if (weeklyView) weeklyView.style.display = 'none';
+        if (monthlyView) monthlyView.style.display = 'block';
+        renderCalendar();
+        renderMonthlyPlanner();
+    }
+}
+
 function renderPlanner() {
-    const el = document.getElementById('plannerEvents'); const selDateObj = new Date(STATE.selectedDate + 'T00:00:00'); const selDisplay = selDateObj.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
+    if (!STATE.plannerView) STATE.plannerView = 'monthly';
+    const mode = STATE.plannerView;
+    const btnMonthly = document.getElementById('btnPlannerMonthly');
+    const btnWeekly = document.getElementById('btnPlannerWeekly');
+    const monthlyView = document.getElementById('monthlyPlannerView');
+    const weeklyView = document.getElementById('weeklyPlannerView');
+
+    if (mode === 'weekly') {
+        if (btnMonthly) btnMonthly.classList.remove('active');
+        if (btnWeekly) btnWeekly.classList.add('active');
+        if (monthlyView) monthlyView.style.display = 'none';
+        if (weeklyView) weeklyView.style.display = 'block';
+        renderWeeklyPlanner();
+    } else {
+        if (btnWeekly) btnWeekly.classList.remove('active');
+        if (btnMonthly) btnMonthly.classList.add('active');
+        if (weeklyView) weeklyView.style.display = 'none';
+        if (monthlyView) monthlyView.style.display = 'block';
+        renderMonthlyPlanner();
+    }
+}
+
+function getWeekDays(baseDate) {
+    const d = new Date(baseDate);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const mon = new Date(d);
+    mon.setDate(diff);
+    mon.setHours(0, 0, 0, 0);
+
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+        const next = new Date(mon);
+        next.setDate(mon.getDate() + i);
+        days.push(next);
+    }
+    return days;
+}
+
+function prevWeek() {
+    weeklyBaseDate.setDate(weeklyBaseDate.getDate() - 7);
+    STATE.selectedDate = fmtDate(weeklyBaseDate);
+    renderWeeklyPlanner();
+}
+
+function nextWeek() {
+    weeklyBaseDate.setDate(weeklyBaseDate.getDate() + 7);
+    STATE.selectedDate = fmtDate(weeklyBaseDate);
+    renderWeeklyPlanner();
+}
+
+function goToTodayWeek() {
+    weeklyBaseDate = new Date();
+    STATE.selectedDate = fmtDate(weeklyBaseDate);
+    calCurrentDate = new Date();
+    renderWeeklyPlanner();
+}
+
+function initWeeklySwipeGesture() {
+    if (weeklySwipeInit) return;
+    const el = document.getElementById('weeklyDaysStrip');
+    if (!el) return;
+    weeklySwipeInit = true;
+
+    let startX = 0, startY = 0;
+    el.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+    }, { passive: true });
+
+    el.addEventListener('touchend', (e) => {
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const diffX = endX - startX;
+        const diffY = endY - startY;
+
+        if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
+            if (diffX < 0) {
+                nextWeek();
+            } else {
+                prevWeek();
+            }
+        }
+    }, { passive: true });
+}
+
+function renderWeeklyPlanner() {
+    initWeeklySwipeGesture();
+
+    if (STATE.selectedDate) {
+        const selObj = new Date(STATE.selectedDate + 'T00:00:00');
+        if (!isNaN(selObj.getTime())) {
+            const weekDays = getWeekDays(weeklyBaseDate);
+            const inCurrentWeek = weekDays.some(d => fmtDate(d) === STATE.selectedDate);
+            if (!inCurrentWeek) {
+                weeklyBaseDate = selObj;
+            }
+        }
+    }
+
+    renderWeeklyStrip();
+    renderWeeklyQuickChips();
+    renderWeeklyTimeline();
+}
+
+function renderWeeklyStrip() {
+    const days = getWeekDays(weeklyBaseDate);
+    const titleEl = document.getElementById('weeklyMonthYear');
+
+    const m1 = days[0].toLocaleDateString('en', { month: 'short' });
+    const m2 = days[6].toLocaleDateString('en', { month: 'short' });
+    const y1 = days[0].getFullYear();
+    const y2 = days[6].getFullYear();
+
+    if (titleEl) {
+        if (m1 === m2) {
+            titleEl.textContent = `${days[0].toLocaleDateString('en', { month: 'long' })} ${y1}`;
+        } else {
+            titleEl.textContent = `${m1} - ${m2} ${y1 !== y2 ? y2 : y1}`;
+        }
+    }
+
+    const strip = document.getElementById('weeklyDaysStrip');
+    if (!strip) return;
+
+    const todayStr = fmtDate(new Date());
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    strip.innerHTML = days.map((d, i) => {
+        const dateStr = fmtDate(d);
+        const isSelected = dateStr === STATE.selectedDate;
+        const isToday = dateStr === todayStr;
+        const hasEvents = STATE.plans.some(p => isEventOnDate(p, dateStr)) || STATE.academic.some(a => a.date === dateStr);
+
+        return `
+            <div class="weekly-day-col ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}" onclick="selectWeeklyDay('${dateStr}')">
+                <div class="weekly-day-name">${dayNames[i]}</div>
+                <div class="weekly-day-num">${d.getDate()}</div>
+                ${hasEvents ? '<div class="weekly-day-dot"></div>' : '<div style="height:9px;"></div>'}
+            </div>
+        `;
+    }).join('');
+}
+
+function selectWeeklyDay(dateStr) {
+    STATE.selectedDate = dateStr;
+    const dObj = new Date(dateStr + 'T00:00:00');
+    if (!isNaN(dObj.getTime())) calCurrentDate = dObj;
+    renderWeeklyPlanner();
+}
+
+function renderWeeklyQuickChips() {
+    const container = document.getElementById('weeklyQuickChips');
+    if (!container) return;
+
+    const selDateStr = STATE.selectedDate;
+    const dayPlans = STATE.plans.filter(p => isEventOnDate(p, selDateStr)).sort((a, b) => a.time > b.time ? 1 : -1);
+    const dayAcad = STATE.academic.filter(a => a.date === selDateStr);
+
+    if (dayPlans.length === 0 && dayAcad.length === 0) {
+        container.innerHTML = `
+            <div class="weekly-chip" onclick="openPlannerModal()">
+                <div class="weekly-chip-icon">➕</div>
+                <span>Add Event for ${fmtDisplay(selDateStr)}</span>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    dayPlans.forEach(p => {
+        const cat = p.category || 'Personal';
+        const icon = getCategoryIcon(cat);
+        html += `
+            <div class="weekly-chip" style="border-color:${p.color || 'var(--accent)'};" onclick="openPlannerModal(${p.id})">
+                <div class="weekly-chip-icon" style="background:${p.color || 'var(--accent)'}22;">${icon}</div>
+                <span>${escapeHtml(p.title)}</span>
+            </div>
+        `;
+    });
+
+    dayAcad.forEach(a => {
+        html += `
+            <div class="weekly-chip" style="border-color:var(--accent3);" onclick="navTo('academic'); openAcademicModalById(${a.id})">
+                <div class="weekly-chip-icon" style="background:var(--accent3)22;">🎓</div>
+                <span>${escapeHtml(a.subject)}</span>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function getCategoryIcon(cat) {
+    switch (cat) {
+        case 'Work': return '💼';
+        case 'Wellness': return '🧘';
+        case 'Calendar': return '🗓️';
+        case 'Academic': return '🎓';
+        case 'Meal': return '🍔';
+        case 'Reminder': return '⏰';
+        default: return '📅';
+    }
+}
+
+function getEventCardStyle(plan) {
+    const cat = plan.category || 'Personal';
+    const categoryColors = {
+        'Personal': { bg: '#fff4e5', border: '#f97316', text: '#ea580c', tagBg: '#ffedd5', tagText: '#c2410c' },
+        'Wellness': { bg: '#fce4ec', border: '#ec4899', text: '#db2777', tagBg: '#fbcfe8', tagText: '#be185d' },
+        'Calendar': { bg: '#e0f7fa', border: '#06b6d4', text: '#0891b2', tagBg: '#cffaff', tagText: '#0e7490' },
+        'Work':     { bg: '#eef2ff', border: '#6366f1', text: '#4f46e5', tagBg: '#e0e7ff', tagText: '#3730a3' },
+        'Academic': { bg: '#f3e5f5', border: '#a855f7', text: '#9333ea', tagBg: '#f3e8ff', tagText: '#7e22ce' },
+        'Meal':     { bg: '#f0fdf4', border: '#22c55e', text: '#16a34a', tagBg: '#dcfce7', tagText: '#15803d' },
+        'Reminder': { bg: '#fffbeb', border: '#eab308', text: '#ca8a04', tagBg: '#fef3c7', tagText: '#a16207' }
+    };
+
+    if (categoryColors[cat]) return categoryColors[cat];
+
+    const c = plan.color || '#7c6ef5';
+    return { bg: 'var(--surface2)', border: c, text: 'var(--text)', tagBg: 'var(--border)', tagText: 'var(--text)' };
+}
+
+function formatTimeRange(timeStr, durationStr) {
+    if (!timeStr) return '';
+    const [hStr, mStr] = timeStr.split(':');
+    let h = parseInt(hStr, 10);
+    let m = parseInt(mStr, 10);
+
+    let addMins = 30;
+    if (durationStr) {
+        if (durationStr === '15m') addMins = 15;
+        else if (durationStr === '30m') addMins = 30;
+        else if (durationStr === '45m') addMins = 45;
+        else if (durationStr === '60m') addMins = 60;
+        else if (durationStr === '75m') addMins = 75;
+        else if (durationStr === '90m') addMins = 90;
+        else if (durationStr === '120m') addMins = 120;
+        else if (durationStr === 'All Day') return 'All Day';
+    }
+
+    const startFormatted = formatTime(timeStr);
+
+    let endTotal = h * 60 + m + addMins;
+    let endH = Math.floor(endTotal / 60) % 24;
+    let endM = endTotal % 60;
+    const endStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+    const endFormatted = formatTime(endStr);
+
+    return `${startFormatted} - ${endFormatted}`;
+}
+
+function renderWeeklyTimeline() {
+    const timelineEl = document.getElementById('weeklyTimeline');
+    if (!timelineEl) return;
+
+    const selDateStr = STATE.selectedDate;
+    const dayPlans = STATE.plans.filter(p => isEventOnDate(p, selDateStr));
+    const dayAcad = STATE.academic.filter(a => a.date === selDateStr);
+
+    const hoursMap = {};
+    for (let i = 0; i < 24; i++) hoursMap[i] = [];
+
+    dayPlans.forEach(p => {
+        const hour = p.time ? parseInt(p.time.split(':')[0], 10) : 9;
+        if (hoursMap[hour]) hoursMap[hour].push({ ...p, isAcad: false });
+    });
+
+    dayAcad.forEach(a => {
+        const hour = a.time ? parseInt(a.time.split(':')[0], 10) : 10;
+        if (hoursMap[hour]) hoursMap[hour].push({ ...a, isAcad: true, title: a.subject, color: 'var(--accent3)' });
+    });
+
+    const periods = [
+        { name: '🌅 Morning', hours: [6, 7, 8, 9, 10, 11] },
+        { name: '☀️ Afternoon', hours: [12, 13, 14, 15, 16, 17] },
+        { name: '🌙 Evening', hours: [18, 19, 20, 21, 22, 23] },
+        { name: '🌌 Night', hours: [0, 1, 2, 3, 4, 5] }
+    ];
+
+    let html = '';
+
+    periods.forEach(period => {
+        html += `<div class="timeline-period-title">${period.name}</div>`;
+
+        period.hours.forEach(hour => {
+            const hourLabel = `${String(hour).padStart(2, '0')}:00`;
+            const items = hoursMap[hour];
+
+            html += `<div class="timeline-row">`;
+            html += `<div class="timeline-time-label">${hourLabel}</div>`;
+            html += `<div class="timeline-content-slot">`;
+
+            if (items.length === 0) {
+                html += `<div class="timeline-no-plans">No plans</div>`;
+            } else {
+                items.forEach(item => {
+                    if (item.isAcad) {
+                        html += `
+                            <div class="timeline-event-card" style="background:#f3e5f5; border-color:var(--accent3);" onclick="navTo('academic'); openAcademicModalById(${item.id})">
+                                <div class="timeline-event-header">
+                                    <div class="timeline-tags-group">
+                                        <span class="timeline-category-pill" style="background:#f3e8ff; color:#7e22ce;">🎓 Academic</span>
+                                        <span class="timeline-duration-pill">${escapeHtml(item.type || 'Class')}</span>
+                                    </div>
+                                    <div class="timeline-event-actions">
+                                        <span class="timeline-action-btn" onclick="event.stopPropagation(); delAcademic(event, ${item.id})" title="Delete">🗑</span>
+                                    </div>
+                                </div>
+                                <div class="timeline-event-title">${escapeHtml(item.subject)}</div>
+                                ${item.topic ? `<div class="timeline-event-meta"><div class="timeline-event-loc">📌 ${escapeHtml(item.topic)}</div></div>` : ''}
+                            </div>
+                        `;
+                    } else {
+                        const style = getEventCardStyle(item);
+                        const duration = item.duration || '30m';
+                        const cat = item.category || 'Personal';
+                        const icon = getCategoryIcon(cat);
+                        const timeRangeStr = formatTimeRange(item.time, duration);
+
+                        html += `
+                            <div class="timeline-event-card ${item.completed ? 'done' : ''}" style="background:${style.bg}; border-color:${style.border};" onclick="togglePlan(event, ${item.id})">
+                                <div class="timeline-event-header">
+                                    <div class="timeline-tags-group">
+                                        <span class="timeline-category-pill" style="background:${style.tagBg}; color:${style.tagText};">${icon} ${escapeHtml(cat)}</span>
+                                        <span class="timeline-duration-pill">${escapeHtml(duration)}</span>
+                                    </div>
+                                    <div class="timeline-event-actions">
+                                        <div class="timeline-check-btn ${item.completed ? 'checked' : ''}" style="color:${style.border};" onclick="togglePlan(event, ${item.id})">
+                                            ${item.completed ? '✓' : ''}
+                                        </div>
+                                        <span class="timeline-action-btn" onclick="event.stopPropagation(); openPlannerModal(${item.id})" title="Edit">✏️</span>
+                                        <span class="timeline-action-btn" onclick="deletePlan(event, ${item.id})" title="Delete">🗑</span>
+                                    </div>
+                                </div>
+                                <div class="timeline-event-title" style="color:${style.text};">${escapeHtml(item.title)}</div>
+                                <div class="timeline-event-meta">
+                                    <div class="timeline-event-time">🕒 ${timeRangeStr}</div>
+                                    ${item.desc ? `<div class="timeline-event-loc">📍 ${escapeHtml(item.desc)}</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            }
+
+            html += `</div></div>`;
+        });
+    });
+
+    timelineEl.innerHTML = html;
+}
+
+function renderMonthlyPlanner() {
+    const el = document.getElementById('plannerEvents');
+    if (!el) return;
+    const selDateObj = new Date(STATE.selectedDate + 'T00:00:00');
+    const selDisplay = selDateObj.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
     let html = `<div class="section-header"><div class="section-title">Events on ${selDisplay}</div></div>`;
     const selPlans = STATE.plans.filter(p => isEventOnDate(p, STATE.selectedDate)).sort((a, b) => a.time > b.time ? 1 : -1);
     if (selPlans.length === 0) { html += `<div style="text-align:center; color:var(--text3); font-size:13px; margin-bottom:24px;">No events scheduled for this day.</div>`; } else {
