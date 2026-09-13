@@ -2337,6 +2337,42 @@ function formatTimeRange(timeStr, durationStr, endTimeStr) {
     return `${startFormatted} - ${endFormatted}`;
 }
 
+function parseTimeToMins(timeStr) {
+    if (!timeStr) return 9 * 60;
+    const parts = timeStr.split(':');
+    const h = parseInt(parts[0], 10) || 0;
+    const m = parseInt(parts[1], 10) || 0;
+    return h * 60 + m;
+}
+
+function parseDurationMins(durationStr, startMins, endTimeStr) {
+    if (endTimeStr) {
+        let endMins = parseTimeToMins(endTimeStr);
+        if (endMins <= startMins) endMins += 24 * 60;
+        return Math.max(endMins - startMins, 15);
+    }
+    if (!durationStr) return 30;
+    if (durationStr === 'All Day') return 24 * 60;
+    if (durationStr === '15m') return 15;
+    if (durationStr === '30m') return 30;
+    if (durationStr === '45m') return 45;
+    if (durationStr === '60m') return 60;
+    if (durationStr === '75m') return 75;
+    if (durationStr === '90m') return 90;
+    if (durationStr === '120m') return 120;
+    const match = durationStr.match(/(\d+)/);
+    if (match) return parseInt(match[1], 10) || 30;
+    return 30;
+}
+
+function getSeqMins(minsFromMidnight) {
+    if (minsFromMidnight >= 360) {
+        return minsFromMidnight - 360;
+    } else {
+        return minsFromMidnight + (24 * 60 - 360);
+    }
+}
+
 function renderWeeklyTimeline() {
     const timelineEl = document.getElementById('weeklyTimeline');
     if (!timelineEl) return;
@@ -2345,97 +2381,377 @@ function renderWeeklyTimeline() {
     const dayPlans = STATE.plans.filter(p => isEventOnDate(p, selDateStr));
     const dayAcad = STATE.academic.filter(a => a.date === selDateStr);
 
-    const hoursMap = {};
-    for (let i = 0; i < 24; i++) hoursMap[i] = [];
+    const HOUR_HEIGHT = 90;
+
+    function calcYPosition(seqMins) {
+        return (seqMins / 60) * HOUR_HEIGHT;
+    }
+
+    const allItems = [];
 
     dayPlans.forEach(p => {
-        const hour = p.time ? parseInt(p.time.split(':')[0], 10) : 9;
-        if (hoursMap[hour]) hoursMap[hour].push({ ...p, isAcad: false });
-    });
+        const startMins = parseTimeToMins(p.time || '09:00');
+        const durMins = parseDurationMins(p.duration, startMins, p.endTime);
+        const startSeqMins = getSeqMins(startMins);
+        const endSeqMins = startSeqMins + durMins;
 
-    dayAcad.forEach(a => {
-        const hour = a.time ? parseInt(a.time.split(':')[0], 10) : 10;
-        if (hoursMap[hour]) hoursMap[hour].push({ ...a, isAcad: true, title: a.subject, color: 'var(--accent3)' });
-    });
-
-    const periods = [
-        { name: '🌅 Morning', hours: [6, 7, 8, 9, 10, 11] },
-        { name: '☀️ Afternoon', hours: [12, 13, 14, 15, 16, 17] },
-        { name: '🌙 Evening', hours: [18, 19, 20, 21, 22, 23] },
-        { name: '🌌 Night', hours: [0, 1, 2, 3, 4, 5] }
-    ];
-
-    let html = '';
-
-    periods.forEach(period => {
-        html += `<div class="timeline-period-title">${period.name}</div>`;
-
-        period.hours.forEach(hour => {
-            const hourLabel = `${String(hour).padStart(2, '0')}:00`;
-            const items = hoursMap[hour];
-
-            html += `<div class="timeline-row">`;
-            html += `<div class="timeline-time-label">${hourLabel}</div>`;
-            html += `<div class="timeline-content-slot">`;
-
-            if (items.length === 0) {
-                html += `<div class="timeline-no-plans">No plans</div>`;
-            } else {
-                items.forEach(item => {
-                    if (item.isAcad) {
-                        html += `
-                            <div class="timeline-event-card" style="background:#f3e5f5; border-color:var(--accent3);" onclick="navTo('academic'); openAcademicModalById(${item.id})">
-                                <div class="timeline-event-header">
-                                    <div class="timeline-tags-group">
-                                        <span class="timeline-category-pill" style="background:#f3e8ff; color:#7e22ce;">🎓 Academic</span>
-                                        <span class="timeline-duration-pill">${escapeHtml(item.type || 'Class')}</span>
-                                    </div>
-                                    <div class="timeline-event-actions">
-                                        <span class="timeline-action-btn" onclick="event.stopPropagation(); delAcademic(event, ${item.id})" title="Delete">🗑</span>
-                                    </div>
-                                </div>
-                                <div class="timeline-event-title">${escapeHtml(item.subject)}</div>
-                                ${item.topic ? `<div class="timeline-event-meta"><div class="timeline-event-loc">📌 ${escapeHtml(item.topic)}</div></div>` : ''}
-                            </div>
-                        `;
-                    } else {
-                        const style = getEventCardStyle(item);
-                        const duration = item.endTime ? getDurationBetween(item.time, item.endTime) : (item.duration || '30m');
-                        const cat = item.category || 'Personal';
-                        const icon = getCategoryIcon(cat);
-                        const timeRangeStr = formatTimeRange(item.time, item.duration, item.endTime);
-
-                        html += `
-                            <div class="timeline-event-card ${item.completed ? 'done' : ''}" style="background:${item.completed ? 'rgba(16,185,129,0.08)' : style.bg}; border-color:${item.completed ? '#10b981' : style.border};" onclick="togglePlan(event, ${item.id})">
-                                <div class="timeline-event-header">
-                                    <div class="timeline-tags-group">
-                                        <span class="timeline-category-pill" style="background:${style.tagBg}; color:${style.tagText};">${icon} ${escapeHtml(cat)}</span>
-                                        <span class="timeline-duration-pill">${escapeHtml(duration)}</span>
-                                    </div>
-                                    <div class="timeline-event-actions">
-                                        <div class="timeline-check-btn ${item.completed ? 'checked' : ''}" onclick="togglePlan(event, ${item.id})" title="${item.completed ? 'Mark incomplete' : 'Mark complete'}">
-                                            ${item.completed ? '✔' : ''}
-                                        </div>
-                                        <span class="timeline-action-btn" onclick="event.stopPropagation(); openPlannerModal(${item.id})" title="Edit">✏️</span>
-                                        <span class="timeline-action-btn" onclick="deletePlan(event, ${item.id}, '${selDateStr}')" title="Delete">🗑</span>
-                                    </div>
-                                </div>
-                                <div class="timeline-event-title" style="color:${style.text};">${escapeHtml(item.title)}</div>
-                                <div class="timeline-event-meta">
-                                    <div class="timeline-event-time">🕒 ${timeRangeStr}</div>
-                                    ${item.desc ? `<div class="timeline-event-loc">📍 ${escapeHtml(item.desc)}</div>` : ''}
-                                </div>
-                            </div>
-                        `;
-                    }
-                });
-            }
-
-            html += `</div></div>`;
+        allItems.push({
+            ...p,
+            isAcad: false,
+            startMins,
+            durMins,
+            startSeqMins,
+            endSeqMins,
+            colIndex: 0,
+            totalCols: 1,
+            leftPct: 0,
+            widthPct: 100
         });
     });
 
-    timelineEl.innerHTML = html;
+    dayAcad.forEach(a => {
+        const startMins = parseTimeToMins(a.time || '10:00');
+        const durMins = 60;
+        const startSeqMins = getSeqMins(startMins);
+        const endSeqMins = startSeqMins + durMins;
+
+        allItems.push({
+            ...a,
+            isAcad: true,
+            title: a.subject,
+            color: 'var(--accent3)',
+            startMins,
+            durMins,
+            startSeqMins,
+            endSeqMins,
+            colIndex: 0,
+            totalCols: 1,
+            leftPct: 0,
+            widthPct: 100
+        });
+    });
+
+    if (allItems.length > 0) {
+        allItems.sort((a, b) => {
+            if (a.startSeqMins !== b.startSeqMins) return a.startSeqMins - b.startSeqMins;
+            return (b.endSeqMins - b.startSeqMins) - (a.endSeqMins - a.startSeqMins);
+        });
+
+        const clusters = [];
+        let currentCluster = [];
+        let clusterEnd = -1;
+
+        allItems.forEach(item => {
+            if (currentCluster.length === 0) {
+                currentCluster.push(item);
+                clusterEnd = item.endSeqMins;
+            } else if (item.startSeqMins < clusterEnd) {
+                currentCluster.push(item);
+                if (item.endSeqMins > clusterEnd) clusterEnd = item.endSeqMins;
+            } else {
+                clusters.push(currentCluster);
+                currentCluster = [item];
+                clusterEnd = item.endSeqMins;
+            }
+        });
+        if (currentCluster.length > 0) clusters.push(currentCluster);
+
+        clusters.forEach(cluster => {
+            const columns = [];
+
+            cluster.forEach(item => {
+                let assigned = false;
+                for (let i = 0; i < columns.length; i++) {
+                    if (columns[i] <= item.startSeqMins) {
+                        columns[i] = item.endSeqMins;
+                        item.colIndex = i;
+                        assigned = true;
+                        break;
+                    }
+                }
+                if (!assigned) {
+                    item.colIndex = columns.length;
+                    columns.push(item.endSeqMins);
+                }
+            });
+
+            const totalCols = columns.length;
+
+            cluster.forEach(item => {
+                const overlapping = cluster.filter(other =>
+                    other.startSeqMins < item.endSeqMins && other.endSeqMins > item.startSeqMins
+                );
+                const maxColInGroup = Math.max(...overlapping.map(o => o.colIndex)) + 1;
+                const groupCols = Math.max(totalCols, maxColInGroup);
+
+                item.totalCols = groupCols;
+                if (groupCols === 1) {
+                    item.leftPct = 0;
+                    item.widthPct = 100;
+                } else if (groupCols === 2) {
+                    item.widthPct = 68;
+                    item.leftPct = item.colIndex * 32;
+                } else {
+                    const colWidth = Math.max(100 / groupCols, 52);
+                    item.widthPct = colWidth;
+                    item.leftPct = item.colIndex * ((100 - colWidth) / (groupCols - 1));
+                }
+            });
+        });
+    }
+
+    const hoursSequence = [
+        '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
+        '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
+        '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
+        '00:00', '01:00', '02:00', '03:00', '04:00', '05:00'
+    ];
+
+    let gridHtml = '<div class="timeline-bg-grid">';
+    hoursSequence.forEach(hourLabel => {
+        gridHtml += `
+            <div class="timeline-hour-row">
+                <div class="timeline-time-label">${hourLabel}</div>
+                <div class="timeline-hour-line"></div>
+            </div>
+        `;
+    });
+    gridHtml += '</div>';
+
+    let overlayHtml = '<div class="timeline-events-overlay">';
+    allItems.forEach(item => {
+        const topY = calcYPosition(item.startSeqMins);
+        const rawEndY = calcYPosition(item.endSeqMins);
+        const calculatedHeight = rawEndY - topY;
+        const heightPx = Math.max(calculatedHeight, 22);
+
+        const leftStyle = `left: calc(${item.leftPct}% + 1px);`;
+        const widthStyle = `width: calc(${item.widthPct}% - 2px);`;
+        const posStyle = `top: ${topY}px; height: ${heightPx}px; ${leftStyle} ${widthStyle}`;
+
+        const isShort = item.durMins < 35;
+
+        if (item.isAcad) {
+            if (isShort) {
+                overlayHtml += `
+                    <div class="timeline-event-card compact-card" data-plan-id="${item.id}" style="${posStyle} background:#f3e5f5; border-color:var(--accent3);" onclick="if(!this.dataset.wasDragged || this.dataset.wasDragged === 'false') { navTo('academic'); openAcademicModalById(${item.id}); }">
+                        <div class="compact-title-group">
+                            <span class="timeline-cat-dot" style="background:var(--accent3)"></span>
+                            <span class="timeline-event-title">${escapeHtml(item.subject)}</span>
+                        </div>
+                        <div class="timeline-event-actions">
+                            <span class="timeline-action-btn" onclick="event.stopPropagation(); delAcademic(event, ${item.id})" title="Delete">🗑</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                overlayHtml += `
+                    <div class="timeline-event-card" data-plan-id="${item.id}" style="${posStyle} background:#f3e5f5; border-color:var(--accent3);" onclick="if(!this.dataset.wasDragged || this.dataset.wasDragged === 'false') { navTo('academic'); openAcademicModalById(${item.id}); }">
+                        <div class="timeline-card-header">
+                            <div class="timeline-title-group">
+                                <span class="timeline-cat-dot" style="background:var(--accent3)"></span>
+                                <span class="timeline-event-title">${escapeHtml(item.subject)}</span>
+                            </div>
+                            <div class="timeline-event-actions">
+                                <span class="timeline-action-btn" onclick="event.stopPropagation(); delAcademic(event, ${item.id})" title="Delete">🗑</span>
+                            </div>
+                        </div>
+                        <div class="timeline-card-meta">
+                            <span class="timeline-category-pill" style="background:#f3e8ff; color:#7e22ce;">🎓 Academic</span>
+                            <span class="timeline-duration-pill">${escapeHtml(item.type || 'Class')}</span>
+                        </div>
+                        ${item.topic ? `<div class="timeline-event-desc">📌 ${escapeHtml(item.topic)}</div>` : ''}
+                    </div>
+                `;
+            }
+        } else {
+            const style = getEventCardStyle(item);
+            const duration = item.endTime ? getDurationBetween(item.time, item.endTime) : (item.duration || '30m');
+            const cat = item.category || 'Personal';
+            const icon = getCategoryIcon(cat);
+            const timeRangeStr = formatTimeRange(item.time, item.duration, item.endTime);
+
+            if (isShort) {
+                overlayHtml += `
+                    <div class="timeline-event-card compact-card ${item.completed ? 'done' : ''}" data-plan-id="${item.id}" style="${posStyle} background:${item.completed ? 'rgba(16,185,129,0.08)' : style.bg}; border-color:${item.completed ? '#10b981' : style.border};" onclick="if(!this.dataset.wasDragged || this.dataset.wasDragged === 'false') togglePlan(event, ${item.id})">
+                        <div class="compact-title-group">
+                            <span class="timeline-cat-dot" style="background:${style.border}"></span>
+                            <span class="timeline-event-title" style="color:${style.text};">${escapeHtml(item.title)}</span>
+                        </div>
+                        <div class="timeline-event-actions">
+                            <div class="timeline-check-btn ${item.completed ? 'checked' : ''}" onclick="togglePlan(event, ${item.id})" title="${item.completed ? 'Mark incomplete' : 'Mark complete'}">
+                                ${item.completed ? '✔' : ''}
+                            </div>
+                            <span class="timeline-action-btn" onclick="event.stopPropagation(); openPlannerModal(${item.id})" title="Edit">✏️</span>
+                            <span class="timeline-action-btn" onclick="event.stopPropagation(); deletePlan(event, ${item.id}, '${selDateStr}')" title="Delete">🗑</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                overlayHtml += `
+                    <div class="timeline-event-card ${item.completed ? 'done' : ''}" data-plan-id="${item.id}" style="${posStyle} background:${item.completed ? 'rgba(16,185,129,0.08)' : style.bg}; border-color:${item.completed ? '#10b981' : style.border};" onclick="if(!this.dataset.wasDragged || this.dataset.wasDragged === 'false') togglePlan(event, ${item.id})">
+                        <div class="timeline-card-header">
+                            <div class="timeline-title-group">
+                                <span class="timeline-cat-dot" style="background:${style.border}"></span>
+                                <span class="timeline-event-title" style="color:${style.text};">${escapeHtml(item.title)}</span>
+                            </div>
+                            <div class="timeline-event-actions">
+                                <div class="timeline-check-btn ${item.completed ? 'checked' : ''}" onclick="togglePlan(event, ${item.id})" title="${item.completed ? 'Mark incomplete' : 'Mark complete'}">
+                                    ${item.completed ? '✔' : ''}
+                                </div>
+                                <span class="timeline-action-btn" onclick="event.stopPropagation(); openPlannerModal(${item.id})" title="Edit">✏️</span>
+                                <span class="timeline-action-btn" onclick="event.stopPropagation(); deletePlan(event, ${item.id}, '${selDateStr}')" title="Delete">🗑</span>
+                            </div>
+                        </div>
+                        <div class="timeline-card-meta">
+                            <span class="timeline-category-pill" style="background:${style.tagBg}; color:${style.tagText};">${icon} ${escapeHtml(cat)}</span>
+                            <span class="timeline-event-time">🕒 ${timeRangeStr}</span>
+                            ${duration ? `<span class="timeline-duration-pill">${escapeHtml(duration)}</span>` : ''}
+                        </div>
+                        ${item.desc ? `<div class="timeline-event-desc">📍 ${escapeHtml(item.desc)}</div>` : ''}
+                    </div>
+                `;
+            }
+        }
+    });
+    overlayHtml += '</div>';
+
+    timelineEl.innerHTML = `<div class="weekly-timeline-grid">${gridHtml}${overlayHtml}</div>`;
+    initTimelineDragAndDrop();
+}
+
+function minsToTimeStr(mins) {
+    const h = Math.floor(mins / 60) % 24;
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function initTimelineDragAndDrop() {
+    const gridEl = document.querySelector('.weekly-timeline-grid');
+    if (!gridEl || gridEl.dataset.dragInit) return;
+    gridEl.dataset.dragInit = 'true';
+
+    let activeCard = null;
+    let planId = null;
+    let startTouchY = 0;
+    let initialTopY = 0;
+    let initialSeqMins = 0;
+    let durMins = 30;
+    let isDragging = false;
+    let currentNewSeqMins = 0;
+
+    const HOUR_HEIGHT = 90;
+
+    function handleStart(e) {
+        const card = e.target.closest('.timeline-event-card');
+        if (!card) return;
+
+        if (e.target.closest('.timeline-check-btn') || e.target.closest('.timeline-action-btn')) {
+            return;
+        }
+
+        activeCard = card;
+        planId = Number(card.dataset.planId);
+        if (!planId) return;
+
+        card.dataset.wasDragged = 'false';
+
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        startTouchY = clientY;
+
+        initialTopY = parseFloat(card.style.top) || 0;
+
+        const plan = STATE.plans.find(p => p.id === planId);
+        if (!plan) return;
+
+        const startMins = parseTimeToMins(plan.time || '09:00');
+        durMins = parseDurationMins(plan.duration, startMins, plan.endTime);
+        initialSeqMins = getSeqMins(startMins);
+        currentNewSeqMins = initialSeqMins;
+        isDragging = false;
+    }
+
+    function handleMove(e) {
+        if (!activeCard) return;
+
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const deltaY = clientY - startTouchY;
+
+        if (!isDragging && Math.abs(deltaY) > 6) {
+            isDragging = true;
+            activeCard.dataset.wasDragged = 'true';
+            activeCard.classList.add('dragging');
+        }
+
+        if (!isDragging) return;
+
+        if (e.cancelable) e.preventDefault();
+
+        const deltaMins = (deltaY / HOUR_HEIGHT) * 60;
+        const snappedDeltaMins = Math.round(deltaMins / 15) * 15;
+
+        currentNewSeqMins = Math.max(0, Math.min(1440 - durMins, initialSeqMins + snappedDeltaMins));
+
+        const newTopY = (currentNewSeqMins / 60) * HOUR_HEIGHT;
+        activeCard.style.top = `${newTopY}px`;
+
+        const newStartMins = (currentNewSeqMins + 360) % 1440;
+        const newStartStr = minsToTimeStr(newStartMins);
+        const newEndMins = (newStartMins + durMins) % 1440;
+        const newEndStr = minsToTimeStr(newEndMins);
+        const rangeText = `${formatTime(newStartStr)} - ${formatTime(newEndStr)}`;
+
+        let badge = activeCard.querySelector('.drag-time-badge');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.className = 'drag-time-badge';
+            activeCard.appendChild(badge);
+        }
+        badge.textContent = `🕒 ${rangeText}`;
+    }
+
+    function handleEnd(e) {
+        if (!activeCard) return;
+
+        if (isDragging) {
+            activeCard.classList.remove('dragging');
+            const badge = activeCard.querySelector('.drag-time-badge');
+            if (badge) badge.remove();
+
+            const plan = STATE.plans.find(p => p.id === planId);
+            if (plan && currentNewSeqMins !== initialSeqMins) {
+                const newStartMins = (currentNewSeqMins + 360) % 1440;
+                const newStartStr = minsToTimeStr(newStartMins);
+                const newEndMins = (newStartMins + durMins) % 1440;
+                const newEndStr = minsToTimeStr(newEndMins);
+
+                plan.time = newStartStr;
+                if (plan.endTime) {
+                    plan.endTime = newEndStr;
+                }
+
+                save();
+                ofetch('update_plan.php', { id: plan.id, time: plan.time, endTime: plan.endTime });
+                toast(`Event moved to ${formatTime(newStartStr)} 🕒`);
+                renderWeeklyTimeline();
+                renderDashboard();
+            } else {
+                renderWeeklyTimeline();
+            }
+        }
+
+        activeCard = null;
+        isDragging = false;
+    }
+
+    gridEl.addEventListener('touchstart', handleStart, { passive: false });
+    gridEl.addEventListener('touchmove', handleMove, { passive: false });
+    gridEl.addEventListener('touchend', handleEnd);
+    gridEl.addEventListener('touchcancel', handleEnd);
+
+    gridEl.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
 }
 
 function renderMonthlyPlanner() {

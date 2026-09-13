@@ -982,77 +982,154 @@
             font-size: 12px;
         }
 
-        /* WEEKLY TIMELINE CONTAINER */
+        /* WEEKLY TIMELINE CONTINUOUS GRID */
         .weekly-timeline-container {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            position: relative;
+            width: 100%;
         }
 
-        .timeline-period-title {
-            font-family: 'Syne', sans-serif;
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--text);
+        .weekly-timeline-grid {
+            position: relative;
+            width: 100%;
+        }
+
+        .timeline-bg-grid {
             display: flex;
-            align-items: center;
-            gap: 8px;
-            margin: 14px 0 6px 0;
+            flex-direction: column;
+            width: 100%;
         }
 
-        .timeline-period-title::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border);
-        }
-
-        .timeline-row {
+        .timeline-hour-row {
             display: flex;
-            gap: 14px;
+            height: 90px;
             align-items: flex-start;
             position: relative;
-            min-height: 48px;
+            box-sizing: border-box;
         }
 
         .timeline-time-label {
-            width: 60px;
+            width: 54px;
             font-size: 12px;
             font-weight: 700;
             color: var(--text2);
-            padding-top: 10px;
+            padding-top: 4px;
             flex-shrink: 0;
         }
 
-        .timeline-content-slot {
+        .timeline-hour-line {
             flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            padding-bottom: 8px;
+            height: 100%;
+            border-bottom: 1px dashed var(--border);
+            box-sizing: border-box;
         }
 
-        .timeline-no-plans {
-            font-size: 13px;
-            color: var(--text3);
-            padding: 10px 0;
-            font-style: italic;
-            border-bottom: 1px dashed var(--border);
+        .timeline-events-overlay {
+            position: absolute;
+            top: 0;
+            left: 58px;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
         }
 
         /* EVENT CARD BLOCK IN TIMELINE */
         .timeline-event-card {
-            border-radius: 14px;
-            padding: 12px 14px;
+            position: absolute;
+            pointer-events: auto;
+            border-radius: 12px;
+            padding: 8px 10px;
             border: 1px solid var(--border);
-            position: relative;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            box-sizing: border-box;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow: hidden;
+            z-index: 2;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            cursor: grab;
         }
 
-        .timeline-event-card:hover {
+        .timeline-event-card.dragging {
+            opacity: 0.92 !important;
+            transform: scale(1.02) !important;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28) !important;
+            z-index: 1000 !important;
+            cursor: grabbing !important;
+            border-style: dashed !important;
+        }
+
+        .drag-time-badge {
+            position: absolute;
+            bottom: 4px;
+            right: 8px;
+            background: #000000;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 6px;
+            z-index: 1001;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+
+        .timeline-event-card.compact-card {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            padding: 2px 8px;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .compact-title-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .compact-card .timeline-event-title {
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .compact-event-time {
+            font-size: 10px;
+            color: var(--text2);
+            white-space: nowrap;
+            flex-shrink: 0;
+            opacity: 0.85;
+        }
+
+        .compact-card .timeline-check-btn {
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+        }
+
+        .compact-card .timeline-action-btn {
+            font-size: 11px;
+            padding: 1px;
+        }
+
+        .timeline-event-card:hover, .timeline-event-card:active {
             transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+            z-index: 10 !important;
         }
 
         .timeline-event-card.done {
@@ -1065,47 +1142,49 @@
             opacity: 0.7;
         }
 
-        .timeline-event-header {
+        .timeline-card-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 6px;
+            gap: 6px;
+            width: 100%;
         }
 
-        .timeline-tags-group {
+        .timeline-title-group {
             display: flex;
             align-items: center;
             gap: 6px;
+            flex: 1;
+            min-width: 0;
         }
 
-        .timeline-category-pill {
-            font-size: 11px;
-            font-weight: 700;
-            padding: 3px 8px;
-            border-radius: 6px;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
+        .timeline-cat-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
         }
 
-        .timeline-duration-pill {
-            font-size: 10px;
+        .timeline-event-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 13px;
             font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 6px;
-            background: rgba(0,0,0,0.06);
-            color: var(--text2);
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .timeline-event-actions {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            flex-shrink: 0;
         }
 
         .timeline-action-btn {
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             opacity: 0.7;
             transition: 0.2s;
             padding: 2px;
@@ -1117,15 +1196,15 @@
         }
 
         .timeline-check-btn {
-            width: 26px;
-            height: 26px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             border: 2px solid var(--border);
             background: var(--surface);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 900;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -1148,11 +1227,51 @@
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
         }
 
-        .timeline-event-title {
-            font-family: 'Syne', sans-serif;
-            font-size: 15px;
+        .timeline-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            font-size: 11px;
+            color: var(--text2);
+        }
+
+        .timeline-category-pill {
+            font-size: 10px;
             font-weight: 700;
-            color: var(--text);
+            padding: 2px 6px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .timeline-duration-pill {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: rgba(0,0,0,0.06);
+            color: var(--text2);
+            white-space: nowrap;
+        }
+
+        .timeline-event-time {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text2);
+            white-space: nowrap;
+        }
+
+        .timeline-event-desc {
+            font-size: 11px;
+            color: var(--text3);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
             margin-bottom: 4px;
         }
 
