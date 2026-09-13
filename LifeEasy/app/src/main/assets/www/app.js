@@ -477,7 +477,7 @@ window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('taskDue').value = todayStr;
 
         updateGreeting(); renderCalendar(); if (typeof renderAttCalendar === 'function') renderAttCalendar();
-        renderAll(); setupAlarmTicks(); rescheduleAllReminders();
+        renderAll(); setupAlarmTicks(); rescheduleAllReminders(); if (typeof initPullToRefresh === 'function') initPullToRefresh();
     }, 1400);
 });
 
@@ -6179,6 +6179,109 @@ async function triggerFullTwoWaySync() {
     } catch (e) {
         toast('Sync failed: ' + (e.message || 'Error occurred'));
     }
+}
+
+// ============================================================
+// PULL-TO-REFRESH & SWIPE DOWN CLOUD SYNC ENGINE
+// ============================================================
+function initPullToRefresh() {
+    let startY = 0;
+    let currentY = 0;
+    let isPulling = false;
+    let isRefreshing = false;
+    const PULL_THRESHOLD = 75;
+
+    const ptrIndicator = document.getElementById('ptrIndicator');
+    const ptrIcon = ptrIndicator ? ptrIndicator.querySelector('.ptr-icon') : null;
+    const ptrText = ptrIndicator ? ptrIndicator.querySelector('.ptr-text') : null;
+
+    document.addEventListener('touchstart', (e) => {
+        if (isRefreshing) return;
+
+        const activeScreen = document.querySelector('.screen.active');
+        if (!activeScreen) return;
+
+        if (activeScreen.scrollTop <= 0) {
+            startY = e.touches[0].clientY;
+            isPulling = true;
+        } else {
+            isPulling = false;
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!isPulling || isRefreshing) return;
+
+        const activeScreen = document.querySelector('.screen.active');
+        if (!activeScreen || activeScreen.scrollTop > 0) {
+            isPulling = false;
+            if (ptrIndicator) {
+                ptrIndicator.style.height = '0px';
+                ptrIndicator.classList.remove('active');
+            }
+            return;
+        }
+
+        currentY = e.touches[0].clientY;
+        const diffY = currentY - startY;
+
+        if (diffY > 0) {
+            const pullHeight = Math.min(Math.pow(diffY, 0.82), 110);
+
+            if (ptrIndicator) {
+                ptrIndicator.classList.add('active');
+                ptrIndicator.style.height = `${pullHeight}px`;
+
+                if (pullHeight >= PULL_THRESHOLD) {
+                    if (ptrIcon) ptrIcon.style.transform = 'rotate(180deg)';
+                    if (ptrText) ptrText.textContent = 'Release to sync cloud ☁️';
+                } else {
+                    if (ptrIcon) ptrIcon.style.transform = `rotate(${(pullHeight / PULL_THRESHOLD) * 180}deg)`;
+                    if (ptrText) ptrText.textContent = 'Pull down to sync...';
+                }
+            }
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', async (e) => {
+        if (!isPulling || isRefreshing) return;
+        isPulling = false;
+
+        const diffY = currentY - startY;
+        const pullHeight = Math.min(Math.pow(Math.max(0, diffY), 0.82), 110);
+
+        if (pullHeight >= PULL_THRESHOLD) {
+            isRefreshing = true;
+            if (ptrIndicator) {
+                ptrIndicator.style.height = '56px';
+                ptrIndicator.classList.add('refreshing');
+                if (ptrIcon) ptrIcon.style.transform = 'rotate(0deg)';
+                if (ptrText) ptrText.textContent = 'Syncing cloud data... ☁️';
+            }
+
+            try {
+                await triggerFullTwoWaySync();
+            } catch (err) {
+                console.warn('Pull-to-refresh sync error:', err);
+            } finally {
+                setTimeout(() => {
+                    if (ptrIndicator) {
+                        ptrIndicator.style.height = '0px';
+                        ptrIndicator.classList.remove('active', 'refreshing');
+                    }
+                    isRefreshing = false;
+                }, 400);
+            }
+        } else {
+            if (ptrIndicator) {
+                ptrIndicator.style.height = '0px';
+                ptrIndicator.classList.remove('active');
+            }
+        }
+
+        startY = 0;
+        currentY = 0;
+    });
 }
 
 // ============================================================

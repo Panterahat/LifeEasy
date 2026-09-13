@@ -24,7 +24,7 @@
     <link
             href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap"
             rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1.0.3">
+    <link rel="stylesheet" href="style.css?v=1.0.4">
     <script>
         // Set theme immediately to prevent flashing
         const savedTheme = localStorage.getItem('theme');
@@ -277,6 +277,55 @@
 
         .fab:active {
             transform: scale(0.9);
+        }
+
+        /* PULL-TO-REFRESH STYLES */
+        .ptr-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 0px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            overflow: hidden;
+            transition: height 0.2s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.2s ease;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+        .ptr-indicator.active {
+            opacity: 1;
+        }
+
+        .ptr-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Syne', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .ptr-icon {
+            font-size: 16px;
+            transition: transform 0.2s ease;
+            display: inline-block;
+        }
+
+        .ptr-indicator.refreshing .ptr-icon {
+            animation: ptrSpin 0.8s linear infinite;
+        }
+
+        @keyframes ptrSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         /* CARDS & PILLS */
@@ -2518,6 +2567,14 @@
 
 <!-- APP -->
 <div id="app" style="display:none">
+    <!-- PULL TO REFRESH INDICATOR -->
+    <div id="ptrIndicator" class="ptr-indicator">
+        <div class="ptr-content">
+            <span class="ptr-icon">🔄</span>
+            <span class="ptr-text">Pull down to sync...</span>
+        </div>
+    </div>
+
     <!-- TOP BAR -->
     <div class="topbar">
         <div style="display:flex; align-items:center; gap:10px;">
@@ -3873,7 +3930,7 @@
     </div>
 </div>
 
-<script src="app.js?v=1.0.3"></script>
+<script src="app.js?v=1.0.4"></script>
 <script>
     // This runs after app.js is fully loaded
     initTheme();
