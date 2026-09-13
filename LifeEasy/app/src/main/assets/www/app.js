@@ -1697,13 +1697,64 @@ function nextMonth() { calCurrentDate.setMonth(calCurrentDate.getMonth() + 1); r
 
 function isEventOnDate(plan, checkDateStr) {
     if (!plan.recurrence || plan.recurrence === 'none') return plan.date === checkDateStr;
-    const pDate = new Date(plan.date + 'T00:00:00'); const cDate = new Date(checkDateStr + 'T00:00:00');
+
+    if (plan.excludedDates && Array.isArray(plan.excludedDates) && plan.excludedDates.includes(checkDateStr)) {
+        return false;
+    }
+
+    const pDate = new Date(plan.date + 'T00:00:00');
+    const cDate = new Date(checkDateStr + 'T00:00:00');
     if (cDate < pDate) return false;
+
+    if (plan.recurrence === 'daily') return true;
+    if (plan.recurrence === 'custom') {
+        const dayIndex = cDate.getDay();
+        return Array.isArray(plan.repeatDays) ? plan.repeatDays.includes(dayIndex) : true;
+    }
     if (plan.recurrence === 'weekly') return pDate.getDay() === cDate.getDay();
     if (plan.recurrence === 'monthly') return pDate.getDate() === cDate.getDate();
     if (plan.recurrence === 'yearly') return pDate.getDate() === cDate.getDate() && pDate.getMonth() === cDate.getMonth();
     return false;
 }
+
+function toggleCustomDaysPicker() {
+    const recSelect = document.getElementById('planRecurrence');
+    const customDaysRow = document.getElementById('planCustomDaysRow');
+    if (!recSelect || !customDaysRow) return;
+    customDaysRow.style.display = (recSelect.value === 'custom') ? 'block' : 'none';
+}
+
+function getSelectedCustomDays() {
+    const container = document.getElementById('planCustomDaysContainer');
+    if (!container) return [1, 2, 3, 4, 5];
+    const chips = container.querySelectorAll('.day-chip.active');
+    const days = [];
+    chips.forEach(c => {
+        const val = parseInt(c.dataset.day, 10);
+        if (!isNaN(val)) days.push(val);
+    });
+    return days;
+}
+
+function setSelectedCustomDays(daysArray = [1, 2, 3, 4, 5]) {
+    const container = document.getElementById('planCustomDaysContainer');
+    if (!container) return;
+    const chips = container.querySelectorAll('.day-chip');
+    chips.forEach(c => {
+        const val = parseInt(c.dataset.day, 10);
+        if (daysArray && daysArray.includes(val)) {
+            c.classList.add('active');
+        } else {
+            c.classList.remove('active');
+        }
+    });
+}
+
+function toggleDayChip(btn) {
+    if (!btn) return;
+    btn.classList.toggle('active');
+}
+
 function openPlannerModal(id = null) {
     const titleEl = document.querySelector('#plannerModal .modal-title');
     const titleInput = document.getElementById('planTitle');
@@ -1726,6 +1777,10 @@ function openPlannerModal(id = null) {
             if (endTimeInput) endTimeInput.value = p.endTime || computeEndTimeFromDuration(p.time || '09:00', p.duration || '30m');
             selCat = p.category || 'Personal';
             if (recSelect) recSelect.value = p.recurrence || 'none';
+            toggleCustomDaysPicker();
+            if (p.recurrence === 'custom') {
+                setSelectedCustomDays(p.repeatDays || [0, 1, 2, 3, 4, 5, 6]);
+            }
             if (remOptEl) remOptEl.value = p.reminder || 'none';
             document.getElementById('plannerModal').dataset.editId = p.id;
         }
@@ -1738,6 +1793,8 @@ function openPlannerModal(id = null) {
         if (endTimeInput) endTimeInput.value = '09:30';
         selCat = 'Personal';
         if (recSelect) recSelect.value = 'none';
+        toggleCustomDaysPicker();
+        setSelectedCustomDays([1, 2, 3, 4, 5]);
         if (remOptEl) remOptEl.value = 'none';
         delete document.getElementById('plannerModal').dataset.editId;
     }
@@ -1754,6 +1811,8 @@ function savePlan() {
     const startTime = document.getElementById('planTime').value || '09:00';
     const endTime = document.getElementById('planEndTime')?.value || '09:30';
     const calcDuration = getDurationBetween(startTime, endTime);
+    const recVal = document.getElementById('planRecurrence').value;
+    const repeatDays = (recVal === 'custom') ? getSelectedCustomDays() : null;
 
     const planData = {
         title,
@@ -1764,7 +1823,8 @@ function savePlan() {
         color: selectedColors.plan,
         category: document.getElementById('planCategory')?.value || 'Personal',
         duration: calcDuration,
-        recurrence: document.getElementById('planRecurrence').value,
+        recurrence: recVal,
+        repeatDays: repeatDays,
         reminder: document.getElementById('planReminderOpt')?.value || 'none'
     };
 
@@ -1777,6 +1837,7 @@ function savePlan() {
         const idx = STATE.plans.findIndex(x => x.id === planData.id);
         if (idx >= 0) {
             planData.completed = STATE.plans[idx].completed;
+            planData.excludedDates = STATE.plans[idx].excludedDates || [];
             STATE.plans[idx] = planData;
         }
         scheduleItemNotification(planData.id, "Event Reminder 📅", planData.title, triggerAtMillis);
@@ -1786,6 +1847,7 @@ function savePlan() {
         const tempId = Date.now();
         planData.id = tempId;
         planData.completed = false;
+        planData.excludedDates = [];
         STATE.plans.push(planData);
         scheduleItemNotification(tempId, "Event Reminder 📅", planData.title, triggerAtMillis);
         renderCalendar(); renderPlanner(); renderDashboard(); closeModal('plannerModal'); save(); toast('Event added 📅');
@@ -1797,7 +1859,56 @@ function savePlan() {
     }
 }
 function togglePlan(e, id) { if (e) e.stopPropagation(); const p = STATE.plans.find(x => x.id === id); if (!p) return; p.completed = !p.completed; renderPlanner(); renderDashboard(); save(); ofetch('update_plan.php', { id, completed: p.completed }); }
-function deletePlan(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this event series?')) return; STATE.plans = STATE.plans.filter(x => x.id !== id); renderCalendar(); renderPlanner(); renderDashboard(); save(); toast('Deleted 🗑️'); ofetch('delete_plan.php', { id }); }
+
+function deletePlan(e, id, targetDate = null) {
+    if (e) e.stopPropagation();
+    const plan = STATE.plans.find(x => x.id === id);
+    if (!plan) return;
+
+    const dateToDelete = targetDate || STATE.selectedDate || plan.date;
+
+    if (!plan.recurrence || plan.recurrence === 'none') {
+        if (!confirm('Are you sure you want to delete this event?')) return;
+        STATE.plans = STATE.plans.filter(x => x.id !== id);
+        renderCalendar(); renderPlanner(); renderDashboard(); save(); toast('Event deleted 🗑️');
+        ofetch('delete_plan.php', { id });
+        return;
+    }
+
+    const modal = document.getElementById('deleteRecurrenceModal');
+    const btnThis = document.getElementById('btnDelThisInstance');
+    const btnAll = document.getElementById('btnDelAllInstances');
+
+    if (!modal || !btnThis || !btnAll) {
+        if (confirm('Delete all instances of this repeating event?')) {
+            STATE.plans = STATE.plans.filter(x => x.id !== id);
+            renderCalendar(); renderPlanner(); renderDashboard(); save(); toast('All instances deleted 🗑️');
+            ofetch('delete_plan.php', { id });
+        }
+        return;
+    }
+
+    btnThis.onclick = () => {
+        closeModal('deleteRecurrenceModal');
+        plan.excludedDates = plan.excludedDates || [];
+        if (!plan.excludedDates.includes(dateToDelete)) {
+            plan.excludedDates.push(dateToDelete);
+        }
+        renderCalendar(); renderPlanner(); renderDashboard(); save();
+        toast('This instance deleted 🗑️');
+        ofetch('update_plan.php', { id: plan.id, excludedDates: plan.excludedDates });
+    };
+
+    btnAll.onclick = () => {
+        closeModal('deleteRecurrenceModal');
+        STATE.plans = STATE.plans.filter(x => x.id !== id);
+        renderCalendar(); renderPlanner(); renderDashboard(); save();
+        toast('All instances deleted 🗑️');
+        ofetch('delete_plan.php', { id });
+    };
+
+    modal.classList.add('open');
+}
 
 // ============================================================
 // PLANNER VIEW SWITCHER & WEEKLY PLANNER
@@ -2310,7 +2421,7 @@ function renderWeeklyTimeline() {
                                             ${item.completed ? '✓' : ''}
                                         </div>
                                         <span class="timeline-action-btn" onclick="event.stopPropagation(); openPlannerModal(${item.id})" title="Edit">✏️</span>
-                                        <span class="timeline-action-btn" onclick="deletePlan(event, ${item.id})" title="Delete">🗑</span>
+                                        <span class="timeline-action-btn" onclick="deletePlan(event, ${item.id}, '${selDateStr}')" title="Delete">🗑</span>
                                     </div>
                                 </div>
                                 <div class="timeline-event-title" style="color:${style.text};">${escapeHtml(item.title)}</div>
@@ -2339,7 +2450,7 @@ function renderMonthlyPlanner() {
     let html = `<div class="section-header"><div class="section-title">Events on ${selDisplay}</div></div>`;
     const selPlans = STATE.plans.filter(p => isEventOnDate(p, STATE.selectedDate)).sort((a, b) => a.time > b.time ? 1 : -1);
     if (selPlans.length === 0) { html += `<div style="text-align:center; color:var(--text3); font-size:13px; margin-bottom:24px;">No events scheduled for this day.</div>`; } else {
-        html += selPlans.map(p => `<div class="time-slot"><div class="time-label">${formatTime(p.time)}</div><div class="time-line" style="background:${p.color}"></div><div class="time-events" style="flex:1"><div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${p.color}" onclick="togglePlan(event, ${p.id})"><div class="event-title">${p.title}</div>${p.desc ? `<div class="event-desc">${p.desc}</div>` : ''}<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:10px;color:var(--text3)">${p.completed ? '✓ Done' : (p.recurrence && p.recurrence !== 'none' ? '🔁 ' + p.recurrence : '⏰ ' + p.time)}</span><div style="display:flex;gap:6px;align-items:center;"><span onclick="event.stopPropagation(); openPlannerModal(${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;" title="Edit Event">✏️</span><span onclick="deletePlan(event, ${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px" title="Delete Event">🗑</span></div></div></div></div></div>`).join('');
+        html += selPlans.map(p => `<div class="time-slot"><div class="time-label">${formatTime(p.time)}</div><div class="time-line" style="background:${p.color}"></div><div class="time-events" style="flex:1"><div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${p.color}" onclick="togglePlan(event, ${p.id})"><div class="event-title">${p.title}</div>${p.desc ? `<div class="event-desc">${p.desc}</div>` : ''}<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:10px;color:var(--text3)">${p.completed ? '✓ Done' : (p.recurrence && p.recurrence !== 'none' ? '🔁 ' + p.recurrence : '⏰ ' + p.time)}</span><div style="display:flex;gap:6px;align-items:center;"><span onclick="event.stopPropagation(); openPlannerModal(${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;" title="Edit Event">✏️</span><span onclick="deletePlan(event, ${p.id}, '${STATE.selectedDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px" title="Delete Event">🗑</span></div></div></div></div></div>`).join('');
     }
     html += `<div class="section-header" style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;"><div class="section-title">Upcoming (Next 2 Months)</div></div>`;
     const todayObj = new Date(); todayObj.setHours(0, 0, 0, 0); const twoMonths = new Date(todayObj); twoMonths.setDate(todayObj.getDate() + 60);
@@ -2355,7 +2466,7 @@ function renderMonthlyPlanner() {
         allUpcoming.forEach(e => {
             if (e.virtualDate !== lastDate) { const disp = new Date(e.virtualDate + 'T00:00:00').toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }); html += `<div style="font-size:11px; font-weight:700; color:var(--accent); margin:16px 0 8px 0; text-transform:uppercase; letter-spacing:1px;">${disp}</div>`; lastDate = e.virtualDate; }
             if (e.isAcad) { html += `<div class="event-block" style="border-color:var(--accent3); margin-bottom:8px; cursor:pointer;" onclick="navTo('academic'); openAcademicModalById(${e.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div style="font-size:10px; color:var(--accent3); font-weight:600; text-transform:uppercase;">🎓 ${e.type}</div><span onclick="delAcademic(event, ${e.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div><div class="event-title">${e.subject}</div>${e.topic ? `<div class="event-desc">${e.topic}</div>` : ''}</div>`; }
-            else { html += `<div class="event-block ${e.completed ? 'done' : ''}" style="border-color:${e.color}; margin-bottom:8px;" onclick="togglePlan(event, ${e.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="event-title">${e.title}</div><div style="display:flex; gap:8px; align-items:center;"><div style="font-size:10px; color:var(--text3)">${e.recurrence && e.recurrence !== 'none' ? '🔁' : '⏰'} ${formatTime(e.time)}</div><span onclick="deletePlan(event, ${e.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div></div></div>`; }
+            else { html += `<div class="event-block ${e.completed ? 'done' : ''}" style="border-color:${e.color}; margin-bottom:8px;" onclick="togglePlan(event, ${e.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="event-title">${e.title}</div><div style="display:flex; gap:8px; align-items:center;"><div style="font-size:10px; color:var(--text3)">${e.recurrence && e.recurrence !== 'none' ? '🔁' : '⏰'} ${formatTime(e.time)}</div><span onclick="deletePlan(event, ${e.id}, '${e.virtualDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div></div></div>`; }
         });
     }
     el.innerHTML = html;

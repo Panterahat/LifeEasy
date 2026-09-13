@@ -476,6 +476,25 @@
             background: rgba(239, 68, 68, 0.15);
         }
 
+        /* DAY CHIPS FOR CUSTOM REPEAT */
+        .day-chip {
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text2);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .day-chip.active {
+            background: var(--accent);
+            color: #ffffff;
+            border-color: var(--accent);
+        }
+
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -3047,12 +3066,27 @@
 
         <div class="form-row">
             <label class="label">Repeat</label>
-            <select class="input" id="planRecurrence">
+            <select class="input" id="planRecurrence" onchange="toggleCustomDaysPicker()">
                 <option value="none">Does not repeat</option>
+                <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
                 <option value="yearly">Yearly</option>
+                <option value="custom">Custom Days...</option>
             </select>
+        </div>
+
+        <div class="form-row" id="planCustomDaysRow" style="display:none;">
+            <label class="label">Repeat on Days</label>
+            <div id="planCustomDaysContainer" style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button type="button" class="day-chip active" data-day="0" onclick="toggleDayChip(this)">Sun</button>
+                <button type="button" class="day-chip active" data-day="1" onclick="toggleDayChip(this)">Mon</button>
+                <button type="button" class="day-chip active" data-day="2" onclick="toggleDayChip(this)">Tue</button>
+                <button type="button" class="day-chip active" data-day="3" onclick="toggleDayChip(this)">Wed</button>
+                <button type="button" class="day-chip active" data-day="4" onclick="toggleDayChip(this)">Thu</button>
+                <button type="button" class="day-chip" data-day="5" onclick="toggleDayChip(this)">Fri</button>
+                <button type="button" class="day-chip" data-day="6" onclick="toggleDayChip(this)">Sat</button>
+            </div>
         </div>
 
         <div class="form-row">
@@ -3605,6 +3639,28 @@
         <div class="modal-footer" style="margin-top:16px;">
             <button class="btn-secondary" onclick="closeModal('changePasswordModal')">Cancel</button>
             <button class="btn-primary" onclick="changeUserPassword()">Update Password 🔒</button>
+        </div>
+    </div>
+</div>
+
+<!-- RECURRENCE DELETE MODAL -->
+<div class="modal-overlay" id="deleteRecurrenceModal">
+    <div class="modal" style="max-width: 360px;">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Delete Repeating Event</div>
+        <div style="font-size: 13px; color: var(--text2); margin-bottom: 20px;">
+            This is a repeating event. Which instances would you like to delete?
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="btn-secondary" id="btnDelThisInstance" style="width: 100%; justify-content: center; padding: 12px; font-weight: 600;">
+                🗓️ Delete Only This Instance
+            </button>
+            <button class="btn-primary" id="btnDelAllInstances" style="width: 100%; justify-content: center; padding: 12px; font-weight: 600; background: #ef4444; border-color: #ef4444;">
+                🗑️ Delete All Repeating Instances
+            </button>
+            <button class="btn-secondary" onclick="closeModal('deleteRecurrenceModal')" style="width: 100%; justify-content: center; padding: 10px;">
+                Cancel
+            </button>
         </div>
     </div>
 </div>
