@@ -57,7 +57,7 @@ const NAV_MODULES = {
     settings: { icon: '⚙️', label: 'Settings' }
 };
 
-const COLORS = ['#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64'];
+const COLORS = ['#7c6ef5', '#3b82f6', '#06b6d4', '#10b981', '#84cc16', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#a855f7'];
 let selectedColors = { plan: '#7c6ef5', counter: '#7c6ef5', roadmap: '#7c6ef5' };
 let currentScreen = 'dash';
 let toastTimeout;
@@ -1766,6 +1766,7 @@ function openPlannerModal(id = null) {
     const remOptEl = document.getElementById('planReminderOpt');
 
     let selCat = 'Personal';
+    let selColor = COLORS[0];
     if (id) {
         const p = STATE.plans.find(x => x.id === id);
         if (p) {
@@ -1776,6 +1777,7 @@ function openPlannerModal(id = null) {
             if (timeInput) timeInput.value = p.time || '09:00';
             if (endTimeInput) endTimeInput.value = p.endTime || computeEndTimeFromDuration(p.time || '09:00', p.duration || '30m');
             selCat = p.category || 'Personal';
+            selColor = p.color || COLORS[0];
             if (recSelect) recSelect.value = p.recurrence || 'none';
             toggleCustomDaysPicker();
             if (p.recurrence === 'custom') {
@@ -1792,6 +1794,7 @@ function openPlannerModal(id = null) {
         if (timeInput) timeInput.value = '09:00';
         if (endTimeInput) endTimeInput.value = '09:30';
         selCat = 'Personal';
+        selColor = COLORS[0];
         if (recSelect) recSelect.value = 'none';
         toggleCustomDaysPicker();
         setSelectedCustomDays([1, 2, 3, 4, 5]);
@@ -1800,6 +1803,7 @@ function openPlannerModal(id = null) {
     }
 
     renderCategoryOptions(selCat);
+    renderColorPicker('planColorPicker', 'plan', selColor);
     document.getElementById('plannerModal').classList.add('open');
 }
 
@@ -1820,7 +1824,7 @@ function savePlan() {
         date: document.getElementById('planDate').value,
         time: startTime,
         endTime: endTime,
-        color: selectedColors.plan,
+        color: selectedColors.plan || COLORS[0],
         category: document.getElementById('planCategory')?.value || 'Personal',
         duration: calcDuration,
         recurrence: recVal,
@@ -2255,21 +2259,14 @@ function deleteCategory(catName) {
 }
 
 function getEventCardStyle(plan) {
-    const cat = plan.category || 'Personal';
-    const categoryColors = {
-        'Personal': { bg: '#fff4e5', border: '#f97316', text: '#ea580c', tagBg: '#ffedd5', tagText: '#c2410c' },
-        'Wellness': { bg: '#fce4ec', border: '#ec4899', text: '#db2777', tagBg: '#fbcfe8', tagText: '#be185d' },
-        'Calendar': { bg: '#e0f7fa', border: '#06b6d4', text: '#0891b2', tagBg: '#cffaff', tagText: '#0e7490' },
-        'Work':     { bg: '#eef2ff', border: '#6366f1', text: '#4f46e5', tagBg: '#e0e7ff', tagText: '#3730a3' },
-        'Academic': { bg: '#f3e5f5', border: '#a855f7', text: '#9333ea', tagBg: '#f3e8ff', tagText: '#7e22ce' },
-        'Meal':     { bg: '#f0fdf4', border: '#22c55e', text: '#16a34a', tagBg: '#dcfce7', tagText: '#15803d' },
-        'Reminder': { bg: '#fffbeb', border: '#eab308', text: '#ca8a04', tagBg: '#fef3c7', tagText: '#a16207' }
-    };
-
-    if (categoryColors[cat]) return categoryColors[cat];
-
     const c = plan.color || '#7c6ef5';
-    return { bg: 'var(--surface2)', border: c, text: 'var(--text)', tagBg: 'var(--border)', tagText: 'var(--text)' };
+    return {
+        bg: `${c}1e`,
+        border: c,
+        text: 'var(--text)',
+        tagBg: `${c}33`,
+        tagText: c
+    };
 }
 
 function getDurationBetween(startTimeStr, endTimeStr) {
@@ -2450,7 +2447,10 @@ function renderMonthlyPlanner() {
     let html = `<div class="section-header"><div class="section-title">Events on ${selDisplay}</div></div>`;
     const selPlans = STATE.plans.filter(p => isEventOnDate(p, STATE.selectedDate)).sort((a, b) => a.time > b.time ? 1 : -1);
     if (selPlans.length === 0) { html += `<div style="text-align:center; color:var(--text3); font-size:13px; margin-bottom:24px;">No events scheduled for this day.</div>`; } else {
-        html += selPlans.map(p => `<div class="time-slot"><div class="time-label">${formatTime(p.time)}</div><div class="time-line" style="background:${p.color}"></div><div class="time-events" style="flex:1"><div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${p.color}" onclick="togglePlan(event, ${p.id})"><div class="event-title">${p.title}</div>${p.desc ? `<div class="event-desc">${p.desc}</div>` : ''}<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:10px;color:var(--text3)">${p.completed ? '✓ Done' : (p.recurrence && p.recurrence !== 'none' ? '🔁 ' + p.recurrence : '⏰ ' + p.time)}</span><div style="display:flex;gap:6px;align-items:center;"><span onclick="event.stopPropagation(); openPlannerModal(${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;" title="Edit Event">✏️</span><span onclick="deletePlan(event, ${p.id}, '${STATE.selectedDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px" title="Delete Event">🗑</span></div></div></div></div></div>`).join('');
+        html += selPlans.map(p => {
+            const c = p.color || '#7c6ef5';
+            return `<div class="time-slot"><div class="time-label">${formatTime(p.time)}</div><div class="time-line" style="background:${c}"></div><div class="time-events" style="flex:1"><div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${c}; background:${c}1e;" onclick="togglePlan(event, ${p.id})"><div class="event-title">${escapeHtml(p.title)}</div>${p.desc ? `<div class="event-desc">${escapeHtml(p.desc)}</div>` : ''}<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:10px;color:var(--text3)">${p.completed ? '✓ Done' : (p.recurrence && p.recurrence !== 'none' ? '🔁 ' + p.recurrence : '⏰ ' + p.time)}</span><div style="display:flex;gap:6px;align-items:center;"><span onclick="event.stopPropagation(); openPlannerModal(${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;" title="Edit Event">✏️</span><span onclick="deletePlan(event, ${p.id}, '${STATE.selectedDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px" title="Delete Event">🗑</span></div></div></div></div></div>`;
+        }).join('');
     }
     html += `<div class="section-header" style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;"><div class="section-title">Upcoming (Next 2 Months)</div></div>`;
     const todayObj = new Date(); todayObj.setHours(0, 0, 0, 0); const twoMonths = new Date(todayObj); twoMonths.setDate(todayObj.getDate() + 60);
@@ -2466,7 +2466,7 @@ function renderMonthlyPlanner() {
         allUpcoming.forEach(e => {
             if (e.virtualDate !== lastDate) { const disp = new Date(e.virtualDate + 'T00:00:00').toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }); html += `<div style="font-size:11px; font-weight:700; color:var(--accent); margin:16px 0 8px 0; text-transform:uppercase; letter-spacing:1px;">${disp}</div>`; lastDate = e.virtualDate; }
             if (e.isAcad) { html += `<div class="event-block" style="border-color:var(--accent3); margin-bottom:8px; cursor:pointer;" onclick="navTo('academic'); openAcademicModalById(${e.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div style="font-size:10px; color:var(--accent3); font-weight:600; text-transform:uppercase;">🎓 ${e.type}</div><span onclick="delAcademic(event, ${e.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div><div class="event-title">${e.subject}</div>${e.topic ? `<div class="event-desc">${e.topic}</div>` : ''}</div>`; }
-            else { html += `<div class="event-block ${e.completed ? 'done' : ''}" style="border-color:${e.color}; margin-bottom:8px;" onclick="togglePlan(event, ${e.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="event-title">${e.title}</div><div style="display:flex; gap:8px; align-items:center;"><div style="font-size:10px; color:var(--text3)">${e.recurrence && e.recurrence !== 'none' ? '🔁' : '⏰'} ${formatTime(e.time)}</div><span onclick="deletePlan(event, ${e.id}, '${e.virtualDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div></div></div>`; }
+            else { const c = e.color || '#7c6ef5'; html += `<div class="event-block ${e.completed ? 'done' : ''}" style="border-color:${c}; background:${c}1e; margin-bottom:8px;" onclick="togglePlan(event, ${e.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="event-title">${escapeHtml(e.title)}</div><div style="display:flex; gap:8px; align-items:center;"><div style="font-size:10px; color:var(--text3)">${e.recurrence && e.recurrence !== 'none' ? '🔁' : '⏰'} ${formatTime(e.time)}</div><span onclick="deletePlan(event, ${e.id}, '${e.virtualDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div></div></div>`; }
         });
     }
     el.innerHTML = html;
@@ -4397,8 +4397,40 @@ function importData(event) { const file = event.target.files[0]; if (!file) retu
 // COLOR PICKERS & NOTIFICATIONS
 // ============================================================
 document.querySelectorAll('.modal-overlay').forEach(m => { m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); }); });
-function initColorPickers() { const pickers = { plan: 'planColorPicker', counter: 'counterColorPicker', roadmap: 'roadmapColorPicker' }; Object.entries(pickers).forEach(([key, id]) => { const el = document.getElementById(id); if (!el) return; el.innerHTML = COLORS.map(c => `<div class="color-opt ${c === selectedColors[key] ? 'selected' : ''}" style="background:${c}" onclick="selectColor('${key}','${c}',this)"></div>`).join(''); }); }
-function selectColor(key, color, el) { selectedColors[key] = color; el.parentElement.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected')); el.classList.add('selected'); }
+function renderColorPicker(pickerId, key, currentColor) {
+    const el = document.getElementById(pickerId);
+    if (!el) return;
+    const activeColor = currentColor || COLORS[0];
+    selectedColors[key] = activeColor;
+
+    let html = COLORS.map(c => {
+        const isSel = c.toLowerCase() === activeColor.toLowerCase();
+        return `<div class="color-opt ${isSel ? 'selected' : ''}" style="background:${c}" onclick="selectColor('${key}','${c}',this)"></div>`;
+    }).join('');
+
+    const isCustom = !COLORS.some(c => c.toLowerCase() === activeColor.toLowerCase());
+    html += `
+        <label class="color-opt ${isCustom ? 'selected' : ''}" style="background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); display:inline-flex; align-items:center; justify-content:center; position:relative; overflow:hidden;" title="Custom Color">
+            <input type="color" id="${key}CustomColorInput" value="${activeColor.startsWith('#') ? activeColor : '#7c6ef5'}" style="position:absolute; opacity:0; inset:0; width:100%; height:100%; cursor:pointer;" onchange="selectColor('${key}', this.value, this.parentElement)">
+        </label>
+    `;
+
+    el.innerHTML = html;
+}
+
+function initColorPickers() {
+    renderColorPicker('planColorPicker', 'plan', selectedColors.plan);
+    renderColorPicker('counterColorPicker', 'counter', selectedColors.counter);
+    renderColorPicker('roadmapColorPicker', 'roadmap', selectedColors.roadmap);
+}
+
+function selectColor(key, color, el) {
+    selectedColors[key] = color;
+    if (el && el.parentElement) {
+        el.parentElement.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+}
 const reminderTimers = {};
 function scheduleReminderToast(task) { if (reminderTimers[task.id]) clearTimeout(reminderTimers[task.id]); if (!task.reminder) return; const diff = new Date(task.reminder) - new Date(); if (diff > 0 && diff < 86400000) { reminderTimers[task.id] = setTimeout(() => sendSystemNotification("Task Reminder", task.title), diff); } }
 function rescheduleAllReminders() {

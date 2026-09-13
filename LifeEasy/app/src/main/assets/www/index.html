@@ -1958,21 +1958,29 @@
 
         .color-picker {
             display: flex;
-            gap: 8px;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
         }
 
         .color-opt {
-            width: 28px;
-            height: 28px;
-            border-radius: 8px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
             cursor: pointer;
             border: 2px solid transparent;
-            transition: .2s;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-opt:hover {
+            transform: scale(1.1);
         }
 
         .color-opt.selected {
-            border-color: #fff;
-            transform: scale(1.15);
+            border-color: #ffffff;
+            box-shadow: 0 0 0 2px var(--accent), 0 4px 12px rgba(0, 0, 0, 0.3);
+            transform: scale(1.18);
         }
 
         /* ================== STANDBY MODE UI ================== */
