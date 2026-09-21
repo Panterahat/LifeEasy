@@ -78,7 +78,15 @@ function fmtDisplay(dateStr) {
 }
 
 function save() {
-    try { localStorage.setItem('proflow_state', JSON.stringify(STATE)); } catch (e) { console.warn('save() failed', e); }
+    try {
+        supabaseClient.auth.getSession().then(({ data }) => {
+            if (data?.session?.user) {
+                localStorage.setItem('proflow_state', JSON.stringify(STATE));
+            } else {
+                localStorage.removeItem('proflow_state');
+            }
+        }).catch(() => {});
+    } catch (e) { console.warn('save() failed', e); }
 }
 
 function closeModal(id) {
@@ -365,6 +373,21 @@ function showSyncDetails() {
 }
 async function load() {
     try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const user = sessionData?.session?.user;
+
+        if (!user) {
+            localStorage.removeItem('proflow_state');
+            STATE.tasks = []; STATE.plans = []; STATE.counters = []; STATE.money = [];
+            STATE.alarms = []; STATE.roadmaps = []; STATE.steps = []; STATE.academic = [];
+            STATE.accounts = []; STATE.expenses = []; STATE.notes = []; STATE.sleepLogs = [];
+            STATE.attendanceRoutines = []; STATE.attendanceLogs = []; STATE.links = [];
+            STATE.vaultFolders = []; STATE.vaultFiles = [];
+            renderAll();
+            if (typeof updateAuthButton === 'function') updateAuthButton();
+            return;
+        }
+
         const saved = localStorage.getItem('proflow_state');
         if (saved) { try { Object.assign(STATE, JSON.parse(saved)); } catch (e) { } }
 
@@ -448,9 +471,9 @@ async function load() {
 }
 
 // ============================================================
-// INITIALIZATION
+// INITIALIZATION & BOOT ENGINE
 // ============================================================
-window.addEventListener('DOMContentLoaded', () => {
+function bootApp() {
     const today = new Date(); const todayStr = fmtDate(today);
     const cachedData = localStorage.getItem('proflow_state');
     if (cachedData) {
@@ -464,22 +487,41 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     setTimeout(() => {
-        document.getElementById('splash').style.opacity = '0';
-        setTimeout(() => { document.getElementById('splash').style.display = 'none'; document.getElementById('app').style.display = 'flex'; }, 500);
+        const splashEl = document.getElementById('splash');
+        const appEl = document.getElementById('app');
+        if (splashEl) splashEl.style.opacity = '0';
+        setTimeout(() => {
+            if (splashEl) splashEl.style.display = 'none';
+            if (appEl) appEl.style.display = 'flex';
+        }, 400);
 
-        processSyncQueue().then(load).then(rescheduleAllReminders);
+        try {
+            processSyncQueue().then(load).then(rescheduleAllReminders).catch(() => {});
+        } catch (e) { }
+
         STATE.selectedDate = todayStr; STATE.attSelectedDate = todayStr;
         if (typeof calCurrentDate !== 'undefined') calCurrentDate = new Date(today);
         if (typeof attCurrentDate !== 'undefined') attCurrentDate = new Date(today);
 
-        document.getElementById('planDate').value = STATE.selectedDate;
-        document.getElementById('planTime').value = `${String(today.getHours()).padStart(2, '0')}:00`;
-        document.getElementById('taskDue').value = todayStr;
+        const pDate = document.getElementById('planDate'); if (pDate) pDate.value = STATE.selectedDate;
+        const pTime = document.getElementById('planTime'); if (pTime) pTime.value = `${String(today.getHours()).padStart(2, '0')}:00`;
+        const tDue = document.getElementById('taskDue'); if (tDue) tDue.value = todayStr;
 
-        updateGreeting(); renderCalendar(); if (typeof renderAttCalendar === 'function') renderAttCalendar();
-        renderAll(); setupAlarmTicks(); rescheduleAllReminders(); if (typeof initPullToRefresh === 'function') initPullToRefresh();
-    }, 1400);
-});
+        if (typeof updateGreeting === 'function') updateGreeting();
+        if (typeof renderCalendar === 'function') renderCalendar();
+        if (typeof renderAttCalendar === 'function') renderAttCalendar();
+        renderAll();
+        if (typeof setupAlarmTicks === 'function') setupAlarmTicks();
+        if (typeof rescheduleAllReminders === 'function') rescheduleAllReminders();
+        if (typeof initPullToRefresh === 'function') initPullToRefresh();
+    }, 600);
+}
+
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', bootApp);
+} else {
+    bootApp();
+}
 
 function renderAll() {
     // THIS is the line that was missing! It forces the navbar to draw immediately on boot.
@@ -1071,7 +1113,24 @@ async function handleAuth(event, endpoint) {
     } catch (err) { document.getElementById(errorId).innerText = err.message || 'Authentication failed.'; }
 }
 
-async function logoutUser() { try { await supabaseClient.auth.signOut(); document.getElementById('authModal').style.display = 'flex'; switchAuthTab('login'); } catch (e) { console.error('Logout error', e); } }
+async function logoutUser() {
+    try {
+        await supabaseClient.auth.signOut();
+        localStorage.removeItem('proflow_state');
+        STATE.tasks = []; STATE.plans = []; STATE.counters = []; STATE.money = [];
+        STATE.alarms = []; STATE.roadmaps = []; STATE.steps = []; STATE.academic = [];
+        STATE.accounts = []; STATE.expenses = []; STATE.notes = []; STATE.sleepLogs = [];
+        STATE.attendanceRoutines = []; STATE.attendanceLogs = []; STATE.links = [];
+        STATE.vaultFolders = []; STATE.vaultFiles = [];
+        renderAll();
+        if (typeof updateAuthButton === 'function') updateAuthButton();
+        const authM = document.getElementById('authModal');
+        if (authM) authM.style.display = 'none';
+        toast('Logged out successfully 👋');
+    } catch (e) {
+        console.error('Logout error', e);
+    }
+}
 
 function toggleTheme(theme) {
     const root = document.documentElement; if (theme === 'auto') { localStorage.removeItem('theme'); root.setAttribute('data-theme', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } else { localStorage.setItem('theme', theme); root.setAttribute('data-theme', theme); }
@@ -6170,8 +6229,24 @@ function renderSettingsSyncQueue() {
 }
 
 async function triggerFullTwoWaySync() {
-    toast('Syncing with cloud... ☁️');
     try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const user = sessionData?.session?.user;
+
+        if (!user) {
+            localStorage.removeItem('proflow_state');
+            STATE.tasks = []; STATE.plans = []; STATE.counters = []; STATE.money = [];
+            STATE.alarms = []; STATE.roadmaps = []; STATE.steps = []; STATE.academic = [];
+            STATE.accounts = []; STATE.expenses = []; STATE.notes = []; STATE.sleepLogs = [];
+            STATE.attendanceRoutines = []; STATE.attendanceLogs = []; STATE.links = [];
+            STATE.vaultFolders = []; STATE.vaultFiles = [];
+            renderAll();
+            if (typeof updateAuthButton === 'function') updateAuthButton();
+            toast('Logged out — Log in to sync cloud data 🔒');
+            return;
+        }
+
+        toast('Syncing with cloud... ☁️');
         await processSyncQueue();
         await load();
         renderSettingsSyncQueue();
