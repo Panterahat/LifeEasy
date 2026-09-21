@@ -78,9 +78,13 @@ function fmtDisplay(dateStr) {
 }
 
 function save() {
+    if (window.isLoggingOut) {
+        localStorage.removeItem('proflow_state');
+        return;
+    }
     try {
         supabaseClient.auth.getSession().then(({ data }) => {
-            if (data?.session?.user) {
+            if (data?.session?.user && !window.isLoggingOut) {
                 localStorage.setItem('proflow_state', JSON.stringify(STATE));
             } else {
                 localStorage.removeItem('proflow_state');
@@ -372,11 +376,22 @@ function showSyncDetails() {
     m.classList.add('open');
 }
 async function load() {
+    if (window.isLoggingOut) {
+        localStorage.removeItem('proflow_state');
+        STATE.tasks = []; STATE.plans = []; STATE.counters = []; STATE.money = [];
+        STATE.alarms = []; STATE.roadmaps = []; STATE.steps = []; STATE.academic = [];
+        STATE.accounts = []; STATE.expenses = []; STATE.notes = []; STATE.sleepLogs = [];
+        STATE.attendanceRoutines = []; STATE.attendanceLogs = []; STATE.links = [];
+        STATE.vaultFolders = []; STATE.vaultFiles = [];
+        renderAll();
+        if (typeof updateAuthButton === 'function') updateAuthButton();
+        return;
+    }
     try {
         const { data: sessionData } = await supabaseClient.auth.getSession();
         const user = sessionData?.session?.user;
 
-        if (!user) {
+        if (!user || window.isLoggingOut) {
             localStorage.removeItem('proflow_state');
             STATE.tasks = []; STATE.plans = []; STATE.counters = []; STATE.money = [];
             STATE.alarms = []; STATE.roadmaps = []; STATE.steps = []; STATE.academic = [];
@@ -1114,8 +1129,25 @@ async function handleAuth(event, endpoint) {
 }
 
 async function logoutUser() {
+    window.isLoggingOut = true;
+    localStorage.removeItem('proflow_state');
+    try { localStorage.clear(); } catch(e) {}
+    STATE.tasks = []; STATE.plans = []; STATE.counters = []; STATE.money = [];
+    STATE.alarms = []; STATE.roadmaps = []; STATE.steps = []; STATE.academic = [];
+    STATE.accounts = []; STATE.expenses = []; STATE.notes = []; STATE.sleepLogs = [];
+    STATE.attendanceRoutines = []; STATE.attendanceLogs = []; STATE.links = [];
+    STATE.vaultFolders = []; STATE.vaultFiles = [];
+    renderAll();
+    if (typeof updateAuthButton === 'function') updateAuthButton();
+    const authM = document.getElementById('authModal');
+    if (authM) authM.style.display = 'none';
+
     try {
         await supabaseClient.auth.signOut();
+    } catch (e) {
+        console.error('Logout error', e);
+    } finally {
+        window.isLoggingOut = false;
         localStorage.removeItem('proflow_state');
         STATE.tasks = []; STATE.plans = []; STATE.counters = []; STATE.money = [];
         STATE.alarms = []; STATE.roadmaps = []; STATE.steps = []; STATE.academic = [];
@@ -1124,11 +1156,7 @@ async function logoutUser() {
         STATE.vaultFolders = []; STATE.vaultFiles = [];
         renderAll();
         if (typeof updateAuthButton === 'function') updateAuthButton();
-        const authM = document.getElementById('authModal');
-        if (authM) authM.style.display = 'none';
         toast('Logged out successfully 👋');
-    } catch (e) {
-        console.error('Logout error', e);
     }
 }
 
@@ -6229,11 +6257,24 @@ function renderSettingsSyncQueue() {
 }
 
 async function triggerFullTwoWaySync() {
+    if (window.isLoggingOut) {
+        localStorage.removeItem('proflow_state');
+        STATE.tasks = []; STATE.plans = []; STATE.counters = []; STATE.money = [];
+        STATE.alarms = []; STATE.roadmaps = []; STATE.steps = []; STATE.academic = [];
+        STATE.accounts = []; STATE.expenses = []; STATE.notes = []; STATE.sleepLogs = [];
+        STATE.attendanceRoutines = []; STATE.attendanceLogs = []; STATE.links = [];
+        STATE.vaultFolders = []; STATE.vaultFiles = [];
+        renderAll();
+        if (typeof updateAuthButton === 'function') updateAuthButton();
+        toast('Logged out — Log in to sync cloud data 🔒');
+        return;
+    }
+
     try {
         const { data: sessionData } = await supabaseClient.auth.getSession();
         const user = sessionData?.session?.user;
 
-        if (!user) {
+        if (!user || window.isLoggingOut) {
             localStorage.removeItem('proflow_state');
             STATE.tasks = []; STATE.plans = []; STATE.counters = []; STATE.money = [];
             STATE.alarms = []; STATE.roadmaps = []; STATE.steps = []; STATE.academic = [];
