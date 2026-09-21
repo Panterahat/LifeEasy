@@ -2830,31 +2830,139 @@ function initTimelineDragAndDrop() {
 function renderMonthlyPlanner() {
     const el = document.getElementById('plannerEvents');
     if (!el) return;
-    const selDateObj = new Date(STATE.selectedDate + 'T00:00:00');
-    const selDisplay = selDateObj.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
+
+    const selDateStr = STATE.selectedDate || fmtDate(new Date());
+    const selDateObj = new Date(selDateStr + 'T00:00:00');
+    const selDisplay = isNaN(selDateObj.getTime())
+        ? selDateStr
+        : selDateObj.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
+
     let html = `<div class="section-header"><div class="section-title">Events on ${selDisplay}</div></div>`;
-    const selPlans = STATE.plans.filter(p => isEventOnDate(p, STATE.selectedDate)).sort((a, b) => a.time > b.time ? 1 : -1);
-    if (selPlans.length === 0) { html += `<div style="text-align:center; color:var(--text3); font-size:13px; margin-bottom:24px;">No events scheduled for this day.</div>`; } else {
+
+    const selPlans = (STATE.plans || []).filter(p => isEventOnDate(p, selDateStr)).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+    if (selPlans.length === 0) {
+        html += `<div style="text-align:center; color:var(--text3); font-size:13px; margin-bottom:24px;">No events scheduled for this day.</div>`;
+    } else {
         html += selPlans.map(p => {
             const c = p.color || '#7c6ef5';
-            return `<div class="time-slot"><div class="time-label">${formatTime(p.time)}</div><div class="time-line" style="background:${c}"></div><div class="time-events" style="flex:1"><div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${p.completed ? '#10b981' : c}; background:${p.completed ? 'rgba(16,185,129,0.1)' : c + '1e'};" onclick="togglePlan(event, ${p.id})"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div class="event-title">${escapeHtml(p.title)}</div><div class="timeline-check-btn ${p.completed ? 'checked' : ''}" style="flex-shrink:0;" onclick="togglePlan(event, ${p.id})" title="${p.completed ? 'Mark incomplete' : 'Mark complete'}">${p.completed ? '✔' : ''}</div></div>${p.desc ? `<div class="event-desc">${escapeHtml(p.desc)}</div>` : ''}<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><span style="font-size:11px;font-weight:${p.completed ? '700' : '400'};color:${p.completed ? '#10b981' : 'var(--text3)'}">${p.completed ? '✔ Completed' : (p.recurrence && p.recurrence !== 'none' ? '🔁 ' + p.recurrence : '⏰ ' + p.time)}</span><div style="display:flex;gap:6px;align-items:center;"><span onclick="event.stopPropagation(); openPlannerModal(${p.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;" title="Edit Event">✏️</span><span onclick="deletePlan(event, ${p.id}, '${STATE.selectedDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px" title="Delete Event">🗑</span></div></div></div></div></div>`;
+            const cat = p.category || 'Personal';
+            const icon = typeof getCategoryIcon === 'function' ? getCategoryIcon(cat) : '🗓️';
+            return `
+                <div class="time-slot">
+                    <div class="time-label">${formatTime(p.time)}</div>
+                    <div class="time-line" style="background:${c}"></div>
+                    <div class="time-events" style="flex:1">
+                        <div class="event-block ${p.completed ? 'done' : ''}" style="border-color:${p.completed ? '#10b981' : c}; background:${p.completed ? 'rgba(16,185,129,0.1)' : c + '1e'};" onclick="togglePlan(event, ${p.id})">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                <div>
+                                    <div class="event-title">${icon} ${escapeHtml(p.title)}</div>
+                                    ${p.desc ? `<div class="event-desc">${escapeHtml(p.desc)}</div>` : ''}
+                                </div>
+                                <div class="timeline-check-btn ${p.completed ? 'checked' : ''}" style="flex-shrink:0;" onclick="togglePlan(event, ${p.id})" title="${p.completed ? 'Mark incomplete' : 'Mark complete'}">
+                                    ${p.completed ? '✔' : ''}
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+                                <span style="font-size:11px; font-weight:${p.completed ? '700' : '400'}; color:${p.completed ? '#10b981' : 'var(--text3)'}">
+                                    ${p.completed ? '✔ Completed' : (p.recurrence && p.recurrence !== 'none' ? '🔁 ' + p.recurrence : '⏰ ' + formatTime(p.time))}
+                                </span>
+                                <div style="display:flex; gap:6px; align-items:center;">
+                                    <span onclick="event.stopPropagation(); openPlannerModal(${p.id})" style="font-size:16px; color:var(--text3); cursor:pointer; padding:4px;" title="Edit Event">✏️</span>
+                                    <span onclick="deletePlan(event, ${p.id}, '${selDateStr}')" style="font-size:16px; color:var(--text3); cursor:pointer; padding:4px;" title="Delete Event">🗑</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }).join('');
     }
+
     html += `<div class="section-header" style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;"><div class="section-title">Upcoming (Next 2 Months)</div></div>`;
-    const todayObj = new Date(); todayObj.setHours(0, 0, 0, 0); const twoMonths = new Date(todayObj); twoMonths.setDate(todayObj.getDate() + 60);
+
+    const todayObj = new Date();
+    todayObj.setHours(0, 0, 0, 0);
+    const twoMonthsObj = new Date(todayObj);
+    twoMonthsObj.setDate(todayObj.getDate() + 60);
+
     let allUpcoming = [];
-    for (let d = new Date(todayObj); d <= twoMonths; d.setDate(d.getDate() + 1)) {
-        const checkDateStr = fmtDate(d);
-        STATE.plans.forEach(p => { if (isEventOnDate(p, checkDateStr)) allUpcoming.push({ ...p, virtualDate: checkDateStr, isAcad: false }); });
-        STATE.academic.forEach(a => { if (a.date === checkDateStr) allUpcoming.push({ ...a, virtualDate: checkDateStr, title: a.subject, isAcad: true }); });
+    let curDate = new Date(todayObj);
+
+    while (curDate <= twoMonthsObj) {
+        const checkDateStr = fmtDate(curDate);
+
+        (STATE.plans || []).forEach(p => {
+            if (isEventOnDate(p, checkDateStr)) {
+                allUpcoming.push({ ...p, virtualDate: checkDateStr, isAcad: false });
+            }
+        });
+
+        (STATE.academic || []).forEach(a => {
+            if (a.date === checkDateStr) {
+                allUpcoming.push({ ...a, virtualDate: checkDateStr, title: a.subject, isAcad: true });
+            }
+        });
+
+        curDate.setDate(curDate.getDate() + 1);
     }
-    allUpcoming.sort((a, b) => { const da = new Date(a.virtualDate + 'T' + (a.time || '00:00')); const db = new Date(b.virtualDate + 'T' + (b.time || '00:00')); return da - db; });
-    if (allUpcoming.length === 0) { html += `<div style="text-align:center; color:var(--text3); font-size:13px; padding-bottom:20px;">No upcoming events.</div>`; } else {
+
+    // Safe string sorting for virtualDate and time
+    allUpcoming.sort((a, b) => {
+        if (a.virtualDate !== b.virtualDate) {
+            return a.virtualDate.localeCompare(b.virtualDate);
+        }
+        const tA = a.time || '00:00';
+        const tB = b.time || '00:00';
+        return tA.localeCompare(tB);
+    });
+
+    if (allUpcoming.length === 0) {
+        html += `<div style="text-align:center; color:var(--text3); font-size:13px; padding-bottom:20px;">No upcoming events.</div>`;
+    } else {
         let lastDate = '';
         allUpcoming.forEach(e => {
-            if (e.virtualDate !== lastDate) { const disp = new Date(e.virtualDate + 'T00:00:00').toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' }); html += `<div style="font-size:11px; font-weight:700; color:var(--accent); margin:16px 0 8px 0; text-transform:uppercase; letter-spacing:1px;">${disp}</div>`; lastDate = e.virtualDate; }
-            if (e.isAcad) { html += `<div class="event-block" style="border-color:var(--accent3); margin-bottom:8px; cursor:pointer;" onclick="navTo('academic'); openAcademicModalById(${e.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div style="font-size:10px; color:var(--accent3); font-weight:600; text-transform:uppercase;">🎓 ${e.type}</div><span onclick="delAcademic(event, ${e.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div><div class="event-title">${e.subject}</div>${e.topic ? `<div class="event-desc">${e.topic}</div>` : ''}</div>`; }
-            else { const c = e.color || '#7c6ef5'; html += `<div class="event-block ${e.completed ? 'done' : ''}" style="border-color:${e.completed ? '#10b981' : c}; background:${e.completed ? 'rgba(16,185,129,0.1)' : c + '1e'}; margin-bottom:8px;" onclick="togglePlan(event, ${e.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="event-title">${escapeHtml(e.title)}</div><div style="display:flex; gap:8px; align-items:center;"><div class="timeline-check-btn ${e.completed ? 'checked' : ''}" style="flex-shrink:0;" onclick="togglePlan(event, ${e.id})" title="${e.completed ? 'Mark incomplete' : 'Mark complete'}">${e.completed ? '✔' : ''}</div><div style="font-size:10px; color:var(--text3)">${e.recurrence && e.recurrence !== 'none' ? '🔁' : '⏰'} ${formatTime(e.time)}</div><span onclick="deletePlan(event, ${e.id}, '${e.virtualDate}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span></div></div></div>`; }
+            if (e.virtualDate !== lastDate) {
+                const dispObj = new Date(e.virtualDate + 'T00:00:00');
+                const disp = isNaN(dispObj.getTime())
+                    ? e.virtualDate
+                    : dispObj.toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' });
+
+                html += `<div style="font-size:11px; font-weight:700; color:var(--accent); margin:16px 0 8px 0; text-transform:uppercase; letter-spacing:1px;">${disp}</div>`;
+                lastDate = e.virtualDate;
+            }
+
+            if (e.isAcad) {
+                html += `
+                    <div class="event-block" style="border-color:var(--accent3); margin-bottom:8px; cursor:pointer;" onclick="navTo('academic'); openAcademicModalById(${e.id})">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-size:10px; color:var(--accent3); font-weight:600; text-transform:uppercase;">🎓 ${escapeHtml(e.type || 'Class')}</div>
+                            <span onclick="delAcademic(event, ${e.id})" style="font-size:16px; color:var(--text3); cursor:pointer; padding:4px;">🗑</span>
+                        </div>
+                        <div class="event-title">${escapeHtml(e.subject)}</div>
+                        ${e.topic ? `<div class="event-desc">${escapeHtml(e.topic)}</div>` : ''}
+                    </div>
+                `;
+            } else {
+                const c = e.color || '#7c6ef5';
+                const cat = e.category || 'Personal';
+                const icon = typeof getCategoryIcon === 'function' ? getCategoryIcon(cat) : '🗓️';
+                html += `
+                    <div class="event-block ${e.completed ? 'done' : ''}" style="border-color:${e.completed ? '#10b981' : c}; background:${e.completed ? 'rgba(16,185,129,0.1)' : c + '1e'}; margin-bottom:8px;" onclick="togglePlan(event, ${e.id})">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div class="event-title">${icon} ${escapeHtml(e.title)}</div>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <div class="timeline-check-btn ${e.completed ? 'checked' : ''}" style="flex-shrink:0;" onclick="togglePlan(event, ${e.id})" title="${e.completed ? 'Mark incomplete' : 'Mark complete'}">
+                                    ${e.completed ? '✔' : ''}
+                                </div>
+                                <div style="font-size:10px; color:var(--text3)">${e.recurrence && e.recurrence !== 'none' ? '🔁' : '⏰'} ${formatTime(e.time)}</div>
+                                <span onclick="event.stopPropagation(); openPlannerModal(${e.id})" style="font-size:16px; color:var(--text3); cursor:pointer; padding:4px;" title="Edit Event">✏️</span>
+                                <span onclick="deletePlan(event, ${e.id}, '${e.virtualDate}')" style="font-size:16px; color:var(--text3); cursor:pointer; padding:4px;" title="Delete Event">🗑</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
         });
     }
     el.innerHTML = html;
