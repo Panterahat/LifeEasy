@@ -4766,14 +4766,151 @@ function saveWhiteboardNote() {
 // ============================================================
 // SLEEP TRACKER
 // ============================================================
-function computeSleepDuration(bed, wake) { const [bh, bm] = bed.split(':').map(Number); const [wh, wm] = wake.split(':').map(Number); let diff = (wh * 60 + wm) - (bh * 60 + bm); if (diff <= 0) diff += 24 * 60; return diff; }
-function sleepQuality(mins, bedtime) { const hours = mins / 60; const bh = Number(bedtime.split(':')[0]); const isLate = bh >= 0 && bh < 4; let label, tag; if (hours < 6) { label = 'Too little sleep'; tag = 'low'; } else if (hours > 9.5) { label = 'Too much sleep'; tag = 'high'; } else { label = 'Good sleep'; tag = 'good'; } if (isLate) label += ' • Late bedtime'; return { label, tag, isLate, hours }; }
-function openSleepModal() { document.getElementById('sleepDate').value = fmtDate(new Date()); document.getElementById('sleepBed').value = '23:00'; document.getElementById('sleepWake').value = '07:00'; document.getElementById('sleepModal').classList.add('open'); }
-function saveSleepLog() { const date = document.getElementById('sleepDate').value; const bedtime = document.getElementById('sleepBed').value; const wake = document.getElementById('sleepWake').value; if (!date || !bedtime || !wake) return toast('Fill in all fields!'); const durationMins = computeSleepDuration(bedtime, wake); const tempId = Date.now(); const sData = { id: tempId, date, bedtime, wake, durationMins }; STATE.sleepLogs.push(sData); renderSleep(); closeModal('sleepModal'); save(); toast('Sleep logged 😴'); ofetch('add_sleep.php', sData, d => { const s = STATE.sleepLogs.find(x => x.id === tempId); if (s) s.id = d.id; renderSleep(); save(); }); }
-function deleteSleepLog(id) { if (!confirm("Delete this diary entry?")) return; STATE.sleepLogs = STATE.sleepLogs.filter(x => x.id !== id); renderSleep(); save(); toast('Entry deleted'); ofetch('delete_sleep.php', { id }); }
-function renderSleepChart(containerId, entries, maxHours) { maxHours = maxHours || 12; const el = document.getElementById(containerId); if (!el) return; if (!entries.length) { el.innerHTML = '<div class="empty-state" style="padding:16px 0"><p style="font-size:13px">No data yet</p></div>'; return; } const barW = entries.length > 14 ? '3px' : '10%'; el.innerHTML = `<div class="sleep-chart"><div class="sleep-ideal-line" style="bottom:${Math.min(95, (8 / maxHours) * 100)}%"></div>${entries.map(e => { const pct = Math.min(100, (e.hours / maxHours) * 100); const color = e.tag === 'good' ? 'var(--accent2)' : e.tag === 'low' ? 'var(--accent4)' : 'var(--accent3)'; return `<div class="sleep-bar-col" title="${e.date}: ${e.hours.toFixed(1)}h — ${e.label}"><div class="sleep-bar" style="height:${pct}%; background:${color}; width:${barW}"></div>${entries.length <= 14 ? `<div class="sleep-bar-label">${e.dateLabel}</div>` : ''}</div>`; }).join('')}</div>`; }
-function getAvgTime(timeArray) { if (!timeArray.length) return '—'; let totalMins = 0; timeArray.forEach(t => { const [h, m] = t.split(':').map(Number); let shiftedH = h < 12 ? h + 24 : h; totalMins += (shiftedH * 60) + m; }); let avgMins = Math.round(totalMins / timeArray.length) % 1440; const h = Math.floor(avgMins / 60) % 24; const m = avgMins % 60; const ampm = h >= 12 ? 'PM' : 'AM'; const dispH = h % 12 === 0 ? 12 : h % 12; return `${dispH}:${String(m).padStart(2, '0')} ${ampm}`; }
-function renderSleep() { if (!document.getElementById('sleepMeterCard')) return; const sorted = [...STATE.sleepLogs].sort((a, b) => a.date.localeCompare(b.date)); const withQuality = sorted.map(e => ({ ...e, ...sleepQuality(e.durationMins, e.bedtime), dateLabel: fmtDisplay(e.date) })); const last7 = withQuality.slice(-7); const last30 = withQuality.slice(-30); const avg = arr => arr.length ? (arr.reduce((s, e) => s + e.hours, 0) / arr.length) : 0; const latest = withQuality[withQuality.length - 1]; const meterEl = document.getElementById('sleepMeterCard'); if (!latest) { meterEl.innerHTML = '<div class="empty-state"><div class="empty-icon">😴</div><p>Log your first night to see your sleep meter</p></div>'; } else { const color = latest.tag === 'good' ? 'var(--accent2)' : latest.tag === 'low' ? 'var(--accent4)' : 'var(--accent3)'; meterEl.innerHTML = `<div class="stat-card"><div style="font-size:13px;color:var(--text2)">Last logged night (${fmtDisplay(latest.date)})</div><div style="font-size:30px;font-weight:800;margin:6px 0;">${latest.hours.toFixed(1)}h</div><div style="color:${color};font-weight:700">${latest.label}</div><div style="font-size:12px;color:var(--text2);margin-top:6px">🛏 ${latest.bedtime} → ⏰ ${latest.wake}</div></div>`; } document.getElementById('sleepAvgWeek').textContent = last7.length ? avg(last7).toFixed(1) + 'h' : '—'; document.getElementById('sleepAvgMonth').textContent = last30.length ? avg(last30).toFixed(1) + 'h' : '—'; const bedtimes = last7.map(e => e.bedtime); const waketimes = last7.map(e => e.wake); if (document.getElementById('sleepAvgBed')) document.getElementById('sleepAvgBed').textContent = getAvgTime(bedtimes); if (document.getElementById('sleepAvgWake')) document.getElementById('sleepAvgWake').textContent = getAvgTime(waketimes); renderSleepChart('sleepWeekChart', last7, 12); renderSleepChart('sleepMonthChart', last30, 12); const listEl = document.getElementById('sleepList'); if (listEl) { if (!withQuality.length) { listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">😴</div><p>No sleep logs yet</p></div>'; } else { const color = e => e.tag === 'good' ? 'var(--accent2)' : e.tag === 'low' ? 'var(--accent4)' : 'var(--accent3)'; listEl.innerHTML = [...withQuality].reverse().map(e => `<div class="card" style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700">${fmtDisplay(e.date)}</div><div style="font-size:12px;color:var(--text2)">🛏 ${e.bedtime} → ⏰ ${e.wake} · ${e.hours.toFixed(1)}h</div><div style="font-size:12px;color:${color(e)}">${e.label}</div></div><span onclick="deleteSleepLog(${e.id})" style="color:var(--text3);cursor:pointer;font-size:16px">🗑</span></div>`).join(''); } } }
+function computeSleepDuration(bed, wake) {
+    if (!bed || !wake || typeof bed !== 'string' || typeof wake !== 'string') return 480;
+    const [bh, bm] = bed.split(':').map(Number);
+    const [wh, wm] = wake.split(':').map(Number);
+    let diff = ((wh || 0) * 60 + (wm || 0)) - ((bh || 0) * 60 + (bm || 0));
+    if (diff <= 0) diff += 24 * 60;
+    return diff;
+}
+
+function sleepQuality(mins, bedtime) {
+    const hours = mins / 60;
+    const bh = bedtime && typeof bedtime === 'string' ? Number(bedtime.split(':')[0]) : 23;
+    const isLate = bh >= 0 && bh < 4;
+    let label, tag;
+    if (hours < 6) { label = 'Too little sleep'; tag = 'low'; }
+    else if (hours > 9.5) { label = 'Too much sleep'; tag = 'high'; }
+    else { label = 'Good sleep'; tag = 'good'; }
+    if (isLate) label += ' • Late bedtime';
+    return { label, tag, isLate, hours };
+}
+
+function openSleepModal() {
+    document.getElementById('sleepDate').value = fmtDate(new Date());
+    document.getElementById('sleepBed').value = '23:00';
+    document.getElementById('sleepWake').value = '07:00';
+    document.getElementById('sleepModal').classList.add('open');
+}
+
+function saveSleepLog() {
+    const date = document.getElementById('sleepDate').value;
+    const bedtime = document.getElementById('sleepBed').value;
+    const wake = document.getElementById('sleepWake').value;
+    if (!date || !bedtime || !wake) return toast('Fill in all fields!');
+    const durationMins = computeSleepDuration(bedtime, wake);
+    const tempId = Date.now();
+    const sData = { id: tempId, date, bedtime, wake, durationMins };
+    STATE.sleepLogs.push(sData);
+    renderSleep();
+    closeModal('sleepModal');
+    save();
+    toast('Sleep logged 😴');
+    ofetch('add_sleep.php', sData, d => {
+        const s = STATE.sleepLogs.find(x => x.id === tempId);
+        if (s) s.id = d.id;
+        renderSleep();
+        save();
+    });
+}
+
+function deleteSleepLog(id) {
+    if (!confirm("Delete this diary entry?")) return;
+    STATE.sleepLogs = STATE.sleepLogs.filter(x => x.id !== id);
+    renderSleep();
+    save();
+    toast('Entry deleted');
+    ofetch('delete_sleep.php', { id });
+}
+
+function renderSleepChart(containerId, entries, maxHours) {
+    maxHours = maxHours || 12;
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!entries.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:16px 0"><p style="font-size:13px">No data yet</p></div>';
+        return;
+    }
+    const barW = entries.length > 14 ? '3px' : '10%';
+    el.innerHTML = `<div class="sleep-chart"><div class="sleep-ideal-line" style="bottom:${Math.min(95, (8 / maxHours) * 100)}%"></div>${entries.map(e => { const pct = Math.min(100, (e.hours / maxHours) * 100); const color = e.tag === 'good' ? 'var(--accent2)' : e.tag === 'low' ? 'var(--accent4)' : 'var(--accent3)'; return `<div class="sleep-bar-col" title="${e.date}: ${e.hours.toFixed(1)}h — ${e.label}"><div class="sleep-bar" style="height:${pct}%; background:${color}; width:${barW}"></div>${entries.length <= 14 ? `<div class="sleep-bar-label">${e.dateLabel}</div>` : ''}</div>`; }).join('')}</div>`;
+}
+
+function getAvgTime(timeArray) {
+    if (!timeArray || !Array.isArray(timeArray) || !timeArray.length) return '—';
+    const validTimes = timeArray.filter(t => t && typeof t === 'string' && t.includes(':'));
+    if (!validTimes.length) return '—';
+
+    let sinSum = 0;
+    let cosSum = 0;
+
+    validTimes.forEach(t => {
+        const [h, m] = t.split(':').map(Number);
+        const totalMins = ((h || 0) * 60) + (m || 0);
+        const rad = (totalMins / 1440) * 2 * Math.PI;
+        sinSum += Math.sin(rad);
+        cosSum += Math.cos(rad);
+    });
+
+    let avgRad = Math.atan2(sinSum, cosSum);
+    if (avgRad < 0) avgRad += 2 * Math.PI;
+
+    let avgMins = Math.round((avgRad / (2 * Math.PI)) * 1440) % 1440;
+    const h = Math.floor(avgMins / 60) % 24;
+    const m = avgMins % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const dispH = h % 12 === 0 ? 12 : h % 12;
+    return `${dispH}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function renderSleep() {
+    if (!document.getElementById('sleepMeterCard')) return;
+    const sorted = [...STATE.sleepLogs].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const withQuality = sorted.map(e => {
+        const durMins = e.durationMins !== undefined && !isNaN(e.durationMins) ? e.durationMins : computeSleepDuration(e.bedtime || '23:00', e.wake || '07:00');
+        return {
+            ...e,
+            durationMins: durMins,
+            ...sleepQuality(durMins, e.bedtime || '23:00'),
+            dateLabel: fmtDisplay(e.date || fmtDate(new Date()))
+        };
+    });
+
+    const last7 = withQuality.slice(-7);
+    const last30 = withQuality.slice(-30);
+    const avg = arr => arr.length ? (arr.reduce((s, e) => s + e.hours, 0) / arr.length) : 0;
+    const latest = withQuality[withQuality.length - 1];
+
+    const meterEl = document.getElementById('sleepMeterCard');
+    if (!latest) {
+        meterEl.innerHTML = '<div class="empty-state"><div class="empty-icon">😴</div><p>Log your first night to see your sleep meter</p></div>';
+    } else {
+        const color = latest.tag === 'good' ? 'var(--accent2)' : latest.tag === 'low' ? 'var(--accent4)' : 'var(--accent3)';
+        meterEl.innerHTML = `<div class="stat-card"><div style="font-size:13px;color:var(--text2)">Last logged night (${fmtDisplay(latest.date)})</div><div style="font-size:30px;font-weight:800;margin:6px 0;">${latest.hours.toFixed(1)}h</div><div style="color:${color};font-weight:700">${latest.label}</div><div style="font-size:12px;color:var(--text2);margin-top:6px">🛏 ${latest.bedtime} → ⏰ ${latest.wake}</div></div>`;
+    }
+
+    if (document.getElementById('sleepAvgWeek')) document.getElementById('sleepAvgWeek').textContent = last7.length ? avg(last7).toFixed(1) + 'h' : '—';
+    if (document.getElementById('sleepAvgMonth')) document.getElementById('sleepAvgMonth').textContent = last30.length ? avg(last30).toFixed(1) + 'h' : '—';
+
+    const bedtimes = last7.map(e => e.bedtime).filter(Boolean);
+    const waketimes = last7.map(e => e.wake).filter(Boolean);
+
+    if (document.getElementById('sleepAvgBed')) document.getElementById('sleepAvgBed').textContent = getAvgTime(bedtimes);
+    if (document.getElementById('sleepAvgWake')) document.getElementById('sleepAvgWake').textContent = getAvgTime(waketimes);
+
+    renderSleepChart('sleepWeekChart', last7, 12);
+    renderSleepChart('sleepMonthChart', last30, 12);
+
+    const listEl = document.getElementById('sleepList');
+    if (listEl) {
+        if (!withQuality.length) {
+            listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">😴</div><p>No sleep logs yet</p></div>';
+        } else {
+            const color = e => e.tag === 'good' ? 'var(--accent2)' : e.tag === 'low' ? 'var(--accent4)' : 'var(--accent3)';
+            listEl.innerHTML = [...withQuality].reverse().map(e => `<div class="card" style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700">${fmtDisplay(e.date)}</div><div style="font-size:12px;color:var(--text2)">🛏 ${e.bedtime} → ⏰ ${e.wake} · ${e.hours.toFixed(1)}h</div><div style="font-size:12px;color:${color(e)}">${e.label}</div></div><span onclick="deleteSleepLog(${e.id})" style="color:var(--text3);cursor:pointer;font-size:16px">🗑</span></div>`).join('');
+        }
+    }
+}
 
 // ============================================================
 // EXPORT / IMPORT
