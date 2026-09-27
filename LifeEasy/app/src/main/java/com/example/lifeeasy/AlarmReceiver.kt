@@ -12,11 +12,33 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 
 class AlarmReceiver : BroadcastReceiver() {
+    private fun getSafeAlarmId(rawId: Any?): Int {
+        if (rawId == null) return 12345678
+        val str = rawId.toString().trim()
+        if (str.isEmpty()) return 12345678
+        val num = str.toLongOrNull()
+        val id = if (num != null && num >= 0 && num <= Int.MAX_VALUE) {
+            num.toInt()
+        } else {
+            (str.hashCode() and 0x7FFFFFFF)
+        }
+        return if (id == 0 || id == Int.MAX_VALUE) 12345678 else id
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
-        val id = intent.getIntExtra("id", System.currentTimeMillis().toInt())
+        val rawId = intent.getStringExtra("rawId") ?: intent.getIntExtra("id", 0).toString()
         val title = intent.getStringExtra("title") ?: "Daily Reminder 🔔"
-        val message = intent.getStringExtra("message") ?: "Time for your reminder!"
-        val isRecurring = intent.getBooleanExtra("isRecurring", true)
+        val message = intent.getStringExtra("message")
+
+        // CRITICAL GHOST ALARM KILLER:
+        // Reject orphan/legacy ghost alarms from old builds that had empty messages or fallback "Time for your reminder!"
+        if (message.isNullOrBlank() || message == "Time for your reminder!" || rawId == "0" || rawId.isEmpty()) {
+            // Do NOT notify and do NOT reschedule. Kill the orphan alarm immediately.
+            return
+        }
+
+        val safeId = getSafeAlarmId(rawId)
+        val isRecurring = intent.getBooleanExtra("isRecurring", false)
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "daily_reminders_channel_v2"
@@ -39,7 +61,7 @@ class AlarmReceiver : BroadcastReceiver() {
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
-            id,
+            safeId,
             launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -58,21 +80,22 @@ class AlarmReceiver : BroadcastReceiver() {
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
-        notificationManager.notify(id, builder.build())
+        notificationManager.notify(safeId, builder.build())
 
         // If recurring, reschedule for 24 hours later (+86400000 ms)
         if (isRecurring) {
             try {
                 val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
                 val nextIntent = Intent(context, AlarmReceiver::class.java).apply {
-                    putExtra("id", id)
+                    putExtra("id", safeId)
+                    putExtra("rawId", rawId)
                     putExtra("title", title)
                     putExtra("message", message)
                     putExtra("isRecurring", true)
                 }
                 val nextPendingIntent = PendingIntent.getBroadcast(
                     context,
-                    id,
+                    safeId,
                     nextIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )

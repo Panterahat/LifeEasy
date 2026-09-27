@@ -1984,7 +1984,7 @@ function savePlan() {
             planData.excludedDates = STATE.plans[idx].excludedDates || [];
             STATE.plans[idx] = planData;
         }
-        scheduleItemNotification(planData.id, "Event Reminder 📅", planData.title, triggerAtMillis);
+        scheduleItemNotification(`plan_${planData.id}`, "Event Reminder 📅", planData.title, triggerAtMillis);
         renderCalendar(); renderPlanner(); renderDashboard(); closeModal('plannerModal'); save(); toast('Event updated! ✏️');
         ofetch('update_plan.php', planData);
     } else {
@@ -1993,7 +1993,7 @@ function savePlan() {
         planData.completed = false;
         planData.excludedDates = [];
         STATE.plans.push(planData);
-        scheduleItemNotification(tempId, "Event Reminder 📅", planData.title, triggerAtMillis);
+        scheduleItemNotification(`plan_${tempId}`, "Event Reminder 📅", planData.title, triggerAtMillis);
         renderCalendar(); renderPlanner(); renderDashboard(); closeModal('plannerModal'); save(); toast('Event added 📅');
         ofetch('add_plan.php', planData, d => {
             const p = STATE.plans.find(x => x.id === tempId);
@@ -2014,6 +2014,7 @@ function deletePlan(e, id, targetDate = null) {
     if (!plan.recurrence || plan.recurrence === 'none') {
         if (!confirm('Are you sure you want to delete this event?')) return;
         STATE.plans = STATE.plans.filter(x => x.id !== id);
+        scheduleItemNotification(`plan_${id}`, null, null, null);
         renderCalendar(); renderPlanner(); renderDashboard(); save(); toast('Event deleted 🗑️');
         ofetch('delete_plan.php', { id });
         return;
@@ -3112,14 +3113,14 @@ function saveTask() {
             taskData.completed = STATE.tasks[idx].completed;
             STATE.tasks[idx] = taskData;
         }
-        scheduleItemNotification(taskData.id, "Task Reminder 📋", taskData.title, triggerAtMillis);
+        scheduleItemNotification(`task_${taskData.id}`, "Task Reminder 📋", taskData.title, triggerAtMillis);
         renderTasks(); renderDashboard(); closeModal('taskModal'); save(); ofetch('update_task_details.php', taskData, () => toast('Task updated! ✅'));
     } else {
         const tempId = Date.now();
         taskData.id = tempId;
         taskData.completed = false;
         STATE.tasks.unshift(taskData);
-        scheduleItemNotification(tempId, "Task Reminder 📋", taskData.title, triggerAtMillis);
+        scheduleItemNotification(`task_${tempId}`, "Task Reminder 📋", taskData.title, triggerAtMillis);
         renderTasks(); renderDashboard(); closeModal('taskModal'); save(); toast('Saved! ✅');
         ofetch('add_task.php', taskData, d => { const t = STATE.tasks.find(x => x.id === tempId); if (t) t.id = Number(d.id); renderTasks(); save(); });
     }
@@ -3139,6 +3140,7 @@ function deleteTask(e, id) {
     if (e) e.stopPropagation();
     if (!confirm('Are you sure you want to delete this task?')) return;
     STATE.tasks = STATE.tasks.filter(t => t.id !== id);
+    scheduleItemNotification(`task_${id}`, null, null, null);
     renderTasks(); renderDashboard(); save(); toast('Task deleted 🗑️');
     ofetch('delete_task.php', { id });
 }
@@ -3458,13 +3460,13 @@ function saveMoney() {
     const remOpt = document.getElementById('moneyReminderOpt')?.value || 'none';
     const customVal = document.getElementById('moneyCustomPicker')?.value || '';
     const triggerAtMillis = calculateReminderTimestamp(remOpt, mData.due, '09:00', customVal);
-    scheduleItemNotification(tempId, "Money Record Reminder 💰", `${person} - ${mData.note || 'Money Record'}`, triggerAtMillis);
+    scheduleItemNotification(`money_${tempId}`, "Money Record Reminder 💰", `${person} - ${mData.note || 'Money Record'}`, triggerAtMillis);
 
     renderMoney(); renderDashboard(); closeModal('moneyModal'); save(); toast('Saved 💰');
     ofetch('add_money.php', mData, d => { const m = STATE.money.find(x => x.id === tempId); if (m) m.id = d.id; renderMoney(); renderDashboard(); save(); });
 }
 function settleMoney(e, id) { if (e) e.stopPropagation(); const m = STATE.money.find(x => x.id === id); if (!m) return; m.settled = true; renderMoney(); save(); toast('Settled ✓'); ofetch('update_money.php', { id }); }
-function deleteMoney(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this money record?')) return; STATE.money = STATE.money.filter(x => x.id !== id); renderMoney(); save(); toast('Deleted 🗑️'); ofetch('delete_money.php', { id }); }
+function deleteMoney(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this money record?')) return; STATE.money = STATE.money.filter(x => x.id !== id); scheduleItemNotification(`money_${id}`, null, null, null); renderMoney(); save(); toast('Deleted 🗑️'); ofetch('delete_money.php', { id }); }
 function openMoneyModal() { document.getElementById('moneyPerson').value = ''; document.getElementById('moneyAmount').value = ''; document.getElementById('moneyNote').value = ''; document.getElementById('moneyDue').value = ''; document.getElementById('moneyModal').classList.add('open'); }
 function setMoneyFilter(f, el) { STATE.moneyFilter = f; document.querySelectorAll('#screen-money .filter-tab').forEach(t => t.classList.remove('active')); el.classList.add('active'); renderMoney(); }
 function renderMoney() { let records = [...STATE.money]; if (STATE.moneyFilter === 'lent') records = records.filter(m => m.type === 'lent'); else if (STATE.moneyFilter === 'borrowed') records = records.filter(m => m.type === 'borrowed'); else if (STATE.moneyFilter === 'pending') records = records.filter(m => !m.settled); else if (STATE.moneyFilter === 'settled') records = records.filter(m => m.settled); const lentTotal = STATE.money.filter(m => m.type === 'lent' && !m.settled).reduce((s, m) => s + parseFloat(m.amount || 0), 0); const owedTotal = STATE.money.filter(m => m.type === 'borrowed' && !m.settled).reduce((s, m) => s + parseFloat(m.amount || 0), 0); document.getElementById('totalLent').textContent = Math.round(lentTotal); document.getElementById('totalOwed').textContent = Math.round(owedTotal); const el = document.getElementById('moneyList'); if (records.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>No records found</p></div>'; el.innerHTML = records.map(m => { const amtVal = Math.round(parseFloat(m.amount) || 0); return `<div class="money-item ${m.settled ? 'money-settled' : ''}"><div class="money-avatar ${m.type}">${m.person[0].toUpperCase()}</div><div class="money-info"><div class="money-name">${m.person} ${m.settled ? '<span class="pill pill-green" style="font-size:9px">Settled</span>' : ''}</div><div class="money-note">${m.note || (m.type === 'lent' ? 'You lent' : 'You borrowed')} ${m.due ? '· Due ' + fmtDisplay(m.due) : ''}</div></div><div style="text-align:right; min-width:85px; width:85px; flex-shrink:0;"><div class="money-amount ${m.type}">${m.type === 'lent' ? '+' : '-'}${amtVal}</div>${!m.settled ? `<button class="settle-btn" onclick="settleMoney(event, ${m.id})">Settle</button>` : ''}<div onclick="deleteMoney(event, ${m.id})" style="font-size:16px;color:var(--text3);cursor:pointer;margin-top:4px;padding:4px;">🗑️</div></div></div>`; }).join(''); }
@@ -3498,10 +3500,72 @@ function openStepModal(roadmapId) { const r = STATE.roadmaps.find(r => r.id === 
 // ATTENDANCE
 // ============================================================
 let attCurrentDate = new Date();
-function openAttRoutineModal() { document.getElementById('attRoutineModalTitle').textContent = 'Add Weekly Class Routine'; document.getElementById('attRoutineSubject').value = ''; document.getElementById('attRoutineRoom').value = ''; document.getElementById('attRoutineStartTime').value = '09:00'; document.getElementById('attRoutineEndTime').value = '10:30'; document.getElementById('attRoutineDay').value = new Date(STATE.attSelectedDate + 'T00:00:00').getDay() || '0'; delete document.getElementById('attRoutineModal').dataset.editId; document.getElementById('attRoutineModal').classList.add('open'); }
-function openAttRoutineModalById(id) { const r = STATE.attendanceRoutines.find(x => x.id === id); if (!r) return; document.getElementById('attRoutineModalTitle').textContent = 'Edit Class Routine'; document.getElementById('attRoutineSubject').value = r.subject; document.getElementById('attRoutineRoom').value = r.room || ''; document.getElementById('attRoutineStartTime').value = r.startTime || r.time || '09:00'; document.getElementById('attRoutineEndTime').value = r.endTime || r.time || '10:30'; document.getElementById('attRoutineDay').value = r.dayOfWeek; document.getElementById('attRoutineModal').dataset.editId = r.id; document.getElementById('attRoutineModal').classList.add('open'); }
-function deleteAttRoutine(e, id) { if (e) e.stopPropagation(); if (!confirm('Delete this class routine entirely? This removes it from your schedule forever.')) return; STATE.attendanceRoutines = STATE.attendanceRoutines.filter(r => r.id !== id); STATE.attendanceLogs = STATE.attendanceLogs.filter(l => l.routineId !== id); renderAttCalendar(); renderAttendance(); save(); toast('Class Deleted! 🗑️'); ofetch('delete_att_routine.php', { id }); }
-function saveAttRoutine() { const subject = document.getElementById('attRoutineSubject').value.trim(); if (!subject) return toast('Need a class name!'); const rData = { subject, room: document.getElementById('attRoutineRoom').value.trim(), startTime: document.getElementById('attRoutineStartTime').value || '09:00', endTime: document.getElementById('attRoutineEndTime').value || '10:30', dayOfWeek: parseInt(document.getElementById('attRoutineDay').value) }; const editId = document.getElementById('attRoutineModal').dataset.editId; if (editId) { rData.id = parseInt(editId); const idx = STATE.attendanceRoutines.findIndex(x => x.id === rData.id); if (idx >= 0) STATE.attendanceRoutines[idx] = rData; closeModal('attRoutineModal'); save(); renderAttCalendar(); renderAttendance(); toast('Routine Updated! ✏️'); ofetch('update_att_routine.php', rData); } else { const tempId = Date.now(); rData.id = tempId; STATE.attendanceRoutines.push(rData); closeModal('attRoutineModal'); save(); renderAttCalendar(); renderAttendance(); toast('Routine Added! 📅'); ofetch('add_att_routine.php', rData, d => { const r = STATE.attendanceRoutines.find(x => x.id === tempId); if (r) r.id = d.id; save(); }); } }
+function openAttRoutineModal() {
+    document.getElementById('attRoutineModalTitle').textContent = 'Add Weekly Class Routine';
+    document.getElementById('attRoutineSubject').value = '';
+    document.getElementById('attRoutineRoom').value = '';
+    document.getElementById('attRoutineStartTime').value = '09:00';
+    document.getElementById('attRoutineEndTime').value = '10:30';
+    document.getElementById('attRoutineDay').value = new Date(STATE.attSelectedDate + 'T00:00:00').getDay() || '0';
+    if (document.getElementById('attReminderOpt')) document.getElementById('attReminderOpt').value = 'none';
+    delete document.getElementById('attRoutineModal').dataset.editId;
+    document.getElementById('attRoutineModal').classList.add('open');
+}
+function openAttRoutineModalById(id) {
+    const r = STATE.attendanceRoutines.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('attRoutineModalTitle').textContent = 'Edit Class Routine';
+    document.getElementById('attRoutineSubject').value = r.subject;
+    document.getElementById('attRoutineRoom').value = r.room || '';
+    document.getElementById('attRoutineStartTime').value = r.startTime || r.time || '09:00';
+    document.getElementById('attRoutineEndTime').value = r.endTime || r.time || '10:30';
+    document.getElementById('attRoutineDay').value = r.dayOfWeek;
+    if (document.getElementById('attReminderOpt')) document.getElementById('attReminderOpt').value = r.reminder || 'none';
+    document.getElementById('attRoutineModal').dataset.editId = r.id;
+    document.getElementById('attRoutineModal').classList.add('open');
+}
+function deleteAttRoutine(e, id) {
+    if (e) e.stopPropagation();
+    if (!confirm('Delete this class routine entirely? This removes it from your schedule forever.')) return;
+    STATE.attendanceRoutines = STATE.attendanceRoutines.filter(r => r.id !== id);
+    STATE.attendanceLogs = STATE.attendanceLogs.filter(l => l.routineId !== id);
+    scheduleItemNotification(`att_${id}`, null, null, null);
+    renderAttCalendar(); renderAttendance(); save(); toast('Class Deleted! 🗑️');
+    ofetch('delete_att_routine.php', { id });
+}
+function saveAttRoutine() {
+    const subject = document.getElementById('attRoutineSubject').value.trim();
+    if (!subject) return toast('Need a class name!');
+    const reminderOpt = document.getElementById('attReminderOpt')?.value || 'none';
+    const rData = {
+        subject,
+        room: document.getElementById('attRoutineRoom').value.trim(),
+        startTime: document.getElementById('attRoutineStartTime').value || '09:00',
+        endTime: document.getElementById('attRoutineEndTime').value || '10:30',
+        dayOfWeek: parseInt(document.getElementById('attRoutineDay').value),
+        reminder: reminderOpt
+    };
+    const editId = document.getElementById('attRoutineModal').dataset.editId;
+    if (editId) {
+        rData.id = parseInt(editId);
+        const idx = STATE.attendanceRoutines.findIndex(x => x.id === rData.id);
+        if (idx >= 0) STATE.attendanceRoutines[idx] = rData;
+        scheduleClassNotification(rData);
+        closeModal('attRoutineModal'); save(); renderAttCalendar(); renderAttendance(); toast('Routine Updated! ✏️');
+        ofetch('update_att_routine.php', rData);
+    } else {
+        const tempId = Date.now();
+        rData.id = tempId;
+        STATE.attendanceRoutines.push(rData);
+        scheduleClassNotification(rData);
+        closeModal('attRoutineModal'); save(); renderAttCalendar(); renderAttendance(); toast('Routine Added! 📅');
+        ofetch('add_att_routine.php', rData, d => {
+            const r = STATE.attendanceRoutines.find(x => x.id === tempId);
+            if (r) r.id = d.id;
+            save();
+        });
+    }
+}
 function renderAttCalendar() { if (!STATE.attSelectedDate) STATE.attSelectedDate = fmtDate(new Date()); const grid = document.getElementById('attCalendarGrid'); const monthYear = document.getElementById('attCalendarMonthYear'); if (!grid) return; grid.innerHTML = ''; const year = attCurrentDate.getFullYear(); const month = attCurrentDate.getMonth(); monthYear.textContent = new Date(year, month).toLocaleDateString('en', { month: 'long', year: 'numeric' }); const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const prevMonthDays = new Date(year, month, 0).getDate(); for (let i = firstDay - 1; i >= 0; i--) grid.appendChild(createAttCalDay(year, month - 1, prevMonthDays - i, true)); for (let i = 1; i <= daysInMonth; i++) grid.appendChild(createAttCalDay(year, month, i, false)); const totalCells = firstDay + daysInMonth; const remaining = (Math.ceil(totalCells / 7) * 7) - totalCells; for (let i = 1; i <= remaining; i++) grid.appendChild(createAttCalDay(year, month + 1, i, true)); }
 function createAttCalDay(y, m, d, isOtherMonth) { const dateObj = new Date(y, m, d); const dateStr = fmtDate(dateObj); const dayOfWeek = dateObj.getDay(); const el = document.createElement('div'); el.className = 'cal-day'; if (isOtherMonth) el.classList.add('other-month'); if (dateStr === fmtDate(new Date())) el.classList.add('today'); if (dateStr === STATE.attSelectedDate) el.classList.add('selected'); el.textContent = dateObj.getDate(); const hasRoutine = STATE.attendanceRoutines.some(r => parseInt(r.dayOfWeek) === dayOfWeek); if (hasRoutine) { const dot = document.createElement('div'); dot.className = 'cal-dot'; dot.style.backgroundColor = 'var(--accent4)'; el.appendChild(dot); } el.onclick = () => { STATE.attSelectedDate = dateStr; attCurrentDate = new Date(y, m, d); renderAttCalendar(); renderAttendance(); }; return el; }
 function prevAttMonth() { attCurrentDate.setMonth(attCurrentDate.getMonth() - 1); renderAttCalendar(); }
@@ -3515,10 +3579,77 @@ function renderAttendance() { const el = document.getElementById('attendanceList
 // ============================================================
 // ACADEMIC
 // ============================================================
-function saveAcademic() { const subject = document.getElementById('acadSubject').value.trim(); if (!subject) return toast('Need a subject!'); const editId = document.getElementById('academicModal').dataset.editId; const aData = { subject, type: document.getElementById('acadType').value, date: document.getElementById('acadDate').value, topic: document.getElementById('acadTopic').value, desc: document.getElementById('acadDesc').value, note: document.getElementById('acadNote').value }; if (editId) { aData.id = parseInt(editId); const idx = STATE.academic.findIndex(x => x.id === aData.id); if (idx >= 0) STATE.academic[idx] = aData; renderCalendar(); renderAcademic(); renderDashboard(); renderPlanner(); closeModal('academicModal'); save(); toast('Updated! 🎓'); ofetch('update_academic.php', aData); } else { const tempId = Date.now(); aData.id = tempId; STATE.academic.push(aData); renderCalendar(); renderAcademic(); renderDashboard(); renderPlanner(); closeModal('academicModal'); save(); toast('Saved! 🎓'); ofetch('add_academic.php', aData, d => { const a = STATE.academic.find(x => x.id === tempId); if (a) a.id = d.id; renderCalendar(); renderAcademic(); renderDashboard(); renderPlanner(); save(); }); } }
-function delAcademic(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this academic event?')) return; STATE.academic = STATE.academic.filter(a => a.id !== id); renderCalendar(); renderAcademic(); renderDashboard(); renderPlanner(); save(); toast('Deleted!'); ofetch('delete_academic.php', { id }); }
-function openAcademicModal() { document.getElementById('academicModalTitle').textContent = 'New Academic Event'; document.getElementById('acadSubject').value = ''; document.getElementById('acadTopic').value = ''; document.getElementById('acadDesc').value = ''; document.getElementById('acadNote').value = ''; delete document.getElementById('academicModal').dataset.editId; document.getElementById('academicModal').classList.add('open'); }
-function openAcademicModalById(id) { const a = STATE.academic.find(x => x.id === id); if (!a) return; document.getElementById('academicModalTitle').textContent = 'Edit Academic Event'; document.getElementById('acadSubject').value = a.subject; document.getElementById('acadType').value = a.type; document.getElementById('acadDate').value = a.date || ''; document.getElementById('acadTopic').value = a.topic || ''; document.getElementById('acadDesc').value = a.desc || ''; document.getElementById('acadNote').value = a.note || ''; document.getElementById('academicModal').dataset.editId = a.id; document.getElementById('academicModal').classList.add('open'); }
+function saveAcademic() {
+    const subject = document.getElementById('acadSubject').value.trim();
+    if (!subject) return toast('Need a subject!');
+    const editId = document.getElementById('academicModal').dataset.editId;
+    const reminder = document.getElementById('acadReminderOpt')?.value || 'none';
+    const customVal = document.getElementById('acadCustomPicker')?.value || '';
+    const aData = {
+        subject,
+        type: document.getElementById('acadType').value,
+        date: document.getElementById('acadDate').value,
+        topic: document.getElementById('acadTopic').value,
+        desc: document.getElementById('acadDesc').value,
+        note: document.getElementById('acadNote').value,
+        reminder: reminder,
+        customReminderTime: customVal
+    };
+    if (editId) {
+        aData.id = parseInt(editId);
+        const idx = STATE.academic.findIndex(x => x.id === aData.id);
+        if (idx >= 0) STATE.academic[idx] = aData;
+        scheduleAcademicNotification(aData);
+        renderCalendar(); renderAcademic(); renderDashboard(); renderPlanner(); closeModal('academicModal'); save(); toast('Updated! 🎓');
+        ofetch('update_academic.php', aData);
+    } else {
+        const tempId = Date.now();
+        aData.id = tempId;
+        STATE.academic.push(aData);
+        scheduleAcademicNotification(aData);
+        renderCalendar(); renderAcademic(); renderDashboard(); renderPlanner(); closeModal('academicModal'); save(); toast('Saved! 🎓');
+        ofetch('add_academic.php', aData, d => {
+            const a = STATE.academic.find(x => x.id === tempId);
+            if (a) a.id = d.id;
+            renderCalendar(); renderAcademic(); renderDashboard(); renderPlanner(); save();
+        });
+    }
+}
+function delAcademic(e, id) {
+    if (e) e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this academic event?')) return;
+    STATE.academic = STATE.academic.filter(a => a.id !== id);
+    scheduleItemNotification(`acad_${id}`, null, null, null);
+    renderCalendar(); renderAcademic(); renderDashboard(); renderPlanner(); save(); toast('Deleted!');
+    ofetch('delete_academic.php', { id });
+}
+function openAcademicModal() {
+    document.getElementById('academicModalTitle').textContent = 'New Academic Event';
+    document.getElementById('acadSubject').value = '';
+    document.getElementById('acadTopic').value = '';
+    document.getElementById('acadDesc').value = '';
+    document.getElementById('acadNote').value = '';
+    if (document.getElementById('acadReminderOpt')) document.getElementById('acadReminderOpt').value = 'none';
+    if (document.getElementById('acadCustomPickerRow')) document.getElementById('acadCustomPickerRow').style.display = 'none';
+    delete document.getElementById('academicModal').dataset.editId;
+    document.getElementById('academicModal').classList.add('open');
+}
+function openAcademicModalById(id) {
+    const a = STATE.academic.find(x => x.id === id);
+    if (!a) return;
+    document.getElementById('academicModalTitle').textContent = 'Edit Academic Event';
+    document.getElementById('acadSubject').value = a.subject;
+    document.getElementById('acadType').value = a.type;
+    document.getElementById('acadDate').value = a.date || '';
+    document.getElementById('acadTopic').value = a.topic || '';
+    document.getElementById('acadDesc').value = a.desc || '';
+    document.getElementById('acadNote').value = a.note || '';
+    if (document.getElementById('acadReminderOpt')) document.getElementById('acadReminderOpt').value = a.reminder || 'none';
+    if (document.getElementById('acadCustomPickerRow')) document.getElementById('acadCustomPickerRow').style.display = (a.reminder === 'custom') ? 'block' : 'none';
+    if (document.getElementById('acadCustomPicker')) document.getElementById('acadCustomPicker').value = a.customReminderTime || '';
+    document.getElementById('academicModal').dataset.editId = a.id;
+    document.getElementById('academicModal').classList.add('open');
+}
 function renderAcademic() { const el = document.getElementById('academicList'); if (!STATE.academic.length) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎓</div><p>No upcoming exams or projects</p></div>'; const sorted = [...STATE.academic].sort((a, b) => new Date(a.date || '9999') - new Date(b.date || '9999')); el.innerHTML = sorted.map(a => `<div class="acad-card" onclick="openAcademicModalById(${a.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="acad-type">${a.type}</div><span onclick="delAcademic(event, ${a.id})" style="color:var(--text3); font-size:16px; cursor:pointer; padding:4px;">🗑</span></div><div class="acad-title">${a.subject}</div>${a.date ? `<div class="acad-detail">📅 <b>Date:</b> ${new Date(a.date).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}</div>` : ''}${a.topic ? `<div class="acad-detail">🎯 <b>Topic:</b> ${a.topic}</div>` : ''}${a.desc ? `<div class="acad-detail">📝 <b>Desc:</b> ${a.desc}</div>` : ''}${a.note ? `<div class="acad-detail" style="margin-top:6px; font-style:italic; border-top:1px solid var(--border); padding-top:6px">Note: ${a.note}</div>` : ''}</div>`).join(''); }
 
 // ============================================================
@@ -5243,9 +5374,47 @@ function selectColor(key, color, el) {
     }
 }
 const reminderTimers = {};
-function scheduleReminderToast(task) { if (reminderTimers[task.id]) clearTimeout(reminderTimers[task.id]); if (!task.reminder) return; const diff = new Date(task.reminder) - new Date(); if (diff > 0 && diff < 86400000) { reminderTimers[task.id] = setTimeout(() => sendSystemNotification("Task Reminder", task.title), diff); } }
+function scheduleReminderToast(task) {
+    if (window.AndroidInterface) return;
+    if (reminderTimers[task.id]) clearTimeout(reminderTimers[task.id]);
+    if (!task.reminder || task.reminder === 'none') return;
+    const diff = new Date(task.reminder) - new Date();
+    if (diff > 0 && diff < 86400000) {
+        reminderTimers[task.id] = setTimeout(() => sendSystemNotification("Task Reminder 📋", task.title), diff);
+    }
+}
 function rescheduleAllReminders() {
-    STATE.tasks.forEach(t => { if (t.reminder && !t.completed) scheduleReminderToast(t); });
+    (STATE.tasks || []).forEach(t => {
+        if (t.reminder && t.reminder !== 'none' && !t.completed) {
+            const customVal = t.customReminderTime || '';
+            const triggerAtMillis = calculateReminderTimestamp(t.reminder, t.due, '09:00', customVal);
+            scheduleItemNotification(`task_${t.id}`, "Task Reminder 📋", t.title, triggerAtMillis);
+        }
+    });
+    (STATE.plans || []).forEach(p => {
+        if (p.reminder && p.reminder !== 'none') {
+            const customVal = p.customReminderTime || '';
+            const triggerAtMillis = calculateReminderTimestamp(p.reminder, p.date, p.time, customVal);
+            scheduleItemNotification(`plan_${p.id}`, "Event Reminder 📅", p.title, triggerAtMillis);
+        }
+    });
+    (STATE.money || []).forEach(m => {
+        if (m.reminder && m.reminder !== 'none' && !m.settled) {
+            const customVal = m.customReminderTime || '';
+            const triggerAtMillis = calculateReminderTimestamp(m.reminder, m.due, '09:00', customVal);
+            scheduleItemNotification(`money_${m.id}`, "Money Record Reminder 💰", `${m.person} - ${m.note || 'Money Record'}`, triggerAtMillis);
+        }
+    });
+    (STATE.attendanceRoutines || []).forEach(r => {
+        if (r.reminder && r.reminder !== 'none') {
+            scheduleClassNotification(r);
+        }
+    });
+    (STATE.academic || []).forEach(a => {
+        if (a.reminder && a.reminder !== 'none') {
+            scheduleAcademicNotification(a);
+        }
+    });
     if (typeof rescheduleAllDailyReminders === 'function') rescheduleAllDailyReminders();
 }
 function requestNotificationPermission() { if ("Notification" in window) { if (Notification.permission !== "granted" && Notification.permission !== "denied") { Notification.requestPermission(); } } }
@@ -5259,6 +5428,67 @@ function toggleCustomReminderPicker(prefix) {
     const rowEl = document.getElementById(prefix + 'CustomPickerRow');
     if (optEl && rowEl) {
         rowEl.style.display = (optEl.value === 'custom') ? 'block' : 'none';
+    }
+}
+
+function calculateNextClassReminderMillis(option, dayOfWeek, startTime) {
+    if (!option || option === 'none') return null;
+    const now = new Date();
+    const targetDay = parseInt(dayOfWeek);
+    if (isNaN(targetDay)) return null;
+
+    const [h, m] = (startTime || '09:00').split(':').map(Number);
+    const target = new Date();
+    target.setHours(h || 9, m || 0, 0, 0);
+
+    let currentDay = now.getDay();
+    let daysToAdd = (targetDay - currentDay + 7) % 7;
+    target.setDate(now.getDate() + daysToAdd);
+
+    let offsetMillis = 0;
+    if (option === '10m_before') offsetMillis = 10 * 60 * 1000;
+    else if (option === '30m_before') offsetMillis = 30 * 60 * 1000;
+    else if (option === '1h_before') offsetMillis = 60 * 60 * 1000;
+    else if (option === 'date_9am') {
+        target.setHours(9, 0, 0, 0);
+        offsetMillis = 0;
+    }
+
+    let triggerTime = target.getTime() - offsetMillis;
+    if (triggerTime <= now.getTime() + 1000) {
+        target.setDate(target.getDate() + 7);
+        triggerTime = target.getTime() - offsetMillis;
+    }
+
+    return triggerTime;
+}
+
+function scheduleClassNotification(r) {
+    if (!r || !r.id) return;
+    const notificationId = `att_${r.id}`;
+    const triggerAtMillis = calculateNextClassReminderMillis(r.reminder || 'none', r.dayOfWeek, r.startTime);
+    if (triggerAtMillis) {
+        const timeStr = formatTime(r.startTime || '09:00');
+        const roomStr = r.room ? ` (Room: ${r.room})` : '';
+        const msg = `${r.subject}${roomStr} - Class starts at ${timeStr}`;
+        scheduleItemNotification(notificationId, "Class Reminder 🎓", msg, triggerAtMillis);
+    } else {
+        scheduleItemNotification(notificationId, null, null, null);
+    }
+}
+
+function scheduleAcademicNotification(a) {
+    if (!a || !a.id) return;
+    const notificationId = `acad_${a.id}`;
+    const customVal = a.customReminderTime || '';
+    const triggerAtMillis = calculateReminderTimestamp(a.reminder || 'none', a.date, '08:00', customVal);
+    if (triggerAtMillis) {
+        const typeStr = a.type || 'Academic Event';
+        const topicStr = a.topic ? ` (${a.topic})` : '';
+        const msg = `${typeStr}: ${a.subject}${topicStr}`;
+        scheduleItemNotification(notificationId, "Academic Reminder 🎓", msg, triggerAtMillis);
+    } else {
+        scheduleItemNotification(notificationId, null, null, null);
     }
 }
 
@@ -5276,6 +5506,7 @@ function calculateReminderTimestamp(option, baseDateStr, baseTimeStr, customDate
     const [year, month, day] = baseDateStr.split('-').map(Number);
     const [hour, minute] = (baseTimeStr || '09:00').split(':').map(Number);
     const baseDt = new Date(year, month - 1, day, hour || 0, minute || 0, 0, 0);
+    if (isNaN(baseDt.getTime())) return null;
 
     switch (option) {
         case '10m_before':
@@ -5310,7 +5541,7 @@ function calculateReminderTimestamp(option, baseDateStr, baseTimeStr, customDate
 function scheduleItemNotification(id, title, message, triggerAtMillis) {
     if (!triggerAtMillis) {
         if (window.AndroidInterface && typeof window.AndroidInterface.cancelAlarm === 'function') {
-            try { window.AndroidInterface.cancelAlarm(id); } catch(e) {}
+            try { window.AndroidInterface.cancelAlarm(String(id)); } catch(e) {}
         }
         return;
     }
@@ -5318,7 +5549,7 @@ function scheduleItemNotification(id, title, message, triggerAtMillis) {
     if (triggerAtMillis > Date.now()) {
         if (window.AndroidInterface && typeof window.AndroidInterface.scheduleAlarm === 'function') {
             try {
-                window.AndroidInterface.scheduleAlarm(id, triggerAtMillis, title, message, false);
+                window.AndroidInterface.scheduleAlarm(String(id), triggerAtMillis, title, message, false);
             } catch(e) { console.warn('scheduleAlarm error:', e); }
         }
     }
@@ -6094,11 +6325,12 @@ function scheduleDailyReminderAlarm(reminder) {
     if (!reminder || !reminder.enabled) return;
 
     const triggerAtMillis = calculateNextAlarmMillis(reminder.time);
+    if (!triggerAtMillis || triggerAtMillis <= Date.now() + 2000) return;
 
     if (window.AndroidInterface && typeof window.AndroidInterface.scheduleAlarm === 'function') {
         try {
             window.AndroidInterface.scheduleAlarm(
-                reminder.id,
+                `daily_${reminder.id}`,
                 triggerAtMillis,
                 "Daily Reminder 🔔",
                 reminder.message,
@@ -6113,7 +6345,7 @@ function scheduleDailyReminderAlarm(reminder) {
 function cancelDailyReminderAlarm(reminderId) {
     if (window.AndroidInterface && typeof window.AndroidInterface.cancelAlarm === 'function') {
         try {
-            window.AndroidInterface.cancelAlarm(reminderId);
+            window.AndroidInterface.cancelAlarm(`daily_${reminderId}`);
         } catch (e) {
             console.warn('Native cancelAlarm failed:', e);
         }

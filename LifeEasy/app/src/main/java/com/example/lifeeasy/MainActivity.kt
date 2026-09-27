@@ -99,6 +99,7 @@ class MainActivity : AppCompatActivity() {
 
         createNotificationChannel()
         checkAndRequestNotificationPermission()
+        cancelLegacyGhostAlarms()
 
         webView = findViewById(R.id.webView)
 
@@ -249,18 +250,59 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun scheduleAlarm(id: Int, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
+    private fun cancelLegacyGhostAlarms() {
         try {
             val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+            val legacyIds = intArrayOf(0, Int.MAX_VALUE, ("2147483647".hashCode() and 0x7FFFFFFF))
+            for (legacyId in legacyIds) {
+                val intent = Intent(this, AlarmReceiver::class.java)
+                val pendingIntent = PendingIntent.getBroadcast(
+                    this,
+                    legacyId,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                alarmManager.cancel(pendingIntent)
+                pendingIntent.cancel()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun getSafeAlarmId(rawId: Any?): Int {
+        if (rawId == null) return 12345678
+        val str = rawId.toString().trim()
+        if (str.isEmpty()) return 12345678
+        val num = str.toLongOrNull()
+        val id = if (num != null && num >= 0 && num <= Int.MAX_VALUE) {
+            num.toInt()
+        } else {
+            (str.hashCode() and 0x7FFFFFFF)
+        }
+        return if (id == 0 || id == Int.MAX_VALUE) 12345678 else id
+    }
+
+    fun scheduleAlarm(rawId: Any, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
+        try {
+            // CRITICAL: Ignore past or immediate timestamps (< 2 seconds from now).
+            // Android AlarmManager immediately triggers any alarm set in the past, causing unwanted boot notifications.
+            if (triggerAtMillis <= System.currentTimeMillis() + 2000L) {
+                return
+            }
+
+            val alarmId = getSafeAlarmId(rawId)
+            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
             val intent = Intent(this, AlarmReceiver::class.java).apply {
-                putExtra("id", id)
+                putExtra("id", alarmId)
+                putExtra("rawId", rawId.toString())
                 putExtra("title", title)
                 putExtra("message", message)
                 putExtra("isRecurring", isRecurring)
             }
             val pendingIntent = PendingIntent.getBroadcast(
                 this,
-                id,
+                alarmId,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
@@ -275,13 +317,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun cancelAlarm(id: Int) {
+    fun cancelAlarm(rawId: Any) {
         try {
+            val alarmId = getSafeAlarmId(rawId)
             val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
             val intent = Intent(this, AlarmReceiver::class.java)
             val pendingIntent = PendingIntent.getBroadcast(
                 this,
-                id,
+                alarmId,
                 intent,
                 PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
             )
@@ -395,16 +438,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
-        fun scheduleAlarm(id: Int, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
+        fun scheduleAlarm(rawId: Any?, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
             activity.runOnUiThread {
-                activity.scheduleAlarm(id, triggerAtMillis, title, message, isRecurring)
+                if (rawId != null) {
+                    activity.scheduleAlarm(rawId, triggerAtMillis, title, message, isRecurring)
+                }
             }
         }
 
         @JavascriptInterface
-        fun cancelAlarm(id: Int) {
+        fun cancelAlarm(rawId: Any?) {
             activity.runOnUiThread {
-                activity.cancelAlarm(id)
+                if (rawId != null) {
+                    activity.cancelAlarm(rawId)
+                }
             }
         }
 
