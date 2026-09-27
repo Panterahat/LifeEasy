@@ -3402,6 +3402,22 @@
     </div>
 </div>
 
+<!-- COUNTER HISTORY MODAL -->
+<div class="modal-overlay" id="counterHistoryModal">
+    <div class="modal" style="max-height: 85vh; display: flex; flex-direction: column;">
+        <div class="modal-handle"></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+                <div class="modal-title" id="counterHistoryTitle" style="margin-bottom: 4px;">Counter History</div>
+                <div id="counterHistorySubtitle" style="font-size: 13px; color: var(--text2);">Last 100 entries</div>
+            </div>
+            <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px; border-radius: 8px;" onclick="closeModal('counterHistoryModal')">✕ Close</button>
+        </div>
+        <div id="counterHistoryList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;">
+        </div>
+    </div>
+</div>
+
 <!-- MONEY MODAL -->
 <div class="modal-overlay" id="moneyModal">
     <div class="modal">

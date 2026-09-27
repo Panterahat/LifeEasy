@@ -182,8 +182,8 @@ async function executeSupabaseOperation(endpoint, payload) {
             }
             break;
         }
-        case 'add_counter.php': table = 'counters'; data = { name: payload.name, value: payload.value, step: payload.step, color: payload.color, last_updated: payload.lastUpdated || new Date().toISOString() }; break;
-        case 'update_counter.php': table = 'counters'; data = { value: payload.value, last_updated: payload.lastUpdated || new Date().toISOString() }; break;
+        case 'add_counter.php': table = 'counters'; data = { name: payload.name, value: payload.value, step: payload.step, color: payload.color, last_updated: payload.lastUpdated || new Date().toISOString(), history: payload.history || null }; break;
+        case 'update_counter.php': table = 'counters'; data = { value: payload.value, last_updated: payload.lastUpdated || new Date().toISOString(), history: payload.history || null }; break;
         case 'delete_counter.php': table = 'counters'; break;
         case 'add_money.php': case 'update_money.php': case 'delete_money.php': table = 'money'; if (endpoint === 'update_money.php') data = { settled: true }; break;
         case 'add_alarm.php': case 'update_alarm.php': case 'delete_alarm.php': table = 'alarms'; if (endpoint === 'update_alarm.php') data = { enabled: payload.enabled }; break;
@@ -438,7 +438,21 @@ async function load() {
         if (rTasks.error?.status === 401 || rCounters.error?.status === 401) { document.getElementById('authModal').style.display = 'flex'; return; }
 
         if (rTasks.data) STATE.tasks = rTasks.data.map(t => ({ ...t, id: Number(t.task_id || t.id), due: t.due_date || t.due }));
-        if (rCounters.data) STATE.counters = rCounters.data.map(c => ({ ...c, id: Number(c.id), lastUpdated: c.last_updated || c.lastUpdated || c.created_at || c.createdAt || new Date().toISOString() }));
+        if (rCounters.data) {
+            STATE.counters = rCounters.data.map(c => {
+                const existingLocal = (STATE.counters || []).find(x => x.id == c.id);
+                let parsedHist = c.history;
+                if (typeof parsedHist === 'string') {
+                    try { parsedHist = JSON.parse(parsedHist); } catch (e) { parsedHist = null; }
+                }
+                return {
+                    ...c,
+                    id: Number(c.id),
+                    lastUpdated: c.last_updated || c.lastUpdated || c.created_at || c.createdAt || new Date().toISOString(),
+                    history: (Array.isArray(parsedHist) && parsedHist.length > 0) ? parsedHist : (existingLocal?.history || [])
+                };
+            });
+        }
         if (rPlans.data) STATE.plans = rPlans.data.map(p => ({ ...p, id: Number(p.id), endTime: p.end_time || p.endTime || '09:30', repeatDays: p.repeat_days || p.repeatDays || null, excludedDates: p.excluded_dates || p.excludedDates || [] }));
         if (rMoney.data) STATE.money = rMoney.data.map(m => ({ ...m, id: Number(m.id) }));
         if (rAlarms.data) STATE.alarms = rAlarms.data.map(a => ({ ...a, id: Number(a.id) }));
@@ -3156,18 +3170,37 @@ function renderTasks() {
 // ============================================================
 // COUNTERS
 // ============================================================
+function addCounterHistory(c, type, before, change, after) {
+    if (!c) return;
+    if (!c.history || !Array.isArray(c.history)) c.history = [];
+    c.history.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        type, // 'increment', 'decrement', 'reset', 'initial'
+        before,
+        change,
+        after,
+        timestamp: new Date().toISOString()
+    });
+    if (c.history.length > 200) {
+        c.history = c.history.slice(-200);
+    }
+}
+
 function saveCounter() {
     const name = document.getElementById('counterName').value.trim();
     if (!name) return toast('Enter a name');
     const nowIso = new Date().toISOString();
+    const startVal = parseInt(document.getElementById('counterStart').value) || 0;
     const cData = {
         name,
-        value: parseInt(document.getElementById('counterStart').value) || 0,
+        value: startVal,
         step: parseInt(document.getElementById('counterStep').value) || 1,
         color: selectedColors.counter,
         lastUpdated: nowIso,
-        createdAt: nowIso
+        createdAt: nowIso,
+        history: []
     };
+    addCounterHistory(cData, 'initial', 0, startVal, startVal);
     const tempId = Date.now();
     cData.id = tempId;
     STATE.counters.push(cData);
@@ -3183,10 +3216,69 @@ function saveCounter() {
     });
 }
 
-function adjustCounter(id, dir) { const c = STATE.counters.find(x => x.id === id); if (!c) return; c.value += dir * c.step; c.lastUpdated = new Date().toISOString(); renderCounters(); save(); ofetch('update_counter.php', { id, value: c.value, lastUpdated: c.lastUpdated }); }
-function resetCounter(id) { const c = STATE.counters.find(x => x.id === id); if (!c) return; c.value = 0; c.lastUpdated = new Date().toISOString(); renderCounters(); save(); ofetch('update_counter.php', { id, value: 0, lastUpdated: c.lastUpdated }); }
-function deleteCounter(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this counter?')) return; STATE.counters = STATE.counters.filter(x => x.id !== id); renderCounters(); save(); toast('Counter deleted 🗑️'); ofetch('delete_counter.php', { id }); }
-function openCounterModal() { document.getElementById('counterName').value = ''; document.getElementById('counterStep').value = '1'; document.getElementById('counterStart').value = '0'; document.getElementById('counterModal').classList.add('open'); }
+function adjustCounter(id, dir) {
+    const c = STATE.counters.find(x => x.id === id);
+    if (!c) return;
+    const before = c.value;
+    const change = dir * c.step;
+    c.value += change;
+    const after = c.value;
+    c.lastUpdated = new Date().toISOString();
+    addCounterHistory(c, dir > 0 ? 'increment' : 'decrement', before, change, after);
+    renderCounters();
+    save();
+    ofetch('update_counter.php', { id, value: c.value, lastUpdated: c.lastUpdated, history: c.history });
+}
+
+function resetCounter(id) {
+    const c = STATE.counters.find(x => x.id === id);
+    if (!c) return;
+    const before = c.value;
+    const change = 0 - before;
+    c.value = 0;
+    const after = 0;
+    c.lastUpdated = new Date().toISOString();
+    addCounterHistory(c, 'reset', before, change, after);
+    renderCounters();
+    save();
+    ofetch('update_counter.php', { id, value: 0, lastUpdated: c.lastUpdated, history: c.history });
+}
+
+function deleteCounter(e, id) {
+    if (e) e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this counter?')) return;
+    STATE.counters = STATE.counters.filter(x => x.id !== id);
+    renderCounters();
+    save();
+    toast('Counter deleted 🗑️');
+    ofetch('delete_counter.php', { id });
+}
+
+function openCounterModal() {
+    document.getElementById('counterName').value = '';
+    document.getElementById('counterStep').value = '1';
+    document.getElementById('counterStart').value = '0';
+    document.getElementById('counterModal').classList.add('open');
+}
+
+function formatCounterDateTime(val) {
+    const d = parseCounterDate(val) || new Date(val);
+    if (!d || isNaN(d.getTime())) return { date: 'Unknown', time: '', full: 'Unknown' };
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    let hours = d.getHours();
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    const secs = String(d.getSeconds()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const strHours = String(hours).padStart(2, '0');
+    const dateStr = `${day} ${month} ${year}`;
+    const timeStr = `${strHours}:${mins}:${secs} ${ampm}`;
+    return { date: dateStr, time: timeStr, full: `${dateStr}, ${timeStr}` };
+}
 
 function parseCounterDate(val) {
     if (!val) return null;
@@ -3235,6 +3327,91 @@ function timeSince(dateInput) {
     return daysStr + ' days ago';
 }
 
+function openCounterHistory(id) {
+    const c = STATE.counters.find(x => x.id === id);
+    if (!c) return;
+
+    const modalTitle = document.getElementById('counterHistoryTitle');
+    const modalSub = document.getElementById('counterHistorySubtitle');
+    const listEl = document.getElementById('counterHistoryList');
+
+    if (!modalTitle || !listEl) return;
+
+    modalTitle.textContent = `${c.name} — History`;
+
+    if (!c.history || !Array.isArray(c.history) || c.history.length === 0) {
+        c.history = [{
+            id: Date.now(),
+            type: 'initial',
+            before: 0,
+            change: c.value,
+            after: c.value,
+            timestamp: c.createdAt || c.lastUpdated || new Date().toISOString()
+        }];
+        save();
+    }
+
+    const totalCount = c.history.length;
+    const entries = [...c.history].reverse().slice(0, 100);
+    if (modalSub) modalSub.textContent = `Showing last ${entries.length} entries (Total: ${totalCount})`;
+
+    listEl.innerHTML = entries.map((item, index) => {
+        const serialNum = totalCount - index;
+
+        let badgeBg = 'var(--accent-glow)';
+        let badgeColor = 'var(--accent)';
+        let typeLabel = 'Initial Value';
+        let changeStr = item.change >= 0 ? `+${item.change}` : `${item.change}`;
+
+        if (item.type === 'increment') {
+            badgeBg = 'rgba(46, 204, 113, 0.15)';
+            badgeColor = '#2ecc71';
+            typeLabel = 'Increment';
+        } else if (item.type === 'decrement') {
+            badgeBg = 'rgba(231, 76, 60, 0.15)';
+            badgeColor = '#e74c3c';
+            typeLabel = 'Decrement';
+        } else if (item.type === 'reset') {
+            badgeBg = 'rgba(241, 196, 15, 0.15)';
+            badgeColor = '#f1c40f';
+            typeLabel = 'Reset';
+        }
+
+        const dateObj = parseCounterDate(item.timestamp) || new Date(item.timestamp);
+        const dtInfo = formatCounterDateTime(dateObj);
+        const relativeTime = timeSince(dateObj);
+
+        return `
+        <div style="background:var(--surface2); border-radius:14px; padding:12px 14px; border:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:11px; font-weight:700; background:var(--surface3); color:var(--text2); padding:2px 8px; border-radius:6px;">#${serialNum}</span>
+                    <span style="font-size:11px; font-weight:700; background:${badgeBg}; color:${badgeColor}; padding:2px 8px; border-radius:12px;">
+                        ${typeLabel} (${changeStr})
+                    </span>
+                </div>
+                <span style="font-size:11px; color:var(--text3); font-weight:600;">${dtInfo.time}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; background:var(--surface); padding:8px 12px; border-radius:8px;">
+                <div style="color:var(--text2);">
+                    Before: <strong style="color:var(--text); font-size:14px;">${item.before}</strong>
+                </div>
+                <div style="color:var(--text3); font-size:12px;">➔</div>
+                <div>
+                    After: <strong style="color:${c.color || 'var(--accent)'}; font-size:15px;">${item.after}</strong>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text3); margin-top:8px;">
+                <span>📅 ${dtInfo.date}</span>
+                <span>⏱️ ${relativeTime}</span>
+            </div>
+        </div>`;
+    }).join('');
+
+    const modal = document.getElementById('counterHistoryModal');
+    if (modal) modal.classList.add('open');
+}
+
 function renderCounters() {
     const el = document.getElementById('counterGrid');
     if (STATE.counters.length === 0) return el.innerHTML = '<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">🔢</div><p>Create your first counter</p></div>';
@@ -3251,18 +3428,19 @@ function renderCounters() {
         }
 
         return `
-        <div class="counter-card">
-            <div class="counter-name">${c.name}</div>
+        <div class="counter-card" onclick="openCounterHistory(${c.id})" style="cursor:pointer;" title="Click card to view history">
+            <div class="counter-name">${escapeHtml(c.name)}</div>
             <div class="counter-val" style="color:${c.color}">${c.value}</div>
             <div class="counter-controls">
-                <button class="c-btn c-btn-minus" onclick="adjustCounter(${c.id},-1)">−</button>
-                <button class="c-btn c-btn-reset" onclick="resetCounter(${c.id})">↺</button>
-                <button class="c-btn c-btn-plus" onclick="adjustCounter(${c.id},1)">+</button>
+                <button class="c-btn c-btn-minus" onclick="event.stopPropagation(); adjustCounter(${c.id},-1)">−</button>
+                <button class="c-btn c-btn-reset" onclick="event.stopPropagation(); resetCounter(${c.id})">↺</button>
+                <button class="c-btn c-btn-plus" onclick="event.stopPropagation(); adjustCounter(${c.id},1)">+</button>
             </div>
             <div class="counter-step">step: ${c.step}</div>
             <div style="font-size:11px; color:var(--text2); margin-top:8px; line-height:1.4;">${editInfo}</div>
-            <div style="text-align:right;margin-top:8px">
-                <span onclick="deleteCounter(event, ${c.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;">🗑</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                <span style="font-size:11px; color:var(--accent); font-weight:600;" onclick="event.stopPropagation(); openCounterHistory(${c.id})">Tap card to view history ➔</span>
+                <span onclick="event.stopPropagation(); deleteCounter(event, ${c.id})" style="font-size:16px;color:var(--text3);cursor:pointer;padding:4px;" title="Delete counter">🗑</span>
             </div>
         </div>`;
     }).join('');
