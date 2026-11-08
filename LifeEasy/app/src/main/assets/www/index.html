@@ -3434,8 +3434,12 @@
         </div>
         <div class="form-row"><label class="label">Note</label><input class="input" id="moneyNote"
                                                                       placeholder="For what?"></div>
-        <div class="form-row"><label class="label">Due Date (optional)</label><input class="input" type="date"
-                                                                                     id="moneyDue"></div>
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Entry Date</label><input class="input" type="date"
+                                                                               id="moneyCreatedDate"></div>
+            <div class="form-row"><label class="label">Due Date (optional)</label><input class="input" type="date"
+                                                                                         id="moneyDue"></div>
+        </div>
         <div class="form-row">
             <label class="label">Notification Reminder</label>
             <select class="input" id="moneyReminderOpt" onchange="toggleCustomReminderPicker('money')">
