@@ -2,6 +2,7 @@
 // STATE & HELPERS
 // ============================================================
 const STATE = {
+    navLayoutMode: 'bottom',
     tasks: [], plans: [], counters: [], money: [], alarms: [], roadmaps: [], steps: [], attendance: [], academic: [],
     attendanceRoutines: [], attendanceLogs: [], accounts: [], expenses: [], notes: [], sleepLogs: [], syncQueue: [], customTags: [], tabs: [],
     vaultFolders: [], vaultFiles: [], links: [], dailyReminders: [],
@@ -1175,13 +1176,13 @@ async function logoutUser() {
 }
 
 function toggleTheme(theme) {
-    const root = document.documentElement; if (theme === 'auto') { localStorage.removeItem('theme'); root.setAttribute('data-theme', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } else { localStorage.setItem('theme', theme); root.setAttribute('data-theme', theme); }
+    const root = document.documentElement; if (theme === 'auto') { localStorage.removeItem('theme'); root.setAttribute('data-theme', 'light'); } else { localStorage.setItem('theme', theme); root.setAttribute('data-theme', theme); }
     root.style.display = 'none'; root.offsetHeight; root.style.display = '';
 }
 
-function initTheme() { const t = localStorage.getItem('theme') || 'dark'; document.documentElement.setAttribute('data-theme', t); const sel = document.getElementById('themeSelect'); if (sel) sel.value = t; }
+function initTheme() { const t = localStorage.getItem('theme') || 'light'; document.documentElement.setAttribute('data-theme', t); const sel = document.getElementById('themeSelect'); if (sel) sel.value = t; }
 
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => { if (!localStorage.getItem('theme')) document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light'); });
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => { if (!localStorage.getItem('theme')) document.documentElement.setAttribute('data-theme', 'light'); });
 
 
 // ============================================================
@@ -5693,7 +5694,7 @@ function setNavLayoutMode(mode) {
 }
 
 function applyNavLayoutMode() {
-    const mode = STATE.navLayoutMode || 'both';
+    const mode = STATE.navLayoutMode || 'bottom';
     const nav = document.getElementById('mainBottomNav');
     const dotBtns = document.querySelectorAll('.menu-dots-btn');
     const bottomNavCard = document.getElementById('bottomNavSelectionCard');
@@ -5770,7 +5771,7 @@ function renderSideNavItems() {
         save();
     }
 
-    const mode = STATE.navLayoutMode || 'both';
+    const mode = STATE.navLayoutMode || 'bottom';
     const safeNavs = STATE.navPreferences.filter(key => NAV_MODULES[key]);
 
     const defaultBottomItems = ['dash', 'planner', 'tasks', 'money', 'links'];
@@ -5800,7 +5801,7 @@ function renderSideNavItems() {
 function renderNavbar() {
     applyNavLayoutMode();
 
-    const mode = STATE.navLayoutMode || 'both';
+    const mode = STATE.navLayoutMode || 'bottom';
     const nav = document.getElementById('mainBottomNav');
     if (!nav) return;
 
