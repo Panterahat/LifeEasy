@@ -15,7 +15,7 @@ const STATE = {
     dashHiddenWidgets: ['alarms', 'sleep', 'roadmap', 'specific_account', 'specific_counter', 'specific_note'],
     dashConfig: { accountId: null, counterId: null, noteId: null },
 
-    selectedDate: '', attSelectedDate: '', activeRoadmap: null, activeAccountId: null, taskFilter: 'active', moneyFilter: 'all', taskCategories: ['Work', 'Personal'], eventCategories: ['Personal', 'Work', 'Academic']
+    selectedDate: '', attSelectedDate: '', activeRoadmap: null, activeAccountId: null, taskFilter: 'active', moneyFilter: 'pending', taskCategories: ['Work', 'Personal'], eventCategories: ['Personal', 'Work', 'Academic']
 };
 
 const WIDGET_DICT = {
@@ -406,6 +406,7 @@ async function load() {
 
         const saved = localStorage.getItem('proflow_state');
         if (saved) { try { Object.assign(STATE, JSON.parse(saved)); } catch (e) { } }
+        if (!STATE.moneyFilter || STATE.moneyFilter === 'all') STATE.moneyFilter = 'pending';
 
         if (!STATE.eventCategories || !Array.isArray(STATE.eventCategories)) {
             STATE.eventCategories = ['Personal', 'Work', 'Academic'];
@@ -509,6 +510,7 @@ function bootApp() {
     if (cachedData) {
         try {
             Object.assign(STATE, JSON.parse(cachedData));
+            if (!STATE.moneyFilter || STATE.moneyFilter === 'all') STATE.moneyFilter = 'pending';
             STATE.selectedDate = todayStr; STATE.attSelectedDate = todayStr;
             if (typeof calCurrentDate !== 'undefined') calCurrentDate = new Date(today);
             if (typeof attCurrentDate !== 'undefined') attCurrentDate = new Date(today);
@@ -3470,7 +3472,7 @@ function settleMoney(e, id) { if (e) e.stopPropagation(); const m = STATE.money.
 function deleteMoney(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this money record?')) return; STATE.money = STATE.money.filter(x => x.id !== id); scheduleItemNotification(`money_${id}`, null, null, null); renderMoney(); save(); toast('Deleted 🗑️'); ofetch('delete_money.php', { id }); }
 function openMoneyModal() { document.getElementById('moneyPerson').value = ''; document.getElementById('moneyAmount').value = ''; document.getElementById('moneyNote').value = ''; document.getElementById('moneyDue').value = ''; document.getElementById('moneyModal').classList.add('open'); }
 function setMoneyFilter(f, el) { STATE.moneyFilter = f; document.querySelectorAll('#screen-money .filter-tab').forEach(t => t.classList.remove('active')); el.classList.add('active'); renderMoney(); }
-function renderMoney() { let records = [...STATE.money]; if (STATE.moneyFilter === 'lent') records = records.filter(m => m.type === 'lent'); else if (STATE.moneyFilter === 'borrowed') records = records.filter(m => m.type === 'borrowed'); else if (STATE.moneyFilter === 'pending') records = records.filter(m => !m.settled); else if (STATE.moneyFilter === 'settled') records = records.filter(m => m.settled); const lentTotal = STATE.money.filter(m => m.type === 'lent' && !m.settled).reduce((s, m) => s + parseFloat(m.amount || 0), 0); const owedTotal = STATE.money.filter(m => m.type === 'borrowed' && !m.settled).reduce((s, m) => s + parseFloat(m.amount || 0), 0); document.getElementById('totalLent').textContent = Math.round(lentTotal); document.getElementById('totalOwed').textContent = Math.round(owedTotal); const el = document.getElementById('moneyList'); if (records.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>No records found</p></div>'; el.innerHTML = records.map(m => { const amtVal = Math.round(parseFloat(m.amount) || 0); return `<div class="money-item ${m.settled ? 'money-settled' : ''}"><div class="money-avatar ${m.type}">${m.person[0].toUpperCase()}</div><div class="money-info"><div class="money-name">${m.person} ${m.settled ? '<span class="pill pill-green" style="font-size:9px">Settled</span>' : ''}</div><div class="money-note">${m.note || (m.type === 'lent' ? 'You lent' : 'You borrowed')} ${m.due ? '· Due ' + fmtDisplay(m.due) : ''}</div></div><div style="text-align:right; min-width:85px; width:85px; flex-shrink:0;"><div class="money-amount ${m.type}">${m.type === 'lent' ? '+' : '-'}${amtVal}</div>${!m.settled ? `<button class="settle-btn" onclick="settleMoney(event, ${m.id})">Settle</button>` : ''}<div onclick="deleteMoney(event, ${m.id})" style="font-size:16px;color:var(--text3);cursor:pointer;margin-top:4px;padding:4px;">🗑️</div></div></div>`; }).join(''); }
+function renderMoney() { const filter = STATE.moneyFilter || 'pending'; const tabs = document.querySelectorAll('#screen-money .filter-tab'); tabs.forEach(t => { const onclick = t.getAttribute('onclick') || ''; if (onclick.includes(`'${filter}'`)) t.classList.add('active'); else t.classList.remove('active'); }); let records = [...STATE.money]; if (filter === 'lent') records = records.filter(m => m.type === 'lent'); else if (filter === 'borrowed') records = records.filter(m => m.type === 'borrowed'); else if (filter === 'pending') records = records.filter(m => !m.settled); else if (filter === 'settled') records = records.filter(m => m.settled); const lentTotal = STATE.money.filter(m => m.type === 'lent' && !m.settled).reduce((s, m) => s + parseFloat(m.amount || 0), 0); const owedTotal = STATE.money.filter(m => m.type === 'borrowed' && !m.settled).reduce((s, m) => s + parseFloat(m.amount || 0), 0); document.getElementById('totalLent').textContent = Math.round(lentTotal); document.getElementById('totalOwed').textContent = Math.round(owedTotal); const el = document.getElementById('moneyList'); if (records.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>No records found</p></div>'; el.innerHTML = records.map(m => { const amtVal = Math.round(parseFloat(m.amount) || 0); return `<div class="money-item ${m.settled ? 'money-settled' : ''}"><div class="money-avatar ${m.type}">${m.person[0].toUpperCase()}</div><div class="money-info"><div class="money-name">${m.person} ${m.settled ? '<span class="pill pill-green" style="font-size:9px">Settled</span>' : ''}</div><div class="money-note">${m.note || (m.type === 'lent' ? 'You lent' : 'You borrowed')} ${m.due ? '· Due ' + fmtDisplay(m.due) : ''}</div></div><div style="text-align:right; min-width:85px; width:85px; flex-shrink:0;"><div class="money-amount ${m.type}">${m.type === 'lent' ? '+' : '-'}${amtVal}</div>${!m.settled ? `<button class="settle-btn" onclick="settleMoney(event, ${m.id})">Settle</button>` : ''}<div onclick="deleteMoney(event, ${m.id})" style="font-size:16px;color:var(--text3);cursor:pointer;margin-top:4px;padding:4px;">🗑️</div></div></div>`; }).join(''); }
 
 // ============================================================
 // ALARMS
