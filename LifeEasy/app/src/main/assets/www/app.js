@@ -732,6 +732,13 @@ function openAuthModal() {
     }
 }
 
+function closeAuthModal() {
+    const modal = document.getElementById('authModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 function updateGreeting() {
     const now = new Date();
     const h = now.getHours();
@@ -1123,13 +1130,20 @@ function toggleDashWidget(key) {
 // AUTH & THEME
 // ============================================================
 function switchAuthTab(tab) {
-    document.getElementById('loginError').innerText = ''; document.getElementById('regError').innerText = '';
+    const loginErr = document.getElementById('loginError');
+    const regErr = document.getElementById('regError');
+    if (loginErr) loginErr.innerText = '';
+    if (regErr) regErr.innerText = '';
+
+    const loginForm = document.getElementById('loginForm');
+    const regForm = document.getElementById('registerForm');
+
     if (tab === 'login') {
-        document.getElementById('loginForm').style.display = 'block'; document.getElementById('registerForm').style.display = 'none';
-        document.getElementById('tabLogin').classList.add('active'); document.getElementById('tabRegister').classList.remove('active');
+        if (loginForm) loginForm.style.display = 'block';
+        if (regForm) regForm.style.display = 'none';
     } else {
-        document.getElementById('loginForm').style.display = 'none'; document.getElementById('registerForm').style.display = 'block';
-        document.getElementById('tabLogin').classList.remove('active'); document.getElementById('tabRegister').classList.add('active');
+        if (loginForm) loginForm.style.display = 'none';
+        if (regForm) regForm.style.display = 'block';
     }
 }
 

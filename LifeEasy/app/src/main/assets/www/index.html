@@ -2477,26 +2477,57 @@
 <body>
 
 <div id="authModal" class="auth-overlay">
+    <!-- Close Button at the very top right of the screen -->
+    <button class="auth-close-btn" onclick="closeAuthModal()" title="Close">✕</button>
+
     <div class="auth-box">
-        <div class="auth-tabs">
-            <button id="tabLogin" class="active" onclick="switchAuthTab('login')">Login</button>
-            <button id="tabRegister" onclick="switchAuthTab('register')">Sign Up</button>
+        <!-- App Logo / Welcoming Star Icon -->
+        <div class="auth-logo-icon">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
         </div>
 
         <form id="loginForm" onsubmit="handleAuth(event, 'login.php')">
-            <h2>Welcome Back</h2>
-            <input type="text" id="loginUsername" placeholder="Username" required>
-            <input type="password" id="loginPassword" placeholder="Password" required>
+            <h2 class="auth-title">Welcome Back</h2>
+            <p class="auth-subtitle">Sign in to continue to LifeEasy</p>
+
+            <div class="auth-input-group">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                <input type="text" id="loginUsername" placeholder="USERNAME" required>
+            </div>
+
+            <div class="auth-input-group">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <svg id="loginEyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor: pointer;" onclick="togglePasswordVisibility('loginPassword', 'loginEyeIcon')"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </div>
+
             <p id="loginError" class="error-msg"></p>
-            <button type="submit" class="auth-submit">Log In</button>
+            <button type="submit" class="auth-submit">SIGN IN</button>
+
+            <p class="auth-footer-text">Don't have an account? <span onclick="switchAuthTab('register')">Sign Up</span></p>
         </form>
 
         <form id="registerForm" style="display: none;" onsubmit="handleAuth(event, 'register.php')">
-            <h2>Create Account</h2>
-            <input type="text" id="regUsername" placeholder="Choose a Username" required>
-            <input type="password" id="regPassword" placeholder="Create a Password" required>
+            <h2 class="auth-title">Create Account</h2>
+            <p class="auth-subtitle">Sign up to get started with LifeEasy</p>
+
+            <div class="auth-input-group">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                <input type="text" id="regUsername" placeholder="USERNAME" required>
+            </div>
+
+            <div class="auth-input-group">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <input type="password" id="regPassword" placeholder="Password" required>
+                <svg id="regEyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="cursor: pointer;" onclick="togglePasswordVisibility('regPassword', 'regEyeIcon')"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </div>
+
             <p id="regError" class="error-msg"></p>
-            <button type="submit" class="auth-submit">Sign Up</button>
+            <button type="submit" class="auth-submit">SIGN UP</button>
+
+            <p class="auth-footer-text">Already have an account? <span onclick="switchAuthTab('login')">Log In</span></p>
         </form>
     </div>
 </div>
@@ -3953,6 +3984,19 @@
 <script>
     // This runs after app.js is fully loaded
     initTheme();
+
+    function togglePasswordVisibility(inputId, iconId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        if (!input || !icon) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+        } else {
+            input.type = 'password';
+            icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+        }
+    }
 </script>
 </body>
 
