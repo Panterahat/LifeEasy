@@ -3115,9 +3115,13 @@
 
         <!-- ACADEMIC -->
         <div class="screen" id="screen-academic">
-            <div class="section-header">
-                <div class="section-title">Academic Hub</div>
+            <div class="section-header" style="margin-bottom: 16px;">
+                <div>
+                    <div class="section-title">Exams</div>
+                    <div style="font-size:12px; color:var(--text2); margin-top:2px;" id="acadComingUpCount">0 coming up</div>
+                </div>
             </div>
+
             <div id="academicList"></div>
         </div>
 
@@ -3828,12 +3832,13 @@
     <div class="modal">
         <div class="modal-handle"></div>
         <div class="modal-title" id="academicModalTitle">New Academic Event</div>
-        <div class="form-row"><label class="label">Subject *</label><input class="input" id="acadSubject"
-                                                                           placeholder="Course name"></div>
+        <div class="form-row"><label class="label">Course Name *</label><input class="input" id="acadSubject"
+                                                                           placeholder="e.g. Physics"></div>
         <div class="form-grid">
             <div class="form-row">
                 <label class="label">Type</label>
                 <select class="input" id="acadType">
+                    <option>Quiz</option>
                     <option>Class Test</option>
                     <option>Midterm</option>
                     <option>Final</option>
@@ -3846,9 +3851,11 @@
             <div class="form-row"><label class="label">Date</label><input class="input" type="date" id="acadDate">
             </div>
         </div>
-        <div class="form-row"><label class="label">Topic Name</label><input class="input" id="acadTopic"
-                                                                            placeholder="What is it about?"></div>
-        <div class="form-row"><label class="label">Description</label><input class="input" id="acadDesc"
+        <div class="form-grid">
+            <div class="form-row"><label class="label">Time</label><input class="input" type="time" id="acadTime"></div>
+            <div class="form-row"><label class="label">Room / Location</label><input class="input" id="acadRoom" placeholder="e.g. 210"></div>
+        </div>
+        <div class="form-row"><label class="label">Description / Syllabus</label><input class="input" id="acadDesc"
                                                                              placeholder="Brief details"></div>
         <div class="form-row"><label class="label">Note</label><textarea class="input" id="acadNote"
                                                                          placeholder="Extra notes..." style="min-height:60px"></textarea></div>

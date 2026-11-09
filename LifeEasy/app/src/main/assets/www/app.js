@@ -3646,7 +3646,7 @@ function renderAttendance() { const el = document.getElementById('attendanceList
 // ============================================================
 function saveAcademic() {
     const subject = document.getElementById('acadSubject').value.trim();
-    if (!subject) return toast('Need a subject!');
+    if (!subject) return toast('Need a subject / course code!');
     const editId = document.getElementById('academicModal').dataset.editId;
     const reminder = document.getElementById('acadReminderOpt')?.value || 'none';
     const customVal = document.getElementById('acadCustomPicker')?.value || '';
@@ -3654,7 +3654,8 @@ function saveAcademic() {
         subject,
         type: document.getElementById('acadType').value,
         date: document.getElementById('acadDate').value,
-        topic: document.getElementById('acadTopic').value,
+        time: document.getElementById('acadTime')?.value || '',
+        room: document.getElementById('acadRoom')?.value || '',
         desc: document.getElementById('acadDesc').value,
         note: document.getElementById('acadNote').value,
         reminder: reminder,
@@ -3691,7 +3692,9 @@ function delAcademic(e, id) {
 function openAcademicModal() {
     document.getElementById('academicModalTitle').textContent = 'New Academic Event';
     document.getElementById('acadSubject').value = '';
-    document.getElementById('acadTopic').value = '';
+    document.getElementById('acadDate').value = '';
+    if (document.getElementById('acadTime')) document.getElementById('acadTime').value = '';
+    if (document.getElementById('acadRoom')) document.getElementById('acadRoom').value = '';
     document.getElementById('acadDesc').value = '';
     document.getElementById('acadNote').value = '';
     if (document.getElementById('acadReminderOpt')) document.getElementById('acadReminderOpt').value = 'none';
@@ -3706,7 +3709,8 @@ function openAcademicModalById(id) {
     document.getElementById('acadSubject').value = a.subject;
     document.getElementById('acadType').value = a.type;
     document.getElementById('acadDate').value = a.date || '';
-    document.getElementById('acadTopic').value = a.topic || '';
+    if (document.getElementById('acadTime')) document.getElementById('acadTime').value = a.time || '';
+    if (document.getElementById('acadRoom')) document.getElementById('acadRoom').value = a.room || '';
     document.getElementById('acadDesc').value = a.desc || '';
     document.getElementById('acadNote').value = a.note || '';
     if (document.getElementById('acadReminderOpt')) document.getElementById('acadReminderOpt').value = a.reminder || 'none';
@@ -3715,7 +3719,134 @@ function openAcademicModalById(id) {
     document.getElementById('academicModal').dataset.editId = a.id;
     document.getElementById('academicModal').classList.add('open');
 }
-function renderAcademic() { const el = document.getElementById('academicList'); if (!STATE.academic.length) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎓</div><p>No upcoming exams or projects</p></div>'; const sorted = [...STATE.academic].sort((a, b) => new Date(a.date || '9999') - new Date(b.date || '9999')); el.innerHTML = sorted.map(a => `<div class="acad-card" onclick="openAcademicModalById(${a.id})"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="acad-type">${a.type}</div><span onclick="delAcademic(event, ${a.id})" style="color:var(--text3); font-size:16px; cursor:pointer; padding:4px;">🗑</span></div><div class="acad-title">${a.subject}</div>${a.date ? `<div class="acad-detail">📅 <b>Date:</b> ${new Date(a.date).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}</div>` : ''}${a.topic ? `<div class="acad-detail">🎯 <b>Topic:</b> ${a.topic}</div>` : ''}${a.desc ? `<div class="acad-detail">📝 <b>Desc:</b> ${a.desc}</div>` : ''}${a.note ? `<div class="acad-detail" style="margin-top:6px; font-style:italic; border-top:1px solid var(--border); padding-top:6px">Note: ${a.note}</div>` : ''}</div>`).join(''); }
+function renderAcademic() {
+    const el = document.getElementById('academicList');
+    if (!el) return;
+
+    const countEl = document.getElementById('acadComingUpCount');
+    if (countEl) {
+        const upcomingCount = STATE.academic.filter(a => !a.date || new Date(a.date + 'T23:59:59') >= new Date()).length;
+        countEl.textContent = `${upcomingCount} coming up`;
+    }
+
+    if (!STATE.academic.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎓</div><p>No upcoming exams or projects.<br>Tap <strong>+</strong> to add one!</p></div>';
+        return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const sorted = [...STATE.academic].sort((a, b) => new Date(a.date || '9999-12-31') - new Date(b.date || '9999-12-31'));
+
+    const next7Days = [];
+    const later = [];
+    const past = [];
+
+    sorted.forEach(a => {
+        if (!a.date) {
+            later.push(a);
+            return;
+        }
+        const evDate = new Date(a.date + 'T00:00:00');
+        const diffTime = evDate - today;
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            past.push(a);
+        } else if (diffDays <= 7) {
+            next7Days.push({ a, diffDays });
+        } else {
+            later.push({ a, diffDays });
+        }
+    });
+
+    let html = '';
+
+    const renderCard = (itemObj) => {
+        const a = itemObj.a || itemObj;
+        const diffDays = itemObj.diffDays !== undefined ? itemObj.diffDays : null;
+
+        let monthName = 'OCT';
+        let dayNum = '12';
+        let dayOfWeek = 'MON';
+
+        if (a.date) {
+            try {
+                const dObj = new Date(a.date + 'T00:00:00');
+                monthName = dObj.toLocaleDateString('en', { month: 'short' }).toUpperCase();
+                dayNum = dObj.getDate();
+                dayOfWeek = dObj.toLocaleDateString('en', { weekday: 'short' }).toUpperCase();
+            } catch (e) {}
+        }
+
+        let countdownText = '';
+        if (diffDays !== null) {
+            if (diffDays === 0) countdownText = 'Today';
+            else if (diffDays === 1) countdownText = 'Tomorrow';
+            else if (diffDays > 1) countdownText = `in ${diffDays} days`;
+            else countdownText = `${Math.abs(diffDays)} days ago`;
+        }
+
+        let badgeColor = '#7c6ef5';
+        const typeLower = (a.type || '').toLowerCase();
+        if (typeLower.includes('quiz') || typeLower.includes('test')) badgeColor = '#f5a623';
+        else if (typeLower.includes('report') || typeLower.includes('assignment') || typeLower.includes('presentation')) badgeColor = '#f5647c';
+        else if (typeLower.includes('midterm') || typeLower.includes('ct')) badgeColor = '#7c6ef5';
+        else if (typeLower.includes('final') || typeLower.includes('exam')) badgeColor = '#3b82f6';
+        else if (typeLower.includes('project') || typeLower.includes('lab')) badgeColor = '#10b981';
+
+        let typeIcon = '📋';
+        if (typeLower.includes('quiz')) typeIcon = '❓';
+        else if (typeLower.includes('report') || typeLower.includes('assignment')) typeIcon = '📝';
+        else if (typeLower.includes('midterm') || typeLower.includes('final') || typeLower.includes('exam')) typeIcon = '🎓';
+        else if (typeLower.includes('project')) typeIcon = '💻';
+
+        return `<div class="card" style="display:flex; gap:14px; align-items:flex-start; cursor:pointer; position:relative; transition:transform 0.15s ease;" onclick="openAcademicModalById(${a.id})">
+            <div style="background:${badgeColor}; color:#ffffff; border-radius:14px; padding:10px 8px; text-align:center; min-width:52px; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">${monthName}</div>
+                <div style="font-size:22px; font-weight:800; line-height:1.1; margin:2px 0;">${dayNum}</div>
+                <div style="font-size:9px; font-weight:700; text-transform:uppercase; opacity:0.9;">${dayOfWeek}</div>
+            </div>
+            <div style="flex:1; min-width:0;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:4px;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:13px;">${typeIcon}</span>
+                        <span style="font-size:12px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.5px;">${escapeHtml(a.type || 'Exam')}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        ${countdownText ? `<span style="background:var(--surface2); color:var(--text2); font-size:11px; font-weight:600; padding:3px 8px; border-radius:12px; border:1px solid var(--border);">${countdownText}</span>` : ''}
+                        <span onclick="delAcademic(event, ${a.id})" style="color:var(--text3); font-size:14px; cursor:pointer; padding:2px;" title="Delete">🗑️</span>
+                    </div>
+                </div>
+                <div style="font-size:15px; font-weight:700; color:var(--text); margin-bottom:2px; line-height:1.3;">${escapeHtml(a.subject)}</div>
+                ${(a.time || a.room) ? `<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
+                    ${a.time ? `<span style="background:var(--surface2); color:var(--text); font-size:11px; font-weight:600; padding:4px 8px; border-radius:8px; display:inline-flex; align-items:center; gap:4px;">🕒 ${formatTime(a.time)}</span>` : ''}
+                    ${a.room ? `<span style="background:var(--surface2); color:var(--text); font-size:11px; font-weight:600; padding:4px 8px; border-radius:8px; display:inline-flex; align-items:center; gap:4px;">🚪 ${escapeHtml(a.room)}</span>` : ''}
+                </div>` : ''}
+                ${a.desc ? `<div style="font-size:12px; color:var(--text2); margin-top:8px; line-height:1.4;">${escapeHtml(a.desc)}</div>` : ''}
+                ${a.note ? `<div style="font-size:11px; color:var(--text3); margin-top:6px; font-style:italic; border-top:1px dashed var(--border); padding-top:4px;">${escapeHtml(a.note)}</div>` : ''}
+            </div>
+        </div>`;
+    };
+
+    if (next7Days.length > 0) {
+        html += `<div style="font-size:11px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin:4px 0 10px; padding:0 4px;">Next 7 Days</div>`;
+        html += next7Days.map(renderCard).join('');
+    }
+
+    if (later.length > 0) {
+        html += `<div style="font-size:11px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin:20px 0 10px; padding:0 4px;">Later</div>`;
+        html += later.map(renderCard).join('');
+    }
+
+    if (past.length > 0) {
+        html += `<div style="font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin:20px 0 10px; padding:0 4px;">Past</div>`;
+        html += past.map(renderCard).join('');
+    }
+
+    el.innerHTML = html;
+}
 
 // ============================================================
 // EXPENSES
