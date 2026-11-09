@@ -2092,6 +2092,9 @@ function setPlannerView(mode) {
         if (btnWeekly) btnWeekly.classList.add('active');
         if (monthlyView) monthlyView.style.setProperty('display', 'none', 'important');
         if (weeklyView) weeklyView.style.setProperty('display', 'block', 'important');
+        weeklyBaseDate = new Date();
+        STATE.selectedDate = fmtDate(weeklyBaseDate);
+        calCurrentDate = new Date();
         renderWeeklyPlanner();
     } else {
         if (btnWeekly) btnWeekly.classList.remove('active');
@@ -2172,6 +2175,25 @@ function initWeeklySwipeGesture() {
     }, { passive: true });
 }
 
+function scrollToCurrentTimeSlot() {
+    const selDateStr = STATE.selectedDate || fmtDate(new Date());
+    const todayStr = fmtDate(new Date());
+    if (selDateStr === todayStr) {
+        const now = new Date();
+        const currentMins = now.getHours() * 60 + now.getMinutes();
+        const currentSeqMins = getSeqMins(currentMins);
+        const HOUR_HEIGHT = 120;
+        const currentY = (currentSeqMins / 60) * HOUR_HEIGHT;
+
+        setTimeout(() => {
+            const screenEl = document.getElementById('screen-planner');
+            if (screenEl) {
+                screenEl.scrollTop = Math.max(0, currentY - 150);
+            }
+        }, 60);
+    }
+}
+
 function renderWeeklyPlanner() {
     initWeeklySwipeGesture();
 
@@ -2189,6 +2211,7 @@ function renderWeeklyPlanner() {
     renderWeeklyStrip();
     renderWeeklyQuickChips();
     renderWeeklyTimeline();
+    scrollToCurrentTimeSlot();
 }
 
 function renderWeeklyStrip() {
@@ -2660,6 +2683,19 @@ function renderWeeklyTimeline() {
     gridHtml += '</div>';
 
     let overlayHtml = '<div class="timeline-events-overlay">';
+    const todayStr = fmtDate(new Date());
+    if (selDateStr === todayStr) {
+        const now = new Date();
+        const currentMins = now.getHours() * 60 + now.getMinutes();
+        const currentSeqMins = getSeqMins(currentMins);
+        const currentTopY = calcYPosition(currentSeqMins);
+        overlayHtml += `
+            <div class="timeline-current-time-bar" style="top: ${currentTopY}px;">
+                <div class="timeline-current-time-dot"></div>
+                <div class="timeline-current-time-line"></div>
+            </div>
+        `;
+    }
     allItems.forEach(item => {
         const topY = calcYPosition(item.startSeqMins);
         const rawEndY = calcYPosition(item.endSeqMins);

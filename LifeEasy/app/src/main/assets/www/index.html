@@ -815,6 +815,17 @@
             margin-bottom: 16px;
             flex-wrap: wrap;
             gap: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 25;
+            background: var(--bg);
+            padding-top: 16px;
+            padding-bottom: 12px;
+            margin-top: -16px;
+            margin-left: -16px;
+            margin-right: -16px;
+            padding-left: 16px;
+            padding-right: 16px;
         }
 
         .planner-toggle-group {
@@ -1080,6 +1091,33 @@
             right: 0;
             bottom: 0;
             pointer-events: none;
+        }
+
+        .timeline-current-time-bar {
+            position: absolute;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .timeline-current-time-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--accent3, #f5a623);
+            border-radius: 50%;
+            position: absolute;
+            left: -5px;
+            box-shadow: 0 0 6px rgba(245, 166, 35, 0.6);
+        }
+
+        .timeline-current-time-line {
+            flex: 1;
+            height: 2px;
+            background: var(--accent3, #f5a623);
+            box-shadow: 0 0 6px rgba(245, 166, 35, 0.5);
         }
 
         /* UNIFIED EVENT CARD BLOCK IN TIMELINE */
