@@ -15,7 +15,7 @@ const STATE = {
     dashHiddenWidgets: ['alarms', 'sleep', 'roadmap', 'specific_account', 'specific_counter', 'specific_note'],
     dashConfig: { accountId: null, counterId: null, noteId: null },
 
-    selectedDate: '', attSelectedDate: '', activeRoadmap: null, activeAccountId: null, taskFilter: 'active', moneyFilter: 'pending', taskCategories: ['Work', 'Personal'], eventCategories: ['Personal', 'Work', 'Academic']
+    selectedDate: '', attSelectedDate: '', activeRoadmap: null, activeAccountId: null, taskFilter: 'active', moneyFilter: 'pending', taskCategories: ['Work', 'Personal'], eventCategories: ['Personal', 'Work', 'Academic'], hiddenNoteTags: [], hiddenLinkCategories: []
 };
 
 const WIDGET_DICT = {
@@ -94,9 +94,16 @@ function save() {
     } catch (e) { console.warn('save() failed', e); }
 }
 
+let noteCancelled = false;
+
 function closeModal(id) {
     const m = document.getElementById(id);
-    if (m) m.classList.remove('open');
+    if (m && m.classList.contains('open')) {
+        if (id === 'noteModal' && !noteCancelled) {
+            autoSaveNoteOnClose(false);
+        }
+        m.classList.remove('open');
+    }
 }
 
 // ============================================================
@@ -4001,6 +4008,36 @@ function deleteNoteTag(e, tagToDelete) {
     toast(`Tag #${tagToDelete} deleted.`);
 }
 
+function toggleHideNoteTag(e, tag) {
+    e.stopPropagation();
+    if (!STATE.hiddenNoteTags) STATE.hiddenNoteTags = [];
+    const idx = STATE.hiddenNoteTags.indexOf(tag);
+    if (idx !== -1) {
+        STATE.hiddenNoteTags.splice(idx, 1);
+        toast(`Tag #${tag} shown in All`);
+    } else {
+        STATE.hiddenNoteTags.push(tag);
+        toast(`Tag #${tag} hidden from All`);
+    }
+    save();
+    renderNotes();
+}
+
+function toggleHideLinkCategory(e, cat) {
+    e.stopPropagation();
+    if (!STATE.hiddenLinkCategories) STATE.hiddenLinkCategories = [];
+    const idx = STATE.hiddenLinkCategories.indexOf(cat);
+    if (idx !== -1) {
+        STATE.hiddenLinkCategories.splice(idx, 1);
+        toast(`Category #${cat} shown in All`);
+    } else {
+        STATE.hiddenLinkCategories.push(cat);
+        toast(`Category #${cat} hidden from All`);
+    }
+    save();
+    renderLinks();
+}
+
 function setNoteTagFilter(tag) {
     activeNoteTag = tag;
     renderNotes();
@@ -4024,6 +4061,7 @@ function renderNoteModalTags(selectedTags = []) {
 }
 
 function openNoteModal(id) {
+    noteCancelled = false;
     const modal = document.getElementById('noteModal');
     let currentTags = [];
 
@@ -4104,40 +4142,64 @@ function renderNoteColorPicker() {
 }
 function pickNoteColor(c) { noteColor = c; renderNoteColorPicker(); }
 
-function saveNote() {
-    const title = document.getElementById('noteTitle').value.trim();
-    const body = document.getElementById('noteBody').value.trim();
+function cancelNote() {
+    noteCancelled = true;
+    closeModal('noteModal');
+}
+
+function autoSaveNoteOnClose(isExplicitSave = false) {
+    const titleEl = document.getElementById('noteTitle');
+    const bodyEl = document.getElementById('noteBody');
+    if (!titleEl) return;
+    const title = titleEl.value.trim();
+    const body = bodyEl ? bodyEl.value.trim() : '';
 
     const tagsNodeList = document.querySelectorAll('#noteModalTagSelector input[type="checkbox"]:checked');
     const tags = Array.from(tagsNodeList).map(cb => cb.value);
+    const checklist = noteChecklistMode ? JSON.parse(JSON.stringify(noteChecklistItems)) : null;
 
-    if (!title && !body && !noteChecklistItems.length && !tags.length) return toast('Note is empty!');
+    if (!title && !body && (!checklist || !checklist.length) && !tags.length) return;
 
     const modal = document.getElementById('noteModal');
     const editId = modal.dataset.editId ? Number(modal.dataset.editId) : null;
     const now = new Date().toISOString();
-    const checklist = noteChecklistMode ? JSON.parse(JSON.stringify(noteChecklistItems)) : null;
 
     if (editId) {
         const n = STATE.notes.find(x => x.id === editId);
         if (!n) return;
         n.title = title; n.body = noteChecklistMode ? '' : body;
         n.checklist = checklist; n.color = noteColor; n.tags = tags; n.updatedAt = now;
-        renderNotes(); closeModal('noteModal'); save();
+        renderNotes(); save();
+        if (isExplicitSave) toast('Note saved 📝');
         ofetch('update_note.php', { id: editId, title: n.title, body: n.body, checklist: n.checklist, tags: n.tags, color: n.color, pinned: n.pinned, archived: n.archived, trashed: n.trashed, updatedAt: now });
     } else {
         const tempId = Date.now();
         const nData = { id: tempId, title, body: noteChecklistMode ? '' : body, checklist, tags, color: noteColor || null, pinned: false, archived: false, trashed: false, updatedAt: now };
         STATE.notes.unshift(nData);
-        renderNotes(); closeModal('noteModal'); save();
-        toast('Note saved 📝');
+        modal.dataset.editId = tempId;
+        renderNotes(); save();
+        if (isExplicitSave) toast('Note saved 📝');
         ofetch('add_note.php', nData, d => {
             const n = STATE.notes.find(x => x.id === tempId);
             if (n) n.id = d.id;
-            if (STATE.dashConfig.noteId == tempId) STATE.dashConfig.noteId = String(d.id); // Reconcile Pin
+            modal.dataset.editId = n.id;
+            if (STATE.dashConfig.noteId == tempId) STATE.dashConfig.noteId = String(d.id);
             renderNotes(); renderDashboard(); save();
         });
     }
+}
+
+function saveNote() {
+    noteCancelled = true;
+    const title = document.getElementById('noteTitle').value.trim();
+    const body = document.getElementById('noteBody').value.trim();
+    const tagsNodeList = document.querySelectorAll('#noteModalTagSelector input[type="checkbox"]:checked');
+    const tags = Array.from(tagsNodeList).map(cb => cb.value);
+
+    if (!title && !body && !noteChecklistItems.length && !tags.length) return toast('Note is empty!');
+
+    autoSaveNoteOnClose(true);
+    closeModal('noteModal');
 }
 
 function toggleNotePin(e, id) { e.stopPropagation(); const n = STATE.notes.find(x => x.id === id); if (!n) return; n.pinned = !n.pinned; renderNotes(); save(); ofetch('update_note.php', { id, pinned: n.pinned }); }
@@ -4167,11 +4229,14 @@ function renderNotes() {
     });
 
     if (tagsFilterEl) {
+        if (!STATE.hiddenNoteTags) STATE.hiddenNoteTags = [];
         let tagsHtml = `<div class="filter-tab ${activeNoteTag === 'all' ? 'active' : ''}" onclick="setNoteTagFilter('all')">All</div>`;
         Array.from(allTags).sort().forEach(tag => {
+            const isHidden = (STATE.hiddenNoteTags || []).includes(tag);
             tagsHtml += `<div class="filter-tab ${activeNoteTag === tag ? 'active' : ''}" onclick="setNoteTagFilter('${tag}')" style="display:flex; align-items:center; gap:6px;">
-                        #${escapeHtml(tag)}
-                        <span style="opacity:0.5; font-size:14px; line-height:1;" onclick="deleteNoteTag(event, '${tag}')">✕</span>
+                        <span>#${escapeHtml(tag)}</span>
+                        <span style="opacity:${isHidden ? '1' : '0.4'}; font-size:13px; cursor:pointer;" onclick="toggleHideNoteTag(event, '${tag}')" title="${isHidden ? 'Show in All' : 'Hide from All'}">${isHidden ? '👁‍🗨' : '👁'}</span>
+                        <span style="opacity:0.5; font-size:14px; line-height:1; cursor:pointer;" onclick="deleteNoteTag(event, '${tag}')" title="Delete tag">✕</span>
                     </div>`;
         });
         tagsFilterEl.innerHTML = tagsHtml;
@@ -4184,11 +4249,9 @@ function renderNotes() {
         else if (notesView === 'archived') { if (!n.archived || n.trashed) return false; }
         else if (notesView === 'trashed') { if (!n.trashed) return false; }
 
-        // LOGIC: Hide 'guitar' tags from 'All' view
         if (activeNoteTag === 'all') {
-            if (n.tags && n.tags.includes('guitar')) return false;
+            if (n.tags && n.tags.some(t => (STATE.hiddenNoteTags || []).includes(t))) return false;
         } else {
-            // Normal tag filtering
             if (!n.tags || !n.tags.includes(activeNoteTag)) return false;
         }
 
@@ -6392,14 +6455,17 @@ function renderLinks() {
 
     const catFilterEl = document.getElementById('linkCategoryFilter');
     if (catFilterEl) {
+        if (!STATE.hiddenLinkCategories) STATE.hiddenLinkCategories = [];
         const categories = new Set(STATE.linkCategories || []);
         (STATE.links || []).forEach(l => { if (l.category) categories.add(l.category); });
 
         let catHtml = `<div class="filter-tab ${activeLinkCategory === 'all' ? 'active' : ''}" onclick="setLinkCategoryFilter('all')">All</div>`;
         Array.from(categories).sort().forEach(cat => {
+            const isHidden = (STATE.hiddenLinkCategories || []).includes(cat);
             catHtml += `<div class="filter-tab ${activeLinkCategory === cat ? 'active' : ''}" onclick="setLinkCategoryFilter('${escapeHtml(cat)}')" style="display:flex; align-items:center; gap:6px;">
-                            #${escapeHtml(cat)}
-                            <span style="opacity:0.5; font-size:14px; line-height:1;" onclick="deleteLinkCategory(event, '${escapeHtml(cat)}')">✕</span>
+                            <span>#${escapeHtml(cat)}</span>
+                            <span style="opacity:${isHidden ? '1' : '0.4'}; font-size:13px; cursor:pointer;" onclick="toggleHideLinkCategory(event, '${escapeHtml(cat)}')" title="${isHidden ? 'Show in All' : 'Hide from All'}">${isHidden ? '👁‍🗨' : '👁'}</span>
+                            <span style="opacity:0.5; font-size:14px; line-height:1; cursor:pointer;" onclick="deleteLinkCategory(event, '${escapeHtml(cat)}')" title="Delete category">✕</span>
                         </div>`;
         });
         catFilterEl.innerHTML = catHtml;
@@ -6408,7 +6474,9 @@ function renderLinks() {
     const q = (document.getElementById('linkSearch')?.value || '').toLowerCase();
     let list = STATE.links || [];
 
-    if (activeLinkCategory !== 'all') {
+    if (activeLinkCategory === 'all') {
+        list = list.filter(l => !l.category || !(STATE.hiddenLinkCategories || []).includes(l.category));
+    } else {
         list = list.filter(l => (l.category || '').toLowerCase() === activeLinkCategory.toLowerCase());
     }
 
