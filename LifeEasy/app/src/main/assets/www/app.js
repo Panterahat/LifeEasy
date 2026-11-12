@@ -3948,7 +3948,7 @@ function handleSharedLink(sharedText) {
 }
 
 // ===================== NOTES (Google Keep style) =====================
-const NOTE_COLORS = ['', '#7c6ef5', '#10b981', '#f59e0b', '#f5647c', '#06b6d4', '#c87cf5', '#f57c64', '#3b82f6'];
+const NOTE_COLORS = ['', '#7c6ef5', '#10b981', '#f59e0b', '#f5647c', '#06b6d4', '#c87cf5', '#f57c64', '#3b82f6', '#fb7185', '#34d399', '#fbbf24', '#38bdf8', '#c084fc'];
 let noteChecklistMode = false;
 let noteChecklistItems = [];
 let noteColor = '';
@@ -4229,7 +4229,7 @@ function renderNotes() {
         const tagsHtml = n.tags && n.tags.length ? `<div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">${n.tags.map(t => `<span class="pill" style="font-size:9px; background:rgba(255,255,255,0.05); color:var(--accent2); border: 1px solid rgba(255,255,255,0.1);">#${t}</span>`).join('')}</div>` : '';
         const actions = n.trashed ? `<span onclick="toggleNoteTrash(event,${n.id})" title="Restore">♻️</span><span onclick="deleteNoteForever(event,${n.id})" title="Delete forever">🗑</span>` : `<span onclick="toggleNotePin(event,${n.id})" title="Pin">${n.pinned ? '📌' : '📍'}</span><span onclick="toggleNoteArchive(event,${n.id})" title="Archive">🗄</span><span onclick="toggleNoteTrash(event,${n.id})" title="Trash">🗑</span>`;
 
-        return `<div class="note-card" style="${n.color ? `background:${n.color}40; border:1px solid ${n.color}bb; box-shadow:0 4px 12px ${n.color}20;` : ''}" onclick="${n.trashed ? '' : `openNoteModal(${n.id})`}">
+        return `<div class="note-card" style="${n.color ? `background:${n.color}55; border:2px solid ${n.color}; box-shadow:0 4px 16px ${n.color}40;` : ''}" onclick="${n.trashed ? '' : `openNoteModal(${n.id})`}">
                 ${n.pinned ? '<div class="note-pin-badge">📌</div>' : ''}
                 <div class="note-content">
                     ${n.title ? `<div class="note-title">${escapeHtml(n.title)}</div>` : ''}
