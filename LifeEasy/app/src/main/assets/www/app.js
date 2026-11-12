@@ -107,13 +107,64 @@ function closeModal(id) {
 }
 
 // ============================================================
-// OFFLINE-FIRST ENGINE (POWERED BY SUPABASE)
+// OFFLINE-FIRST ENGINE (POWERED BY SUPABASE & AI CONFIG)
 // ============================================================
-const supabaseUrl = 'https://awxqtgaffcdbnxltfdbk.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3eHF0Z2FmZmNkYm54bHRmZGJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NTY4NjcsImV4cCI6MjA5ODIzMjg2N30.4BCLCTVApXkozVkbhvWn251TO0eEiCz6DMxsgCQLSpk';
-const supabaseClient = window.supabase
-    ? window.supabase.createClient(supabaseUrl, supabaseAnonKey)
-    : { from: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }), insert: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }), update: () => ({ eq: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }) }), delete: () => ({ eq: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }) }), auth: { getSession: () => Promise.resolve({ data: { session: null } }), signInWithPassword: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }), signUp: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }), updateUser: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }) } };
+const DEFAULT_API_CONFIG = {
+    groqApiKey: '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',
+    groqEndpoint: 'https://api.groq.com/openai/v1/chat/completions',
+    groqModel: 'llama-3.3-70b-versatile',
+    supabaseUrl: 'https://awxqtgaffcdbnxltfdbk.supabase.co',
+    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3eHF0Z2FmZmNkYm54bHRmZGJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2NTY4NjcsImV4cCI6MjA5ODIzMjg2N30.4BCLCTVApXkozVkbhvWn251TO0eEiCz6DMxsgCQLSpk'
+};
+
+function getApiConfig() {
+    try {
+        const saved = localStorage.getItem('app_api_credentials');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            return {
+                groqApiKey: parsed.groqApiKey || DEFAULT_API_CONFIG.groqApiKey,
+                groqEndpoint: parsed.groqEndpoint || DEFAULT_API_CONFIG.groqEndpoint,
+                groqModel: parsed.groqModel || DEFAULT_API_CONFIG.groqModel,
+                supabaseUrl: parsed.supabaseUrl || DEFAULT_API_CONFIG.supabaseUrl,
+                supabaseAnonKey: parsed.supabaseAnonKey || DEFAULT_API_CONFIG.supabaseAnonKey
+            };
+        }
+    } catch (e) {
+        console.error('Error reading app_api_credentials:', e);
+    }
+    return { ...DEFAULT_API_CONFIG };
+}
+
+function saveApiConfig(config) {
+    try {
+        localStorage.setItem('app_api_credentials', JSON.stringify(config));
+        reinitSupabaseClient();
+    } catch (e) {
+        console.error('Error saving app_api_credentials:', e);
+    }
+}
+
+let supabaseUrl = getApiConfig().supabaseUrl;
+let supabaseAnonKey = getApiConfig().supabaseAnonKey;
+let supabaseClient = null;
+
+function reinitSupabaseClient() {
+    const cfg = getApiConfig();
+    supabaseUrl = cfg.supabaseUrl;
+    supabaseAnonKey = cfg.supabaseAnonKey;
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+        supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    } else {
+        supabaseClient = {
+            from: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }), insert: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }), update: () => ({ eq: () => ({ select: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }) }), delete: () => ({ eq: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }) }) }),
+            auth: { getSession: () => Promise.resolve({ data: { session: null } }), signInWithPassword: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }), signUp: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }), updateUser: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }), signOut: () => Promise.resolve({}) },
+            storage: { from: () => ({ upload: () => Promise.resolve({ data: null, error: { message: 'Supabase SDK not loaded' } }), getPublicUrl: () => ({ data: { publicUrl: '' } }), remove: () => Promise.resolve({ error: { message: 'Supabase SDK not loaded' } }) }) }
+        };
+    }
+}
+
+reinitSupabaseClient();
 
 async function executeSupabaseOperation(endpoint, payload) {
     let table = ''; let action = ''; let data = { ...payload }; let matchField = 'id'; let matchValue = payload.id;
@@ -609,6 +660,7 @@ function navTo(screen) {
         if (typeof renderNavSettings === 'function') renderNavSettings();
         if (typeof renderDashSettings === 'function') renderDashSettings();
         if (typeof renderDailyReminders === 'function') renderDailyReminders();
+        if (typeof renderApiConfigSettings === 'function') renderApiConfigSettings();
     }
     if (screen === 'tasks') { setTaskFilter('active'); }
     if (screen === 'attendance') { STATE.attSelectedDate = fmtDate(new Date()); attCurrentDate = new Date(); renderAttCalendar(); renderAttendance(); }
@@ -6914,8 +6966,10 @@ async function handleRoutineUpload(event) {
 async function sendCellsToAI(cells) {
     toast('Reading course names with AI... 🤖');
 
-    const API_KEY = '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';
-    const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+    const cfg = getApiConfig();
+    const API_KEY = cfg.groqApiKey;
+    const endpoint = cfg.groqEndpoint;
+    const aiModel = cfg.groqModel;
 
     const cellsBlock = cells.map(c => `[${c.id}] ${c.text}`).join('\n');
     const prompt = `
@@ -6936,7 +6990,7 @@ async function sendCellsToAI(cells) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
             body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
+                model: aiModel,
                 messages: [{ role: 'user', content: prompt }],
                 temperature: 0.1
             })
@@ -6974,8 +7028,10 @@ async function sendCellsToAI(cells) {
 // Fallback path only (geometry extraction failed on this PDF's layout) -- same
 // behavior as before, AI has to infer day/time from possibly-scrambled text.
 async function sendRawTextToAI(rawText) {
-    const API_KEY = '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';
-    const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
+    const cfg = getApiConfig();
+    const API_KEY = cfg.groqApiKey;
+    const endpoint = cfg.groqEndpoint;
+    const aiModel = cfg.groqModel;
 
     const prompt = `
     You are an expert university routine parser. I am giving you raw text extracted from a university class routine PDF.
@@ -6997,7 +7053,7 @@ async function sendRawTextToAI(rawText) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
             body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
+                model: aiModel,
                 messages: [{ role: 'user', content: prompt }],
                 temperature: 0.1
             })
@@ -7513,4 +7569,77 @@ function exportWbSVG() {
         }
     };
     reader.readAsDataURL(blob);
+}
+
+// ============================================================
+// AI & CLOUD API CREDENTIALS SETTINGS UI
+// ============================================================
+function renderApiConfigSettings() {
+    const keyEl = document.getElementById('cfgGroqApiKey');
+    const endpointEl = document.getElementById('cfgGroqEndpoint');
+    const modelEl = document.getElementById('cfgGroqModel');
+    const urlEl = document.getElementById('cfgSupabaseUrl');
+    const anonKeyEl = document.getElementById('cfgSupabaseAnonKey');
+
+    if (!keyEl || !endpointEl || !modelEl || !urlEl || !anonKeyEl) return;
+
+    const cfg = getApiConfig();
+    keyEl.value = cfg.groqApiKey;
+    endpointEl.value = cfg.groqEndpoint;
+    modelEl.value = cfg.groqModel;
+    urlEl.value = cfg.supabaseUrl;
+    anonKeyEl.value = cfg.supabaseAnonKey;
+}
+
+function saveApiConfigFromUI() {
+    const keyEl = document.getElementById('cfgGroqApiKey');
+    const endpointEl = document.getElementById('cfgGroqEndpoint');
+    const modelEl = document.getElementById('cfgGroqModel');
+    const urlEl = document.getElementById('cfgSupabaseUrl');
+    const anonKeyEl = document.getElementById('cfgSupabaseAnonKey');
+
+    if (!keyEl || !endpointEl || !modelEl || !urlEl || !anonKeyEl) return;
+
+    const newConfig = {
+        groqApiKey: keyEl.value.trim() || DEFAULT_API_CONFIG.groqApiKey,
+        groqEndpoint: endpointEl.value.trim() || DEFAULT_API_CONFIG.groqEndpoint,
+        groqModel: modelEl.value.trim() || DEFAULT_API_CONFIG.groqModel,
+        supabaseUrl: urlEl.value.trim() || DEFAULT_API_CONFIG.supabaseUrl,
+        supabaseAnonKey: anonKeyEl.value.trim() || DEFAULT_API_CONFIG.supabaseAnonKey
+    };
+
+    saveApiConfig(newConfig);
+    renderApiConfigSettings();
+    if (typeof toast === 'function') toast('API & Cloud Credentials saved! ⚡');
+}
+
+function resetApiConfigToDefault() {
+    try {
+        localStorage.removeItem('app_api_credentials');
+    } catch (e) {}
+    reinitSupabaseClient();
+    renderApiConfigSettings();
+    if (typeof toast === 'function') toast('Credentials reset to defaults! 🔄');
+}
+
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+    } else if (input.type === 'text' && input.tagName.toLowerCase() === 'input') {
+        input.type = 'password';
+        btn.textContent = '👁️';
+    } else {
+        if (input.style.webkitTextSecurity === 'disc' || input.style.textSecurity === 'disc') {
+            input.style.webkitTextSecurity = 'none';
+            input.style.textSecurity = 'none';
+            btn.textContent = '🙈';
+        } else {
+            input.style.webkitTextSecurity = 'disc';
+            input.style.textSecurity = 'disc';
+            btn.textContent = '👁️';
+        }
+    }
 }

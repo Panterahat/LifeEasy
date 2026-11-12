@@ -2841,6 +2841,17 @@
                 </div>
             </div>
 
+            <!-- AI & Cloud API Credentials Button Card -->
+            <div class="card" style="margin-bottom:16px; cursor:pointer;" onclick="navTo('settings-api')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--text);">🤖 AI & Cloud API Credentials</div>
+                        <div style="font-size:12px; color:var(--text2); margin-top:2px;">Manage Groq AI key, endpoint, model & Supabase backend settings</div>
+                    </div>
+                    <span style="font-size:18px; color:var(--text3);">→</span>
+                </div>
+            </div>
+
             <!-- Change Password Button Card -->
             <div class="card" style="margin-bottom:16px; cursor:pointer;" onclick="openChangePasswordModal()">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -2941,6 +2952,70 @@
                 <button class="btn-primary" style="width:100%; margin-bottom:16px;" onclick="addDailyReminder()">+ Add Daily Reminder 🔔</button>
 
                 <div id="dailyRemindersList" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+        </div>
+
+        <!-- AI & CLOUD API CREDENTIALS SUB-SCREEN -->
+        <div class="screen" id="screen-settings-api">
+            <div class="back-btn" onclick="navTo('settings')">← Back to Settings</div>
+            <div class="section-header">
+                <div class="section-title">AI & Cloud API Credentials</div>
+            </div>
+
+            <!-- Groq AI Credentials Card -->
+            <div class="card" style="margin-bottom:16px;">
+                <div style="font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:var(--text); margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                    <span>🤖</span> Groq AI Engine (Routine AI Upload)
+                </div>
+
+                <div class="form-row" style="margin-bottom:12px;">
+                    <label class="label" style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:4px; display:block;">Groq API Key</label>
+                    <div style="position:relative; display:flex; align-items:center;">
+                        <input class="input" type="password" id="cfgGroqApiKey" placeholder="gsk_..." style="width:100%; padding-right:40px;">
+                        <button type="button" style="position:absolute; right:8px; background:none; border:none; color:var(--text2); cursor:pointer; font-size:16px;" onclick="togglePasswordVisibility('cfgGroqApiKey', this)">👁️</button>
+                    </div>
+                    <div style="font-size:11px; color:var(--text3); margin-top:4px;">Used for parsing university attendance routine PDFs.</div>
+                </div>
+
+                <div class="form-row" style="margin-bottom:12px;">
+                    <label class="label" style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:4px; display:block;">Groq API Endpoint</label>
+                    <input class="input" type="text" id="cfgGroqEndpoint" placeholder="https://api.groq.com/openai/v1/chat/completions" style="width:100%;">
+                    <div style="font-size:11px; color:var(--text3); margin-top:4px;">REST API endpoint for LLM inference.</div>
+                </div>
+
+                <div class="form-row" style="margin-bottom:0;">
+                    <label class="label" style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:4px; display:block;">AI Model Identifier</label>
+                    <input class="input" type="text" id="cfgGroqModel" placeholder="llama-3.3-70b-versatile" style="width:100%;">
+                    <div style="font-size:11px; color:var(--text3); margin-top:4px;">LLM model for schedule extraction (e.g. llama-3.3-70b-versatile).</div>
+                </div>
+            </div>
+
+            <!-- Supabase Cloud Credentials Card -->
+            <div class="card" style="margin-bottom:16px;">
+                <div style="font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:var(--text); margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+                    <span>☁️</span> Supabase Cloud Backend
+                </div>
+
+                <div class="form-row" style="margin-bottom:12px;">
+                    <label class="label" style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:4px; display:block;">Supabase URL</label>
+                    <input class="input" type="text" id="cfgSupabaseUrl" placeholder="https://xxxx.supabase.co" style="width:100%;">
+                    <div style="font-size:11px; color:var(--text3); margin-top:4px;">Backend database server URL.</div>
+                </div>
+
+                <div class="form-row" style="margin-bottom:0;">
+                    <label class="label" style="font-size:12px; font-weight:600; color:var(--text2); margin-bottom:4px; display:block;">Supabase Anon Key</label>
+                    <div style="position:relative; display:flex; align-items:flex-start;">
+                        <textarea class="input" id="cfgSupabaseAnonKey" rows="3" style="width:100%; resize:vertical; font-family:monospace; font-size:11px; padding-right:40px;" placeholder="eyJhbGci..."></textarea>
+                        <button type="button" style="position:absolute; right:8px; top:8px; background:none; border:none; color:var(--text2); cursor:pointer; font-size:16px;" onclick="togglePasswordVisibility('cfgSupabaseAnonKey', this)">👁️</button>
+                    </div>
+                    <div style="font-size:11px; color:var(--text3); margin-top:4px;">Anonymous JWT access token for database and auth endpoints.</div>
+                </div>
+            </div>
+
+            <!-- Action Buttons Card -->
+            <div style="display:flex; gap:10px; margin-bottom:24px;">
+                <button class="btn-primary" style="flex:1; padding:12px;" onclick="saveApiConfigFromUI()">💾 Save Credentials</button>
+                <button class="btn-secondary" style="flex:1; padding:12px;" onclick="resetApiConfigToDefault()">🔄 Reset Defaults</button>
             </div>
         </div>
 
