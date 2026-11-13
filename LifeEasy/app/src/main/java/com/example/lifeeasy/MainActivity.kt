@@ -27,6 +27,9 @@ import android.provider.MediaStore
 import android.util.Base64
 import android.view.View
 import android.view.WindowInsets
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.webkit.JavascriptInterface
 import android.webkit.SslErrorHandler
 import android.webkit.URLUtil
@@ -57,11 +60,23 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var connectivityManager: ConnectivityManager
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private var speechRecognizer: SpeechRecognizer? = null
 
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ ->
         // Permission result handled
+    }
+
+    private val requestAudioPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            startSpeechToText()
+        } else {
+            Toast.makeText(this, "Microphone permission is required for voice input", Toast.LENGTH_SHORT).show()
+            evaluateJs("window.onSpeechError && window.onSpeechError('Microphone permission denied')")
+        }
     }
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
@@ -508,6 +523,119 @@ class MainActivity : AppCompatActivity() {
                 activity.unlockOrientation()
             }
         }
+
+        @JavascriptInterface
+        fun startSpeechToText() {
+            activity.startSpeechToText()
+        }
+
+        @JavascriptInterface
+        fun stopSpeechToText() {
+            activity.stopSpeechToText()
+        }
+    }
+
+    private fun evaluateJs(js: String) {
+        runOnUiThread {
+            webView.evaluateJavascript(js, null)
+        }
+    }
+
+    fun startSpeechToText() {
+        runOnUiThread {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                return@runOnUiThread
+            }
+
+            if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+                Toast.makeText(this, "Speech recognition is not available on this device", Toast.LENGTH_SHORT).show()
+                evaluateJs("window.onSpeechError && window.onSpeechError('Speech recognition unavailable')")
+                return@runOnUiThread
+            }
+
+            try {
+                if (speechRecognizer == null) {
+                    speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+                }
+
+                speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        evaluateJs("window.onSpeechListeningStatus && window.onSpeechListeningStatus('listening')")
+                    }
+
+                    override fun onBeginningOfSpeech() {
+                        evaluateJs("window.onSpeechListeningStatus && window.onSpeechListeningStatus('speaking')")
+                    }
+
+                    override fun onRmsChanged(rmsdB: Float) {}
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() {
+                        evaluateJs("window.onSpeechListeningStatus && window.onSpeechListeningStatus('processing')")
+                    }
+
+                    override fun onError(error: Int) {
+                        val errorMessage = when (error) {
+                            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+                            SpeechRecognizer.ERROR_CLIENT -> "Client error"
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
+                            SpeechRecognizer.ERROR_NETWORK -> "Network error"
+                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+                            SpeechRecognizer.ERROR_NO_MATCH -> "No speech recognized. Try speaking again."
+                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognizer is busy. Try again."
+                            SpeechRecognizer.ERROR_SERVER -> "Server error"
+                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input. Try speaking again."
+                            else -> "Speech error ($error)"
+                        }
+                        evaluateJs("window.onSpeechError && window.onSpeechError(${JSONObject.quote(errorMessage)})")
+                    }
+
+                    override fun onResults(results: Bundle?) {
+                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        if (!matches.isNullOrEmpty()) {
+                            val text = matches[0]
+                            evaluateJs("window.onSpeechResult && window.onSpeechResult(${JSONObject.quote(text)})")
+                        } else {
+                            evaluateJs("window.onSpeechError && window.onSpeechError('No speech recognized')")
+                        }
+                    }
+
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        if (!matches.isNullOrEmpty()) {
+                            val text = matches[0]
+                            evaluateJs("window.onSpeechPartialResult && window.onSpeechPartialResult(${JSONObject.quote(text)})")
+                        }
+                    }
+
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                }
+
+                speechRecognizer?.startListening(intent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                evaluateJs("window.onSpeechError && window.onSpeechError(${JSONObject.quote("Speech error: " + e.message)})")
+            }
+        }
+    }
+
+    fun stopSpeechToText() {
+        runOnUiThread {
+            try {
+                speechRecognizer?.stopListening()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -534,6 +662,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            speechRecognizer?.destroy()
+            speechRecognizer = null
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         connectivityManager.unregisterNetworkCallback(networkCallback)
     }
 }
