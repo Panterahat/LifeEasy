@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_counters_header"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_widget_white"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- Header Bar Row 1: Title & Settings -->
+    <LinearLayout
+        android:id="@+id/header_row_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="🔢 Daily Counters"
+            android:textColor="#111827"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btn_counter_widget_settings"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="Settings"
+            android:src="@android:drawable/ic_menu_preferences" />
+    </LinearLayout>
+
+    <!-- Header Bar Row 2: Summary -->
+    <TextView
+        android:id="@+id/counters_summary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="1 counters"
+        android:textColor="#059669"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <!-- Collection ListView -->
+    <ListView
+        android:id="@+id/counters_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="6dp"
+        android:layout_weight="1"
+        android:divider="@null"
+        android:dividerHeight="4dp" />
+
+    <!-- Single Counter View (Smells like teen spirit style when exactly 1 counter is selected) -->
+    <LinearLayout
+        android:id="@+id/single_counter_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#FFFFFF"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="4dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/single_counter_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:text="Smells like teen spirit"
+            android:textColor="#1F2937"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/single_counter_value"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:text="6723"
+            android:textColor="#111827"
+            android:textSize="36sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/single_counter_updated"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:text="Updated recently"
+            android:textColor="#9CA3AF"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Empty view -->
+    <TextView
+        android:id="@+id/counters_empty_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:text="No active counters 🔢"
+        android:textColor="#6B7280"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+</LinearLayout>

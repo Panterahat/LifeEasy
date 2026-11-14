@@ -46,6 +46,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.example.lifeeasy.widgets.WidgetDataStore
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -192,6 +193,12 @@ class MainActivity : AppCompatActivity() {
 
         // Handle incoming shared links/text from other apps (e.g. YouTube, Chrome)
         handleSharedIntent(intent)
+        handleTargetScreenIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkAndSyncPendingWidgetActions()
     }
 
     private fun createNotificationChannel() {
@@ -446,6 +453,13 @@ class MainActivity : AppCompatActivity() {
 
     class AndroidInterface(private val activity: MainActivity) {
         @JavascriptInterface
+        fun syncWidgetData(tasksJson: String?, countersJson: String?, routinesJson: String?, plansJson: String?, academicJson: String?) {
+            activity.runOnUiThread {
+                WidgetDataStore.updateData(activity, tasksJson, countersJson, routinesJson, plansJson, academicJson)
+            }
+        }
+
+        @JavascriptInterface
         fun sendNotification(title: String, message: String) {
             activity.runOnUiThread {
                 activity.sendNotification(title, message)
@@ -638,10 +652,33 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun checkAndSyncPendingWidgetActions() {
+        val pendingObj = WidgetDataStore.popPendingActions(this)
+        val hasPendingTasks = (pendingObj.optJSONArray("tasks")?.length() ?: 0) > 0
+        val hasPendingCounters = (pendingObj.optJSONArray("counters")?.length() ?: 0) > 0
+
+        if (hasPendingTasks || hasPendingCounters) {
+            val jsonStr = JSONObject.quote(pendingObj.toString())
+            evaluateJs("typeof handlePendingWidgetActions === 'function' && handlePendingWidgetActions($jsonStr)")
+        }
+    }
+
+    private fun handleTargetScreenIntent(intent: Intent?) {
+        if (intent == null) return
+        val targetScreen = intent.getStringExtra("target_screen")
+        if (!targetScreen.isNullOrEmpty()) {
+            val safeScreen = JSONObject.quote(targetScreen)
+            webView.postDelayed({
+                evaluateJs("typeof navTo === 'function' && navTo($safeScreen)")
+            }, 800)
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleSharedIntent(intent)
+        handleTargetScreenIntent(intent)
     }
 
     private fun handleSharedIntent(intent: Intent?) {

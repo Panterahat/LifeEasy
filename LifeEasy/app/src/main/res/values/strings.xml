@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">Life Easy</string>
+    <string name="widget_checklist_description">View and toggle today\'s checklist tasks</string>
+    <string name="widget_counters_description">Track and update daily counters</string>
+    <string name="widget_next_class_description">View your next upcoming academic class</string>
+    <string name="widget_planner_description">View today\'s scheduled planner events</string>
+    <string name="widget_academic_description">View upcoming academic events and countdowns</string>
 </resources>

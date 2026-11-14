@@ -34,6 +34,103 @@
             </intent-filter>
         </receiver>
 
+        <!-- Today's Checklist Widget -->
+        <receiver
+            android:name=".widgets.TodayChecklistWidgetProvider"
+            android:exported="true"
+            android:label="Today's Checklist">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.lifeeasy.widgets.ACTION_TOGGLE_TASK" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_checklist_info" />
+        </receiver>
+
+        <service
+            android:name=".widgets.ChecklistRemoteViewsService"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- Daily Counters Widget -->
+        <receiver
+            android:name=".widgets.DailyCountersWidgetProvider"
+            android:exported="true"
+            android:label="Daily Counters">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.lifeeasy.widgets.ACTION_ADJUST_COUNTER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_daily_counters_info" />
+        </receiver>
+
+        <activity
+            android:name=".widgets.CounterWidgetConfigActivity"
+            android:exported="true"
+            android:label="Select Widget Counters">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".widgets.CounterRemoteViewsService"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- Next Academic Class Widget -->
+        <receiver
+            android:name=".widgets.NextClassWidgetProvider"
+            android:exported="true"
+            android:label="Next Class">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_next_class_info" />
+        </receiver>
+
+        <activity
+            android:name=".widgets.ChecklistWidgetConfigActivity"
+            android:exported="true"
+            android:label="Select Checklist Category">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Today's Planner Widget -->
+        <receiver
+            android:name=".widgets.TodayPlannerWidgetProvider"
+            android:exported="true"
+            android:label="Today's Planner">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_planner_info" />
+        </receiver>
+
+        <service
+            android:name=".widgets.PlannerRemoteViewsService"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- School / Academic Countdown Widget -->
+        <receiver
+            android:name=".widgets.AcademicCountdownWidgetProvider"
+            android:exported="true"
+            android:label="Upcoming Exams">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_academic_countdown_info" />
+        </receiver>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

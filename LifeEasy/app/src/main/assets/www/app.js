@@ -78,6 +78,60 @@ function fmtDisplay(dateStr) {
     const d = new Date(dateStr + 'T00:00:00'); return d.toLocaleDateString('en', { month: 'short', day: 'numeric' });
 }
 
+function syncWidgetsToNative() {
+    if (window.AndroidInterface && typeof window.AndroidInterface.syncWidgetData === 'function') {
+        try {
+            const tasksJson = JSON.stringify(STATE.tasks || []);
+            const countersJson = JSON.stringify(STATE.counters || []);
+            const routinesJson = JSON.stringify(STATE.attendanceRoutines || []);
+            const plansJson = JSON.stringify(STATE.plans || []);
+            const academicJson = JSON.stringify(STATE.academic || []);
+            window.AndroidInterface.syncWidgetData(tasksJson, countersJson, routinesJson, plansJson, academicJson);
+        } catch (e) {
+            console.warn('syncWidgetsToNative failed', e);
+        }
+    }
+}
+
+function handlePendingWidgetActions(rawJsonStr) {
+    if (!rawJsonStr) return;
+    try {
+        const data = typeof rawJsonStr === 'string' ? JSON.parse(rawJsonStr) : rawJsonStr;
+        let modified = false;
+
+        if (Array.isArray(data.tasks)) {
+            data.tasks.forEach(taskId => {
+                const t = (STATE.tasks || []).find(x => x.id == taskId);
+                if (t) {
+                    t.completed = !t.completed;
+                    modified = true;
+                    if (typeof ofetch === 'function') ofetch('update_task.php', { id: t.id, completed: t.completed });
+                }
+            });
+        }
+
+        if (Array.isArray(data.counters)) {
+            data.counters.forEach(adj => {
+                const c = (STATE.counters || []).find(x => x.id == adj.id);
+                if (c) {
+                    c.value += (adj.delta || 0);
+                    c.lastUpdated = new Date().toISOString();
+                    modified = true;
+                    if (typeof ofetch === 'function') ofetch('update_counter.php', { id: c.id, value: c.value, lastUpdated: c.lastUpdated });
+                }
+            });
+        }
+
+        if (modified) {
+            save();
+            renderAll();
+        }
+    } catch (e) {
+        console.warn('handlePendingWidgetActions error', e);
+    }
+}
+window.handlePendingWidgetActions = handlePendingWidgetActions;
+
 function save() {
     if (window.isLoggingOut) {
         localStorage.removeItem('proflow_state');
@@ -92,6 +146,7 @@ function save() {
             }
         }).catch(() => {});
     } catch (e) { console.warn('save() failed', e); }
+    syncWidgetsToNative();
 }
 
 let noteCancelled = false;

@@ -1,0 +1,2 @@
+- `[x]` Restored clean header bar and titled the widget **"Upcoming Exams"** in `widget_academic_countdown.xml` and `AndroidManifest.xml`
+- `[x]` Compiled and verified successfully with zero errors
