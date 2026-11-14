@@ -7175,6 +7175,11 @@ function scheduleAcademicNotification(a) {
 function calculateReminderTimestamp(option, baseDateStr, baseTimeStr, customDateTimeValue) {
     if (!option || option === 'none') return null;
 
+    if (typeof option === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(option)) {
+        const t = new Date(option).getTime();
+        return isNaN(t) ? null : t;
+    }
+
     if (option === 'custom') {
         if (!customDateTimeValue) return null;
         const dt = new Date(customDateTimeValue);
@@ -8488,7 +8493,7 @@ function testScheduledNotification() {
     if (window.AndroidInterface && typeof window.AndroidInterface.scheduleAlarm === 'function') {
         try {
             window.AndroidInterface.scheduleAlarm(
-                testId,
+                String(testId),
                 targetTime,
                 "⏱️ Scheduled Test",
                 "5-second scheduled test notification working properly!",

@@ -25,6 +25,7 @@ import android.content.pm.ActivityInfo
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Base64
+import android.util.Log
 import android.view.View
 import android.view.WindowInsets
 import android.speech.RecognitionListener
@@ -292,9 +293,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun getSafeAlarmId(rawId: Any?): Int {
+    private fun getSafeAlarmId(rawId: String?): Int {
         if (rawId == null) return 12345678
-        val str = rawId.toString().trim()
+        val str = rawId.trim()
         if (str.isEmpty()) return 12345678
         val num = str.toLongOrNull()
         val id = if (num != null && num >= 0 && num <= Int.MAX_VALUE) {
@@ -305,7 +306,7 @@ class MainActivity : AppCompatActivity() {
         return if (id == 0 || id == Int.MAX_VALUE) 12345678 else id
     }
 
-    fun scheduleAlarm(rawId: Any, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
+    fun scheduleAlarm(rawId: String, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
         try {
             // CRITICAL: Ignore past or immediate timestamps (< 2 seconds from now).
             // Android AlarmManager immediately triggers any alarm set in the past, causing unwanted boot notifications.
@@ -314,10 +315,14 @@ class MainActivity : AppCompatActivity() {
             }
 
             val alarmId = getSafeAlarmId(rawId)
+            Log.d("MainActivity", "scheduleAlarm: rawId=$rawId, alarmId=$alarmId, triggerAtMillis=$triggerAtMillis, title=$title, isRecurring=$isRecurring")
+
+            AlarmStorage.saveAlarm(this, rawId, triggerAtMillis, title, message, isRecurring)
+
             val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
             val intent = Intent(this, AlarmReceiver::class.java).apply {
                 putExtra("id", alarmId)
-                putExtra("rawId", rawId.toString())
+                putExtra("rawId", rawId)
                 putExtra("title", title)
                 putExtra("message", message)
                 putExtra("isRecurring", isRecurring)
@@ -339,9 +344,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun cancelAlarm(rawId: Any) {
+    fun cancelAlarm(rawId: String) {
         try {
             val alarmId = getSafeAlarmId(rawId)
+            Log.d("MainActivity", "cancelAlarm: rawId=$rawId, alarmId=$alarmId")
+            AlarmStorage.removeAlarm(this, rawId)
             val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
             val intent = Intent(this, AlarmReceiver::class.java)
             val pendingIntent = PendingIntent.getBroadcast(
@@ -467,18 +474,18 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
-        fun scheduleAlarm(rawId: Any?, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
+        fun scheduleAlarm(rawId: String?, triggerAtMillis: Long, title: String?, message: String?, isRecurring: Boolean) {
             activity.runOnUiThread {
-                if (rawId != null) {
-                    activity.scheduleAlarm(rawId, triggerAtMillis, title, message, isRecurring)
+                if (!rawId.isNullOrBlank()) {
+                    activity.scheduleAlarm(rawId, triggerAtMillis, title ?: "", message ?: "", isRecurring)
                 }
             }
         }
 
         @JavascriptInterface
-        fun cancelAlarm(rawId: Any?) {
+        fun cancelAlarm(rawId: String?) {
             activity.runOnUiThread {
-                if (rawId != null) {
+                if (!rawId.isNullOrBlank()) {
                     activity.cancelAlarm(rawId)
                 }
             }
