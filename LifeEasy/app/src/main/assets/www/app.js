@@ -2092,7 +2092,7 @@ function closeAuthModal() {
     }
 }
 
-function updateGreeting() {
+async function updateGreeting() {
     const now = new Date();
     const h = now.getHours();
     const dayName = now.toLocaleDateString('en', { weekday: 'long' }).toLowerCase();
@@ -2131,12 +2131,30 @@ function updateGreeting() {
         subText = 'time to wrap up and prepare for rest';
     }
 
+    let userName = '';
+    try {
+        const { data } = await supabaseClient.auth.getSession();
+        const user = data?.session?.user;
+        if (user) {
+            let name = user.user_metadata?.name || user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : '');
+            if (name) {
+                userName = name.charAt(0).toUpperCase() + name.slice(1);
+            }
+        }
+    } catch (e) {}
+
     const greetingEl = document.getElementById('greeting');
     const dateEl = document.getElementById('greetingDate');
     const subEl = document.getElementById('greetingSub');
 
     if (greetingEl) greetingEl.textContent = greetingText;
-    if (dateEl) dateEl.textContent = dateFormatted;
+    if (dateEl) {
+        if (userName) {
+            dateEl.textContent = `${userName} • ${dateFormatted}`;
+        } else {
+            dateEl.textContent = dateFormatted;
+        }
+    }
     if (subEl) subEl.textContent = subText;
 
     updateAuthButton();
@@ -2523,6 +2541,7 @@ async function logoutUser() {
     STATE.vaultFolders = []; STATE.vaultFiles = [];
     renderAll();
     if (typeof updateAuthButton === 'function') updateAuthButton();
+    if (typeof updateGreeting === 'function') updateGreeting();
     const authM = document.getElementById('authModal');
     if (authM) authM.style.display = 'none';
 
@@ -2540,6 +2559,7 @@ async function logoutUser() {
         STATE.vaultFolders = []; STATE.vaultFiles = [];
         renderAll();
         if (typeof updateAuthButton === 'function') updateAuthButton();
+        if (typeof updateGreeting === 'function') updateGreeting();
         toast('Logged out successfully 👋');
     }
 }
