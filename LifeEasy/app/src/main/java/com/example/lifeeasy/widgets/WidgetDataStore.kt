@@ -381,14 +381,20 @@ object WidgetDataStore {
         return null
     }
 
-    fun getNextClass(context: Context): ClassRoutineItem? {
+    fun getTodayClasses(context: Context): List<ClassRoutineItem> {
         val routinesJson = getPrefs(context).getString(KEY_ROUTINES_JSON, "[]") ?: "[]"
         val calendar = Calendar.getInstance()
-        val currentDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) - 1
+        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
+        val isAfter5PM = currentHour >= 17
+
+        val targetCalendar = Calendar.getInstance()
+        if (isAfter5PM) {
+            targetCalendar.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        val targetDayOfWeek = targetCalendar.get(Calendar.DAY_OF_WEEK) - 1
         val currentMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
 
         val routines = mutableListOf<ClassRoutineItem>()
-
         try {
             val jsonArray = JSONArray(routinesJson)
             for (i in 0 until jsonArray.length()) {
@@ -401,33 +407,24 @@ object WidgetDataStore {
                 val dayStr = obj.optString("dayOfWeek", "")
                 val dayOfWeek = dayStr.toIntOrNull() ?: obj.optInt("dayOfWeek", -1)
 
-                if (dayOfWeek >= 0) {
-                    routines.add(ClassRoutineItem(id, subject, room, startTime, endTime, dayOfWeek))
+                if (dayOfWeek == targetDayOfWeek) {
+                    val startMin = parseTimeToMinutes(startTime)
+                    val endMin = parseTimeToMinutes(endTime)
+                    val statusText = if (!isAfter5PM) {
+                        if (currentMinutes in startMin..endMin) "In Progress 🟢"
+                        else if (startMin > currentMinutes) "Next ⏰"
+                        else "Finished"
+                    } else {
+                        "Tomorrow 📅"
+                    }
+                    routines.add(ClassRoutineItem(id, subject, room, startTime, endTime, dayOfWeek, statusText))
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
-        if (routines.isEmpty()) return null
-
-        val todayClasses = routines.filter { it.dayOfWeek == currentDayOfWeek }
-            .sortedBy { parseTimeToMinutes(it.startTime) }
-
-        for (cls in todayClasses) {
-            val startMin = parseTimeToMinutes(cls.startTime)
-            val endMin = parseTimeToMinutes(cls.endTime)
-
-            if (currentMinutes in startMin..endMin) {
-                return cls.copy(statusText = "In Progress 🟢")
-            } else if (startMin > currentMinutes) {
-                val diffMin = startMin - currentMinutes
-                val statusStr = if (diffMin < 60) "Starts in $diffMin mins ⏰" else "Starts in ${diffMin / 60}h ${diffMin % 60}m ⏰"
-                return cls.copy(statusText = statusStr)
-            }
-        }
-
-        return null
+        return routines.sortedBy { parseTimeToMinutes(it.startTime) }
     }
 
     private fun parseTimeToMinutes(timeStr: String?): Int {
@@ -450,7 +447,7 @@ object WidgetDataStore {
         }
     }
 
-    fun popPendingActions(context: Context): JSONObject {
+    fun peekPendingActions(context: Context): JSONObject {
         val prefs = getPrefs(context)
         val pendingTasksStr = prefs.getString(KEY_PENDING_TASKS, "[]") ?: "[]"
         val pendingCountersStr = prefs.getString(KEY_PENDING_COUNTERS, "[]") ?: "[]"
@@ -462,12 +459,20 @@ object WidgetDataStore {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+        return obj
+    }
 
+    fun clearPendingActions(context: Context) {
+        val prefs = getPrefs(context)
         prefs.edit()
             .remove(KEY_PENDING_TASKS)
             .remove(KEY_PENDING_COUNTERS)
             .apply()
+    }
 
+    fun popPendingActions(context: Context): JSONObject {
+        val obj = peekPendingActions(context)
+        clearPendingActions(context)
         return obj
     }
 

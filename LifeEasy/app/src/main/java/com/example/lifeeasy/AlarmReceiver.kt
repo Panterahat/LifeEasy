@@ -12,6 +12,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import org.json.JSONObject
+import java.util.Calendar
 
 object AlarmStorage {
     private const val PREFS_NAME = "scheduled_alarms_prefs"
@@ -22,10 +23,11 @@ object AlarmStorage {
         val triggerAtMillis: Long,
         val title: String,
         val message: String,
-        val isRecurring: Boolean
+        val isRecurring: Boolean,
+        val days: String
     )
 
-    fun saveAlarm(context: Context, rawId: String, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
+    fun saveAlarm(context: Context, rawId: String, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean, days: String = "") {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val json = JSONObject().apply {
             put("rawId", rawId)
@@ -33,6 +35,7 @@ object AlarmStorage {
             put("title", title)
             put("message", message)
             put("isRecurring", isRecurring)
+            put("days", days)
         }.toString()
         prefs.edit().putString(KEY_PREFIX + rawId, json).apply()
     }
@@ -56,7 +59,8 @@ object AlarmStorage {
                             triggerAtMillis = json.getLong("triggerAtMillis"),
                             title = json.optString("title", ""),
                             message = json.optString("message", ""),
-                            isRecurring = json.optBoolean("isRecurring", false)
+                            isRecurring = json.optBoolean("isRecurring", false),
+                            days = json.optString("days", "")
                         )
                     )
                 } catch (e: Exception) {
@@ -83,6 +87,27 @@ class AlarmReceiver : BroadcastReceiver() {
         return if (id == 0 || id == Int.MAX_VALUE) 12345678 else id
     }
 
+    private fun calculateNextTrigger(fromMillis: Long, prevTrigger: Long, days: String): Long {
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = prevTrigger
+        }
+        val targetDays = days.mapNotNull { it.toString().toIntOrNull() }.toSet()
+        if (targetDays.isEmpty()) {
+            return prevTrigger + 86400000L
+        }
+        repeat(7) {
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+            val dayOfWeek = (cal.get(Calendar.DAY_OF_WEEK) - 1 + 7) % 7
+            if (targetDays.contains(dayOfWeek)) {
+                if (cal.timeInMillis <= fromMillis) {
+                    return@repeat
+                }
+                return cal.timeInMillis
+            }
+        }
+        return prevTrigger + 86400000L
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             Log.d("AlarmReceiver", "Received ACTION_BOOT_COMPLETED: rescheduling active alarms...")
@@ -91,13 +116,11 @@ class AlarmReceiver : BroadcastReceiver() {
         }
 
         val rawId = intent.getStringExtra("rawId") ?: intent.getIntExtra("id", 0).toString()
-        val title = intent.getStringExtra("title") ?: "Daily Reminder 🔔"
+        val title = intent.getStringExtra("title") ?: "Alarm ⏰"
         val message = intent.getStringExtra("message")
+        val days = intent.getStringExtra("days") ?: ""
 
-        // CRITICAL GHOST ALARM KILLER:
-        // Reject orphan/legacy ghost alarms from old builds that had empty messages or fallback "Time for your reminder!"
-        if (message.isNullOrBlank() || message == "Time for your reminder!" || rawId == "0" || rawId.isEmpty()) {
-            // Do NOT notify and do NOT reschedule. Kill the orphan alarm immediately.
+        if (rawId == "0" || rawId.isEmpty()) {
             return
         }
 
@@ -105,15 +128,15 @@ class AlarmReceiver : BroadcastReceiver() {
         val isRecurring = intent.getBooleanExtra("isRecurring", false)
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "daily_reminders_channel_v2"
+        val channelId = "life_easy_notifications_v2"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Daily Reminders",
+                "LifeEasy Notifications",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Daily scheduled heads-up notifications"
+                description = "LifeEasy App Notifications"
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 250, 250, 250)
             }
@@ -135,7 +158,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
-            .setContentText(message)
+            .setContentText(message ?: title)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setSound(defaultSoundUri)
@@ -146,12 +169,13 @@ class AlarmReceiver : BroadcastReceiver() {
 
         notificationManager.notify(safeId, builder.build())
 
-        // Update persistence: if recurring, reschedule for 24 hours later (+86400000 ms); otherwise remove
+        val currentTrigger = intent.getLongExtra("triggerAtMillis", System.currentTimeMillis())
+
         if (isRecurring) {
             try {
                 val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                val nextTrigger = System.currentTimeMillis() + 86400000L
-                AlarmStorage.saveAlarm(context, rawId, nextTrigger, title, message, true)
+                val nextTrigger = calculateNextTrigger(System.currentTimeMillis(), currentTrigger, days)
+                AlarmStorage.saveAlarm(context, rawId, nextTrigger, title, message ?: title, true, days)
 
                 val nextIntent = Intent(context, AlarmReceiver::class.java).apply {
                     putExtra("id", safeId)
@@ -159,6 +183,8 @@ class AlarmReceiver : BroadcastReceiver() {
                     putExtra("title", title)
                     putExtra("message", message)
                     putExtra("isRecurring", true)
+                    putExtra("days", days)
+                    putExtra("triggerAtMillis", nextTrigger)
                 }
                 val nextPendingIntent = PendingIntent.getBroadcast(
                     context,
@@ -188,11 +214,10 @@ class AlarmReceiver : BroadcastReceiver() {
             var triggerTime = alarm.triggerAtMillis
             if (alarm.isRecurring) {
                 while (triggerTime <= now) {
-                    triggerTime += 86400000L
+                    triggerTime = calculateNextTrigger(now, triggerTime, alarm.days)
                 }
-                AlarmStorage.saveAlarm(context, alarm.rawId, triggerTime, alarm.title, alarm.message, true)
+                AlarmStorage.saveAlarm(context, alarm.rawId, triggerTime, alarm.title, alarm.message, true, alarm.days)
             } else if (triggerTime <= now) {
-                // Expired non-recurring alarm
                 AlarmStorage.removeAlarm(context, alarm.rawId)
                 continue
             }
@@ -206,6 +231,8 @@ class AlarmReceiver : BroadcastReceiver() {
                 putExtra("title", alarm.title)
                 putExtra("message", alarm.message)
                 putExtra("isRecurring", alarm.isRecurring)
+                putExtra("days", alarm.days)
+                putExtra("triggerAtMillis", triggerTime)
             }
             val pendingIntent = PendingIntent.getBroadcast(
                 context,

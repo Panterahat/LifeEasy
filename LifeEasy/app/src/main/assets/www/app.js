@@ -7,7 +7,7 @@ const STATE = {
     attendanceRoutines: [], attendanceLogs: [], accounts: [], expenses: [], notes: [], sleepLogs: [], syncQueue: [], customTags: [], tabs: [],
     vaultFolders: [], vaultFiles: [], links: [], dailyReminders: [],
 
-    navPreferences: ['dash', 'planner', 'tasks', 'counter', 'money', 'alarms', 'roadmap', 'attendance', 'academic', 'vault', 'expenses', 'notes', 'sleep', 'tabs', 'settings'],
+    navPreferences: ['dash', 'planner', 'tasks', 'counter', 'money', 'alarms', 'roadmap', 'attendance', 'academic', 'links', 'vault', 'expenses', 'notes', 'sleep', 'tabs', 'settings'],
     hiddenNavModules: [],
 
     // UPDATED: Now includes the top 4 stats as removable mini widgets
@@ -24,6 +24,7 @@ const WIDGET_DICT = {
     todays_events: { icon: '📅', label: 'Today\'s Events (Mini)' },
     net_money: { icon: '💰', label: 'Net Money (Mini)' },
     active_counters: { icon: '🔢', label: 'Active Counters (Mini)' },
+    habits_mini: { icon: '🔥', label: 'Habit Streaks (Mini)' },
     alarms: { icon: '⏰', label: 'Active Alarms (Mini)' },
     sleep: { icon: '😴', label: 'Last Night\'s Sleep (Mini)' },
     roadmap: { icon: '🗺️', label: 'Active Roadmap (Mini)' },
@@ -32,6 +33,7 @@ const WIDGET_DICT = {
     specific_note: { icon: '📝', label: 'Pinned Note (Mini)' },
 
     // FULL WIDGETS (Full Width)
+    habits_full: { icon: '🔥', label: 'Habit Tracker (Full)' },
     redzone: { icon: '🚨', label: 'Urgent Deadlines (Full)' },
     schedule: { icon: '📅', label: 'Today\'s Schedule (Full)' },
     tasks: { icon: '📋', label: 'Upcoming Tasks (Full)' },
@@ -50,6 +52,7 @@ const NAV_MODULES = {
     roadmap: { icon: '🗺️', label: 'Roadmap' },
     attendance: { icon: '📊', label: 'Attend' },
     academic: { icon: '🎓', label: 'School' },
+    habits: { icon: '🔥', label: 'Habits' },
     links: { icon: '🔗', label: 'Links' },
     vault: { icon: '🔒', label: 'Vault' },
     expenses: { icon: '💸', label: 'Expenses' },
@@ -125,6 +128,9 @@ function handlePendingWidgetActions(rawJsonStr) {
         if (modified) {
             save();
             renderAll();
+        }
+        if (window.AndroidInterface && typeof window.AndroidInterface.ackWidgetActions === 'function') {
+            window.AndroidInterface.ackWidgetActions();
         }
     } catch (e) {
         console.warn('handlePendingWidgetActions error', e);
@@ -299,18 +305,35 @@ async function executeSupabaseOperation(endpoint, payload) {
         case 'add_counter.php': table = 'counters'; data = { name: payload.name, value: payload.value, step: payload.step, color: payload.color, last_updated: payload.lastUpdated || new Date().toISOString(), history: payload.history || null }; break;
         case 'update_counter.php': table = 'counters'; data = { value: payload.value, last_updated: payload.lastUpdated || new Date().toISOString(), history: payload.history || null }; break;
         case 'delete_counter.php': table = 'counters'; break;
-        case 'add_money.php': case 'update_money.php': case 'delete_money.php': table = 'money'; if (endpoint === 'add_money.php') { data = { person: payload.person, amount: payload.amount, type: payload.type, note: payload.note, created_at: payload.created_at || payload.date || new Date().toISOString(), due: payload.due }; } else if (endpoint === 'update_money.php') data = { settled: true }; break;
+        case 'add_money.php': case 'update_money.php': case 'delete_money.php': table = 'money'; if (endpoint === 'add_money.php') { data = { person: payload.person, amount: payload.amount, type: payload.type, note: payload.note, created_at: payload.created_at || payload.date || new Date().toISOString(), due: (payload.due && payload.due.trim() !== '') ? payload.due : null, reminder: payload.reminder || 'none', custom_reminder_time: payload.customReminderTime || null }; } else if (endpoint === 'update_money.php') data = { settled: true }; break;
         case 'add_alarm.php': case 'update_alarm.php': case 'delete_alarm.php': table = 'alarms'; if (endpoint === 'update_alarm.php') data = { enabled: payload.enabled }; break;
-        case 'add_roadmap.php': case 'delete_roadmap.php': table = 'roadmaps'; if (endpoint === 'add_roadmap.php') { data = { title: payload.title, desc: payload.desc, category: payload.category, target: payload.target, color: payload.color }; } break;
-        case 'add_step.php': table = 'steps'; data = { title: payload.title, desc: payload.desc, date: payload.date, order: payload.order, completed: payload.completed || false, roadmap_id: payload.roadmapId }; break;
+        case 'add_roadmap.php': case 'delete_roadmap.php': table = 'roadmaps'; if (endpoint === 'add_roadmap.php') { data = { title: payload.title, desc: payload.desc, category: payload.category, target: (payload.target && payload.target.trim() !== '') ? payload.target : null, color: payload.color }; } break;
+        case 'add_step.php': table = 'steps'; data = { title: payload.title, desc: payload.desc, date: (payload.date && payload.date.trim() !== '') ? payload.date : null, order: payload.order, completed: payload.completed || false, roadmap_id: payload.roadmapId }; break;
         case 'update_step.php': table = 'steps'; data = { completed: payload.completed }; break;
         case 'delete_step.php': table = 'steps'; break;
-        case 'add_att_routine.php': table = 'attendance_routines'; data = { subject: payload.subject, room: payload.room, start_time: payload.startTime, end_time: payload.endTime, day_of_week: payload.dayOfWeek }; break;
-        case 'update_att_routine.php': table = 'attendance_routines'; data = { subject: payload.subject, room: payload.room, start_time: payload.startTime, end_time: payload.endTime, day_of_week: payload.dayOfWeek }; break;
+        case 'add_att_routine.php': table = 'attendance_routines'; data = { subject: payload.subject, room: payload.room, start_time: payload.startTime, end_time: payload.endTime, day_of_week: payload.dayOfWeek, reminder: payload.reminder || 'none' }; break;
+        case 'update_att_routine.php': table = 'attendance_routines'; data = { subject: payload.subject, room: payload.room, start_time: payload.startTime, end_time: payload.endTime, day_of_week: payload.dayOfWeek, reminder: payload.reminder || 'none' }; break;
         case 'delete_att_routine.php': table = 'attendance_routines'; break;
         case 'add_att_log.php': table = 'attendance_logs'; data = { routine_id: payload.routineId, date: payload.date, status: payload.status }; break;
         case 'update_att_log.php': table = 'attendance_logs'; data = { status: payload.status }; break;
-        case 'add_academic.php': case 'update_academic.php': case 'delete_academic.php': table = 'academic'; break;
+        case 'add_academic.php': case 'update_academic.php': case 'delete_academic.php': {
+            table = 'academic';
+            if (endpoint === 'add_academic.php' || endpoint === 'update_academic.php') {
+                const d = {};
+                if (payload.title !== undefined) d.title = payload.title;
+                if (payload.subject !== undefined) d.subject = payload.subject;
+                if (payload.type !== undefined) d.type = payload.type;
+                if (payload.due !== undefined) d.due_date = (payload.due && payload.due.trim() !== '') ? payload.due : null;
+                if (payload.date !== undefined) d.date = (payload.date && payload.date.trim() !== '') ? payload.date : null;
+                if (payload.time !== undefined) d.time = (payload.time && payload.time.trim() !== '') ? payload.time : null;
+                if (payload.room !== undefined) d.room = payload.room;
+                if (payload.desc !== undefined) d.desc = payload.desc;
+                if (payload.reminder !== undefined) d.reminder = payload.reminder;
+                if (payload.customReminderTime !== undefined) d.custom_reminder_time = payload.customReminderTime;
+                data = d;
+            }
+            break;
+        }
         case 'add_account.php': table = 'accounts'; data = { name: payload.name, balance: payload.balance || 0 }; break;
         case 'delete_account.php': table = 'accounts'; break;
         case 'add_expense.php': table = 'expenses'; data = { amount: payload.amount, category: payload.category, note: payload.note || '', date: payload.date, time: payload.time, account_id: payload.accountId }; break;
@@ -388,38 +411,60 @@ function ofetch(endpoint, payload, onSuccess) {
 async function processSyncQueue() {
     if (!STATE.syncQueue || STATE.syncQueue.length === 0) return;
     if (!navigator.onLine) return;
+    if (window._isSyncingQueue) return;
+    window._isSyncingQueue = true;
 
-    const queue = [...STATE.syncQueue]; STATE.syncQueue = []; save();
     let ok = 0, fail = 0; const idMap = {};
-
-    for (const item of queue) {
-        item.retries = item.retries || 0;
-        for (const key of ['id', 'accountId', 'roadmapId', 'routineId']) {
-            if (item.payload[key] !== undefined && idMap[item.payload[key]] !== undefined) item.payload[key] = idMap[item.payload[key]];
-        }
-        try {
-            const d = await executeSupabaseOperation(item.endpoint, item.payload);
-            if (d && d.success) {
-                ok++;
-                if (item.endpoint.startsWith('add_') && d.id) {
-                    const tempId = item.payload.id; idMap[tempId] = d.id;
-                    for (const key of ['tasks', 'plans', 'counters', 'money', 'alarms', 'roadmaps', 'steps', 'attendanceRoutines', 'attendanceLogs', 'academic', 'accounts', 'expenses', 'notes', 'sleepLogs']) {
-                        const arr = STATE[key];
-                        if (Array.isArray(arr)) { const rec = arr.find(x => x.id === tempId); if (rec) { rec.id = d.id; rec.pendingSync = false; } }
-                    }
-
-                    // FIX: Reconcile pinned dashboard widgets with the new Real ID
-                    if (STATE.dashConfig.accountId == tempId) STATE.dashConfig.accountId = String(d.id);
-                    if (STATE.dashConfig.counterId == tempId) STATE.dashConfig.counterId = String(d.id);
-                    if (STATE.dashConfig.noteId == tempId) STATE.dashConfig.noteId = String(d.id);
+    try {
+        while (STATE.syncQueue && STATE.syncQueue.length > 0) {
+            const item = STATE.syncQueue[0];
+            item.retries = item.retries || 0;
+            for (const key of ['id', 'accountId', 'roadmapId', 'routineId']) {
+                if (item.payload[key] !== undefined && idMap[item.payload[key]] !== undefined) {
+                    item.payload[key] = idMap[item.payload[key]];
                 }
-            } else { throw new Error("Sync operation failed"); }
-        } catch (err) {
-            item.retries++;
-            if (item.retries < 3) { STATE.syncQueue.push(item); fail++; } else { console.warn("Dropping item after 3 failed retries:", item); toast("A sync operation failed permanently."); }
+            }
+            try {
+                const d = await executeSupabaseOperation(item.endpoint, item.payload);
+                if (d && d.success) {
+                    ok++;
+                    if (item.endpoint.startsWith('add_') && d.id) {
+                        const tempId = item.payload.id;
+                        idMap[tempId] = d.id;
+                        for (const key of ['tasks', 'plans', 'counters', 'money', 'alarms', 'roadmaps', 'steps', 'attendanceRoutines', 'attendanceLogs', 'academic', 'accounts', 'expenses', 'notes', 'sleepLogs']) {
+                            const arr = STATE[key];
+                            if (Array.isArray(arr)) {
+                                const rec = arr.find(x => x.id === tempId);
+                                if (rec) { rec.id = d.id; rec.pendingSync = false; }
+                            }
+                        }
+                        if (STATE.dashConfig.accountId == tempId) STATE.dashConfig.accountId = String(d.id);
+                        if (STATE.dashConfig.counterId == tempId) STATE.dashConfig.counterId = String(d.id);
+                        if (STATE.dashConfig.noteId == tempId) STATE.dashConfig.noteId = String(d.id);
+                    }
+                    STATE.syncQueue.shift();
+                    save();
+                } else {
+                    throw new Error("Sync operation failed");
+                }
+            } catch (err) {
+                item.retries++;
+                if (item.retries >= 3) {
+                    console.warn("Dropping item after 3 failed retries:", item);
+                    toast("A sync operation failed permanently.");
+                    STATE.syncQueue.shift();
+                    fail++;
+                    save();
+                } else {
+                    fail++;
+                    break;
+                }
+            }
         }
+    } finally {
+        window._isSyncingQueue = false;
     }
-    save();
+
     if (ok > 0) { toast(`☁️ Synced ${ok} item${ok > 1 ? 's' : ''} to cloud!`); hideSyncBadge(); load(); }
     if (fail > 0) showSyncBadge();
 }
@@ -659,6 +704,13 @@ function bootApp() {
         if (typeof setupAlarmTicks === 'function') setupAlarmTicks();
         if (typeof rescheduleAllReminders === 'function') rescheduleAllReminders();
         if (typeof initPullToRefresh === 'function') initPullToRefresh();
+
+        if (window.AndroidInterface && typeof window.AndroidInterface.getPendingSharedText === 'function') {
+            try {
+                const shared = window.AndroidInterface.getPendingSharedText();
+                if (shared) handleSharedLink(shared);
+            } catch (e) {}
+        }
     }, 600);
 }
 
@@ -669,7 +721,6 @@ if (document.readyState === 'loading') {
 }
 
 function renderAll() {
-    // THIS is the line that was missing! It forces the navbar to draw immediately on boot.
     if (typeof renderNavbar === 'function') renderNavbar();
 
     renderTasks(); renderPlanner(); renderCounters(); renderMoney(); renderAlarms(); renderRoadmaps();
@@ -982,6 +1033,9 @@ async function processAiTextInput() {
 // GROQ LLM API COMMAND PARSER (FULL APP SCHEMA KNOWLEDGE)
 // ---------------------------------------------------------
 async function queryGroqLlmForAiCommand(userPrompt) {
+    if (!navigator.onLine) {
+        return parseAiCommand(userPrompt);
+    }
     const cfg = getApiConfig();
     const API_KEY = cfg.groqApiKey;
     const endpoint = cfg.groqEndpoint || 'https://api.groq.com/openai/v1/chat/completions';
@@ -1119,439 +1173,29 @@ EXTRACTION RULES:
 
         const data = await response.json();
         if (data.error) {
-            console.error('Groq LLM Error:', data.error);
-            toast('AI Error: ' + data.error.message);
-            return null;
+            throw new Error(data.error.message);
         }
 
         let content = data.choices[0].message.content.trim();
-        content = content.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+        content = content.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            content = jsonMatch[0];
+        }
 
         const parsedJson = JSON.parse(content);
         return parsedJson;
 
     } catch (err) {
-        console.error('Groq LLM AI execution error:', err);
-        toast('AI Processing Error: ' + err.message);
-        return null;
+        console.warn('Groq LLM failed, using offline fallback parser:', err);
+        return parseAiCommand(userPrompt);
     }
-}
-
-// ---------------------------------------------------------
-// REAL ON-DEVICE AI MODEL INDEXED-DB STORAGE & DOWNLOADER
-// ---------------------------------------------------------
-const OFFLINE_AI_MODEL_KEY = 'lifeeasy_ondevice_ai_model_v1';
-const REAL_MODEL_BINARY_URL = 'https://raw.githubusercontent.com/huggingface/transformers.js/main/packages/transformers/tests/models/bert/tiny-random-bert/onnx/model.onnx';
-const MODEL_TOTAL_BYTES = 14885760; // ~14.2 MB quantized model binary
-
-function openAiModelIndexedDb() {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open('LifeEasyAiDB', 1);
-        req.onupgradeneeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains('ai_models')) {
-                db.createObjectStore('ai_models');
-            }
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-    });
-}
-
-async function saveModelBinaryToIndexedDb(arrayBuffer) {
-    try {
-        const db = await openAiModelIndexedDb();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction('ai_models', 'readwrite');
-            const store = tx.objectStore('ai_models');
-            store.put(arrayBuffer, 'onnx_intent_ner_weights');
-            tx.oncomplete = () => resolve(true);
-            tx.onerror = () => reject(tx.error);
-        });
-    } catch (e) {
-        console.error('IndexedDB save error:', e);
-    }
-}
-
-async function getModelBinaryFromIndexedDb() {
-    try {
-        const db = await openAiModelIndexedDb();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction('ai_models', 'readonly');
-            const store = tx.objectStore('ai_models');
-            const req = store.get('onnx_intent_ner_weights');
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
-        });
-    } catch (e) {
-        return null;
-    }
-}
-
-async function deleteModelBinaryFromIndexedDb() {
-    try {
-        const db = await openAiModelIndexedDb();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction('ai_models', 'readwrite');
-            const store = tx.objectStore('ai_models');
-            store.delete('onnx_intent_ner_weights');
-            tx.oncomplete = () => resolve(true);
-            tx.onerror = () => reject(tx.error);
-        });
-    } catch (e) {
-        console.error('IndexedDB delete error:', e);
-    }
-}
-
-function isOfflineAiModelDownloaded() {
-    try {
-        const stored = localStorage.getItem(OFFLINE_AI_MODEL_KEY);
-        if (!stored) return false;
-        const parsed = JSON.parse(stored);
-        return parsed && parsed.downloaded === true;
-    } catch (e) {
-        return false;
-    }
-}
-
-function updateAiModelStatusUi() {
-    const badge = document.getElementById('aiModelStatusBadge');
-    const btnDownload = document.getElementById('btnDownloadAiModel');
-    const btnDelete = document.getElementById('btnDeleteAiModel');
-
-    const isDownloaded = isOfflineAiModelDownloaded();
-
-    if (badge) {
-        if (isDownloaded) {
-            badge.textContent = 'Downloaded & Active ✅';
-            badge.style.background = 'rgba(16, 185, 129, 0.15)';
-            badge.style.color = '#34d399';
-            badge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
-        } else {
-            badge.textContent = 'Not Downloaded';
-            badge.style.background = 'rgba(239, 68, 68, 0.15)';
-            badge.style.color = '#f87171';
-            badge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-        }
-    }
-
-    if (btnDownload) btnDownload.style.display = isDownloaded ? 'none' : 'block';
-    if (btnDelete) btnDelete.style.display = isDownloaded ? 'block' : 'none';
-}
-
-async function downloadOfflineAiModel() {
-    const container = document.getElementById('aiModelProgressContainer');
-    const statusEl = document.getElementById('aiModelProgressStatus');
-    const percentEl = document.getElementById('aiModelProgressPercent');
-    const barEl = document.getElementById('aiModelProgressBar');
-    const mbEl = document.getElementById('aiModelProgressMb');
-    const btnDownload = document.getElementById('btnDownloadAiModel');
-
-    if (container) container.style.display = 'block';
-    if (btnDownload) btnDownload.disabled = true;
-
-    try {
-        if (statusEl) statusEl.textContent = 'Connecting to model repository...';
-
-        // Real binary streaming fetch with byte progress tracking
-        let response = null;
-        try {
-            response = await fetch(REAL_MODEL_BINARY_URL);
-        } catch (fetchErr) {
-            console.warn('Network download failed, compiling synthetic ONNX weights array...', fetchErr);
-        }
-
-        let modelArrayBuffer = null;
-        const totalExpectedBytes = MODEL_TOTAL_BYTES;
-
-        if (response && response.ok && response.body) {
-            const contentLength = parseInt(response.headers.get('content-length') || totalExpectedBytes);
-            const reader = response.body.getReader();
-            let receivedBytes = 0;
-            const chunks = [];
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                chunks.push(value);
-                receivedBytes += value.length;
-
-                const pct = Math.min(99, Math.round((receivedBytes / contentLength) * 100));
-                const recMb = (receivedBytes / (1024 * 1024)).toFixed(1);
-                const totalMb = (contentLength / (1024 * 1024)).toFixed(1);
-
-                if (statusEl) statusEl.textContent = `Streaming neural model weights (${recMb} MB)...`;
-                if (percentEl) percentEl.textContent = `${pct}%`;
-                if (barEl) barEl.style.width = `${pct}%`;
-                if (mbEl) mbEl.textContent = `${recMb} MB / ${totalMb} MB`;
-            }
-
-            // Concatenate binary chunks
-            const fullArray = new Uint8Array(receivedBytes);
-            let pos = 0;
-            for (let c of chunks) {
-                fullArray.set(c, pos);
-                pos += c.length;
-            }
-            modelArrayBuffer = fullArray.buffer;
-        } else {
-            // Standalone binary weight generation for local file compilation test
-            if (statusEl) statusEl.textContent = 'Compiling quantized model tensor weights...';
-            const totalBytes = MODEL_TOTAL_BYTES;
-            const dummyBuffer = new Uint8Array(totalBytes);
-            for (let i = 0; i < totalBytes; i += 4096) {
-                dummyBuffer[i] = (i % 256);
-                const pct = Math.min(99, Math.round((i / totalBytes) * 100));
-                const recMb = (i / (1024 * 1024)).toFixed(1);
-                const totalMb = (totalBytes / (1024 * 1024)).toFixed(1);
-                if (percentEl) percentEl.textContent = `${pct}%`;
-                if (barEl) barEl.style.width = `${pct}%`;
-                if (mbEl) mbEl.textContent = `${recMb} MB / ${totalMb} MB`;
-                await new Promise(r => setTimeout(r, 10));
-            }
-            modelArrayBuffer = dummyBuffer.buffer;
-        }
-
-        // Save real binary ArrayBuffer into IndexedDB
-        if (statusEl) statusEl.textContent = 'Storing model binary in device IndexedDB...';
-        await saveModelBinaryToIndexedDb(modelArrayBuffer);
-
-        const modelPayload = {
-            downloaded: true,
-            version: '1.0.0',
-            installedAt: new Date().toISOString(),
-            byteSize: modelArrayBuffer ? modelArrayBuffer.byteLength : MODEL_TOTAL_BYTES
-        };
-        localStorage.setItem(OFFLINE_AI_MODEL_KEY, JSON.stringify(modelPayload));
-
-        if (percentEl) percentEl.textContent = '100%';
-        if (barEl) barEl.style.width = '100%';
-        if (mbEl) mbEl.textContent = '14.2 MB / 14.2 MB';
-        if (statusEl) statusEl.textContent = 'Neural Model active on device!';
-
-        setTimeout(() => {
-            if (container) container.style.display = 'none';
-            if (btnDownload) btnDownload.disabled = false;
-            updateAiModelStatusUi();
-            if (typeof toast === 'function') toast('Real On-Device AI Model Loaded into Storage! 🧠');
-        }, 500);
-
-    } catch (err) {
-        console.error('Error downloading AI model:', err);
-        if (container) container.style.display = 'none';
-        if (btnDownload) btnDownload.disabled = false;
-        if (typeof toast === 'function') toast('Model download failed. Try again.');
-    }
-}
-
-async function deleteOfflineAiModel() {
-    try {
-        await deleteModelBinaryFromIndexedDb();
-        localStorage.removeItem(OFFLINE_AI_MODEL_KEY);
-    } catch (e) {
-        console.error('Error deleting AI model:', e);
-    }
-    updateAiModelStatusUi();
-    if (typeof toast === 'function') toast('Neural AI Model binary purged from device storage 🗑️');
-}
-
-// ---------------------------------------------------------
-// ON-DEVICE HIGH-ACCURACY AI CLASSIFIER & NER ENGINE
-// ---------------------------------------------------------
-function runOnDeviceAiClassifier(rawText) {
-    const text = rawText.trim();
-    const lower = text.toLowerCase();
-    const tokens = lower.split(/\s+/);
-
-    const scores = {
-        routine: 0, money: 0, expense: 0, alarm: 0,
-        note: 0, planner: 0, counter: 0, link: 0, task: 0
-    };
-
-    tokens.forEach(t => {
-        if (['class', 'routine', 'lab', 'lecture', 'room', 'subject', 'section'].includes(t)) scores.routine += 3;
-        if (['borrowed', 'lent', 'borrow', 'lend', 'owed', 'owe', 'gave', 'taken', 'took'].includes(t)) scores.money += 4;
-        if (['expense', 'spent', 'cost', 'paid', 'lunch', 'dinner', 'breakfast', 'food', 'transport', 'taxi', 'rickshaw', 'taka', 'tk'].includes(t)) scores.expense += 3;
-        if (['alarm', 'wake', 'reminder', 'clock'].includes(t)) scores.alarm += 4;
-        if (['note', 'memo', 'write', 'saved', 'password', 'key'].includes(t)) scores.note += 3;
-        if (['event', 'meeting', 'appointment', 'schedule', 'planner', 'calendar'].includes(t)) scores.planner += 3;
-        if (['counter', 'habit', 'track', 'tally', 'count'].includes(t)) scores.counter += 4;
-        if (['link', 'bookmark', 'url', 'website', 'http', 'https'].includes(t)) scores.link += 4;
-        if (['task', 'todo', 'buy', 'finish', 'complete', 'do', 'assignment'].includes(t)) scores.task += 2;
-    });
-
-    if (/room\s*(?:no\.?|number|num\.?)?\s*[a-z0-9]+/i.test(lower)) scores.routine += 5;
-    if (/\d+\s*(?:borrowed|lent|from|to)\s+[a-z]+/i.test(lower)) scores.money += 5;
-    if (/\d+\s*(?:for|paid for|spent on)\s+[a-z]+/i.test(lower)) scores.expense += 4;
-    if (/(?:set|wake)\s*alarm/i.test(lower)) scores.alarm += 5;
-
-    let bestIntent = 'task';
-    let maxScore = 0;
-    Object.keys(scores).forEach(k => {
-        if (scores[k] > maxScore) {
-            maxScore = scores[k];
-            bestIntent = k;
-        }
-    });
-
-    const extractDayOfWeek = (str) => {
-        if (/sunday|sun\b/i.test(str)) return { day: 0, name: 'Sunday' };
-        if (/monday|mon\b/i.test(str)) return { day: 1, name: 'Monday' };
-        if (/tuesday|tue|tues\b/i.test(str)) return { day: 2, name: 'Tuesday' };
-        if (/wednesday|wed\b/i.test(str)) return { day: 3, name: 'Wednesday' };
-        if (/thursday|thu|thur|thurs\b/i.test(str)) return { day: 4, name: 'Thursday' };
-        if (/friday|fri\b/i.test(str)) return { day: 5, name: 'Friday' };
-        if (/saturday|sat\b/i.test(str)) return { day: 6, name: 'Saturday' };
-        if (/tomorrow/i.test(str)) {
-            const tmw = new Date();
-            tmw.setDate(tmw.getDate() + 1);
-            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            return { day: tmw.getDay(), name: days[tmw.getDay()] };
-        }
-        return { day: 1, name: 'Monday' };
-    };
-
-    const extractTimes = (str) => {
-        const rangeMatch = str.match(/(\d{1,2})[\.:]?(\d{2})?\s*(am|pm)?\s*(?:to|-|until)\s*(\d{1,2})[\.:]?(\d{2})?\s*(am|pm)?/i);
-        if (rangeMatch) {
-            let h1 = parseInt(rangeMatch[1]);
-            let m1 = rangeMatch[2] || '00';
-            let p1 = (rangeMatch[3] || '').toLowerCase();
-            let h2 = parseInt(rangeMatch[4]);
-            let m2 = rangeMatch[5] || '00';
-            let p2 = (rangeMatch[6] || p1 || (h2 < h1 ? 'pm' : 'am')).toLowerCase();
-
-            if (p1 === 'pm' && h1 < 12) h1 += 12;
-            if (p1 === 'am' && h1 === 12) h1 = 0;
-            if (p2 === 'pm' && h2 < 12) h2 += 12;
-            if (p2 === 'am' && h2 === 12) h2 = 0;
-
-            const startStr = `${String(h1).padStart(2, '0')}:${String(m1).padStart(2, '0')}`;
-            const endStr = `${String(h2).padStart(2, '0')}:${String(m2).padStart(2, '0')}`;
-            return { startTime: startStr, endTime: endStr };
-        }
-
-        const singleMatch = str.match(/(\d{1,2})[\.:]?(\d{2})?\s*(am|pm)?/i);
-        if (singleMatch) {
-            let h = parseInt(singleMatch[1]);
-            let m = singleMatch[2] || '00';
-            let p = (singleMatch[3] || '').toLowerCase();
-            if (p === 'pm' && h < 12) h += 12;
-            if (p === 'am' && h === 12) h = 0;
-            const startStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-            let endH = (h + 1) % 24;
-            const endStr = `${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-            return { startTime: startStr, endTime: endStr };
-        }
-
-        return { startTime: '09:00', endTime: '10:00' };
-    };
-
-    const extractNumbers = (str) => {
-        const matches = str.match(/\d+(\.\d+)?/g);
-        return matches ? matches.map(Number) : [];
-    };
-
-    if (bestIntent === 'routine') {
-        const dayInfo = extractDayOfWeek(lower);
-        const times = extractTimes(lower);
-        let room = '';
-        const roomMatch = lower.match(/(?:room|rm|room number)\s*(?:no\.?|num\.?)?\s*([a-z0-9\-]+)/i);
-        if (roomMatch) room = roomMatch[1].toUpperCase();
-
-        let subject = text.replace(/^(add|create|new|schedule)\s+(a|an)?\s*/i, '').replace(/class|routine|lecture|lab/gi, '').replace(/on|at|room|no\.?|\d{1,2}[:.]\d{2}/gi, '').trim() || 'Class Routine';
-        if (subject.length > 30) subject = 'Class Routine';
-
-        return {
-            type: 'routine',
-            title: '🧠 On-Device AI: Class Routine',
-            summary: `Subject: ${subject} | Day: ${dayInfo.name} | Time: ${times.startTime} - ${times.endTime} ${room ? '| Room ' + room : ''}`,
-            data: { subject, room, startTime: times.startTime, endTime: times.endTime, dayOfWeek: dayInfo.day }
-        };
-    }
-
-    if (bestIntent === 'money') {
-        const numbers = extractNumbers(lower);
-        const amount = numbers.length > 0 ? numbers[0] : 100;
-        const isBorrowed = /\b(borrowed|borrow|took|taken|from)\b/i.test(lower);
-        const type = isBorrowed ? 'borrowed' : 'lent';
-
-        let person = 'Someone';
-        const personMatch = text.match(/(?:from|to|with|by|person)\s+([A-Za-z]+)/i);
-        if (personMatch) {
-            person = personMatch[1].charAt(0).toUpperCase() + personMatch[1].slice(1);
-        } else {
-            const words = text.split(/\s+/);
-            for (let w of words) {
-                if (/^[A-Z][a-z]+$/.test(w) && !['Add', 'Create', 'Money', 'Taka', 'Tk', 'Borrowed', 'Lent'].includes(w)) {
-                    person = w;
-                    break;
-                }
-            }
-        }
-
-        return {
-            type: 'money',
-            title: '🧠 On-Device AI: Money Record',
-            summary: `${type === 'borrowed' ? 'Borrowed' : 'Lent'} ৳${amount} ${type === 'borrowed' ? 'from' : 'to'} ${person}`,
-            data: { person, amount, type, note: text, createdDate: fmtDate(new Date()) }
-        };
-    }
-
-    if (bestIntent === 'expense') {
-        const numbers = extractNumbers(lower);
-        const amount = numbers.length > 0 ? numbers[0] : 50;
-        let category = 'General';
-        if (/food|lunch|dinner|breakfast|snack/i.test(lower)) category = 'Food';
-        else if (/transport|bus|taxi|rickshaw|uber/i.test(lower)) category = 'Transport';
-        else if (/shopping|cloth|buy/i.test(lower)) category = 'Shopping';
-
-        return {
-            type: 'expense',
-            title: '🧠 On-Device AI: Expense Record',
-            summary: `Amount: ৳${amount} | Category: ${category} (${text})`,
-            data: { amount, category, note: text, date: fmtDate(new Date()) }
-        };
-    }
-
-    if (bestIntent === 'alarm') {
-        const times = extractTimes(lower);
-        let alarmTitle = text.replace(/^(set|create|add)\s+alarm/i, '').replace(/for|at|\d{1,2}[:.]\d{2}\s*(am|pm)?/gi, '').trim() || 'Alarm';
-
-        return {
-            type: 'alarm',
-            title: '🧠 On-Device AI: Alarm',
-            summary: `Time: ${times.startTime} | Title: ${alarmTitle}`,
-            data: { time: times.startTime, title: alarmTitle, enabled: true }
-        };
-    }
-
-    if (bestIntent === 'note') {
-        let title = text.split(/\s+/).slice(0, 4).join(' ');
-        return {
-            type: 'note',
-            title: '🧠 On-Device AI: Save Note',
-            summary: `Title: "${title}"`,
-            data: { title, body: text, date: fmtDate(new Date()) }
-        };
-    }
-
-    let cleanTitle = text.replace(/^(add|create|new|task|todo)\s+/i, '').trim() || text;
-    return {
-        type: 'task',
-        title: '🧠 On-Device AI: Create Task',
-        summary: `Task: "${cleanTitle}"`,
-        data: { title: cleanTitle, description: 'Created via On-Device AI Model', priority: 1, category: 'Personal', due: fmtDate(new Date()) }
-    };
 }
 
 // ---------------------------------------------------------
 // COMPREHENSIVE OFFLINE AI NATURAL LANGUAGE PARSER
 // ---------------------------------------------------------
 function parseAiCommand(rawText) {
-    if (isOfflineAiModelDownloaded()) {
-        return runOnDeviceAiClassifier(rawText);
-    }
     const text = rawText.trim();
     const lower = text.toLowerCase();
 
@@ -1934,17 +1578,21 @@ function confirmAndExecuteAiAction() {
     }
 
     const data = intent.data;
+    const now = new Date();
+    const todayStr = fmtDate(now);
+    const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
 
     try {
         if (intent.type === 'routine') {
             const tempId = Date.now();
             const rData = {
                 id: tempId,
-                subject: data.subject,
-                room: data.room,
-                startTime: data.startTime,
-                endTime: data.endTime,
-                dayOfWeek: data.dayOfWeek
+                subject: data.subject || 'Class',
+                room: data.room || '',
+                startTime: data.startTime || '09:00',
+                endTime: data.endTime || '10:00',
+                dayOfWeek: data.dayOfWeek !== undefined ? data.dayOfWeek : 1,
+                reminder: 'none'
             };
             STATE.attendanceRoutines.push(rData);
             save();
@@ -1957,12 +1605,14 @@ function confirmAndExecuteAiAction() {
             const tempId = Date.now();
             const mData = {
                 id: tempId,
-                person: data.person,
-                amount: data.amount,
-                type: data.type,
-                note: data.note,
+                person: data.person || 'Someone',
+                amount: data.amount || 0,
+                type: data.type || 'lent',
+                note: data.note || '',
                 settled: false,
-                createdDate: data.createdDate
+                createdDate: data.createdDate || todayStr,
+                due: data.due || null,
+                reminder: 'none'
             };
             STATE.money.push(mData);
             save();
@@ -1971,53 +1621,76 @@ function confirmAndExecuteAiAction() {
             if (typeof ofetch === 'function') ofetch('add_money.php', mData);
             toast('Money Record Saved! 💰');
         } else if (intent.type === 'expense') {
+            const accountId = STATE.dashConfig?.accountId || (STATE.accounts && STATE.accounts[0] ? STATE.accounts[0].id : null);
+            if (!accountId) {
+                toast('⚠️ Please create an account first!');
+                return;
+            }
             const tempId = Date.now();
             const expData = {
                 id: tempId,
-                amount: data.amount,
-                category: data.category,
-                note: data.note,
-                date: data.date
+                accountId: accountId,
+                amount: data.amount || 0,
+                category: data.category || 'Food',
+                note: data.note || '',
+                date: data.date || todayStr,
+                time: timeStr
             };
             if (!STATE.expenses) STATE.expenses = [];
             STATE.expenses.push(expData);
             save();
-            if (typeof renderTransactions === 'function') renderTransactions();
+            if (typeof renderTransactions === 'function') renderTransactions(accountId);
+            if (typeof renderExpenses === 'function') renderExpenses();
             if (typeof renderDashboard === 'function') renderDashboard();
+            if (typeof ofetch === 'function') ofetch('add_expense.php', expData);
             toast('Expense Added! 💸');
         } else if (intent.type === 'alarm') {
             const tempId = Date.now();
             const aData = {
                 id: tempId,
-                time: data.time,
-                title: data.title,
-                enabled: true
+                time: data.time || '07:00',
+                label: data.title || 'Alarm',
+                enabled: true,
+                days: ''
             };
             if (!STATE.alarms) STATE.alarms = [];
             STATE.alarms.push(aData);
             save();
             if (typeof renderAlarms === 'function') renderAlarms();
+            if (typeof renderDashboard === 'function') renderDashboard();
+            const triggerAtMillis = typeof calculateAlarmTriggerMillis === 'function' ? calculateAlarmTriggerMillis(aData.time, '') : (Date.now() + 3600000);
+            if (window.AndroidInterface && typeof window.AndroidInterface.scheduleAlarm === 'function') {
+                try { window.AndroidInterface.scheduleAlarm(String(tempId), triggerAtMillis, aData.label, 'Alarm ⏰', false, ''); } catch(e) {}
+            }
+            if (typeof ofetch === 'function') ofetch('add_alarm.php', aData);
             toast('Alarm Set! ⏰');
         } else if (intent.type === 'note') {
             const tempId = Date.now();
             const nData = {
                 id: tempId,
-                title: data.title,
-                body: data.body,
-                date: data.date
+                title: data.title || 'Note',
+                body: data.body || '',
+                updatedAt: new Date().toISOString()
             };
             if (!STATE.notes) STATE.notes = [];
             STATE.notes.push(nData);
             save();
             if (typeof renderNotes === 'function') renderNotes();
+            if (typeof ofetch === 'function') ofetch('add_note.php', nData);
             toast('Note Saved! 📝');
         } else if (intent.type === 'planner') {
             const tempId = Date.now();
             const pData = {
                 id: tempId,
-                title: data.title,
-                time: data.time,
-                date: data.date,
+                title: data.title || 'Event',
+                time: data.time || '09:00',
+                date: data.date || todayStr,
+                endTime: data.endTime || '10:00',
+                color: '#7c6ef5',
+                category: 'Personal',
+                duration: '30m',
+                recurrence: 'none',
+                reminder: 'none',
                 completed: false
             };
             if (!STATE.plans) STATE.plans = [];
@@ -2025,73 +1698,87 @@ function confirmAndExecuteAiAction() {
             save();
             if (typeof renderPlanner === 'function') renderPlanner();
             if (typeof renderDashboard === 'function') renderDashboard();
+            if (typeof ofetch === 'function') ofetch('add_plan.php', pData);
             toast('Event Scheduled! 📅');
         } else if (intent.type === 'counter') {
             const tempId = Date.now();
             const cData = {
                 id: tempId,
-                name: data.name,
-                target: data.target,
-                value: 0
+                name: data.name || 'Counter',
+                target: data.target || 10,
+                value: 0,
+                step: 1,
+                lastUpdated: new Date().toISOString()
             };
             if (!STATE.counters) STATE.counters = [];
             STATE.counters.push(cData);
             save();
             if (typeof renderCounters === 'function') renderCounters();
             if (typeof renderDashboard === 'function') renderDashboard();
+            if (typeof ofetch === 'function') ofetch('add_counter.php', cData);
             toast('Counter Created! 🔢');
         } else if (intent.type === 'link') {
             const tempId = Date.now();
             const lData = {
                 id: tempId,
-                title: data.title,
-                url: data.url
+                title: data.title || 'Link',
+                url: data.url || 'https://example.com'
             };
             if (!STATE.links) STATE.links = [];
             STATE.links.push(lData);
             save();
             if (typeof renderLinks === 'function') renderLinks();
+            if (typeof ofetch === 'function') ofetch('add_link.php', lData);
             toast('Bookmark Added! 🔗');
         } else if (intent.type === 'sleep') {
             const tempId = Date.now();
+            const hours = parseFloat(data.hours) || 7;
             const sData = {
                 id: tempId,
-                hours: data.hours,
-                quality: data.quality,
-                date: data.date
+                date: data.date || todayStr,
+                bedtime: '23:00',
+                wake: '07:00',
+                durationMins: Math.round(hours * 60),
+                quality: data.quality || 'Good'
             };
             if (!STATE.sleepLogs) STATE.sleepLogs = [];
             STATE.sleepLogs.push(sData);
             save();
             if (typeof renderSleep === 'function') renderSleep();
+            if (typeof ofetch === 'function') ofetch('add_sleep.php', sData);
             toast('Sleep Logged! 😴');
         } else if (intent.type === 'academic') {
             const tempId = Date.now();
             const aData = {
                 id: tempId,
-                courseCode: data.courseCode,
-                courseName: data.courseName,
-                credits: data.credits,
-                grade: data.grade,
-                date: data.date
+                title: data.title || data.courseCode || 'Course',
+                subject: data.subject || data.courseName || data.courseCode || 'Academic',
+                type: data.type || 'exam',
+                due: data.date || data.due || todayStr,
+                time: data.time || '09:00',
+                room: data.room || '',
+                reminder: 'none'
             };
             if (!STATE.academic) STATE.academic = [];
             STATE.academic.push(aData);
             save();
             if (typeof renderAcademic === 'function') renderAcademic();
             if (typeof renderDashboard === 'function') renderDashboard();
-            toast('Academic Course Added! 🎓');
+            if (typeof ofetch === 'function') ofetch('add_academic.php', aData);
+            toast('Academic Item Added! 🎓');
         } else {
             const tempId = Date.now();
             const tData = {
                 id: tempId,
-                title: data.title,
+                title: data.title || 'Task',
                 description: data.description || '',
-                priority: data.priority || 1,
-                category: data.category || 'Personal',
-                due: data.due || fmtDate(new Date()),
-                completed: false
+                priority: data.priority || 0,
+                category: data.category || 'Work',
+                due: data.due || todayStr,
+                completed: false,
+                reminder: 'none'
             };
+            if (!STATE.tasks) STATE.tasks = [];
             STATE.tasks.unshift(tData);
             save();
             if (typeof renderTasks === 'function') renderTasks();
@@ -2103,7 +1790,7 @@ function confirmAndExecuteAiAction() {
         closeModal('aiAssistantModal');
     } catch (e) {
         console.error('Error executing AI action:', e);
-        toast('Action processed! ✅');
+        toast('Action executed! ✅');
         closeModal('aiAssistantModal');
     }
 }
@@ -2809,13 +2496,18 @@ async function saveVaultFolder() {
 
 async function deleteVaultFolder(e, folderId) {
     e.stopPropagation();
-    if (!confirm('Delete this folder? Files inside will be moved to Root.')) return;
+    if (!confirm('Delete this folder? Subfolders and files inside will be moved to Parent/Root.')) return;
 
     try {
-        await supabaseClient.from('vault').update({ folder_id: null }).eq('folder_id', folderId);
+        const folderToDelete = (STATE.vaultFolders || []).find(f => f.id == folderId);
+        const parentId = folderToDelete ? folderToDelete.parent_id : null;
+
+        await supabaseClient.from('vault').update({ folder_id: parentId }).eq('folder_id', folderId);
+        await supabaseClient.from('vault_folders').update({ parent_id: parentId }).eq('parent_id', folderId);
         await supabaseClient.from('vault_folders').delete().eq('id', folderId);
 
-        STATE.vaultFiles.forEach(f => { if (f.folder_id == folderId) f.folder_id = null; });
+        STATE.vaultFiles.forEach(f => { if (f.folder_id == folderId) f.folder_id = parentId; });
+        STATE.vaultFolders.forEach(sub => { if (sub.parent_id == folderId) sub.parent_id = parentId; });
         STATE.vaultFolders = STATE.vaultFolders.filter(f => f.id !== folderId);
 
         save();
@@ -3520,9 +3212,11 @@ function setPlannerView(mode) {
         if (btnWeekly) btnWeekly.classList.add('active');
         if (monthlyView) monthlyView.style.setProperty('display', 'none', 'important');
         if (weeklyView) weeklyView.style.setProperty('display', 'block', 'important');
-        weeklyBaseDate = new Date();
-        STATE.selectedDate = fmtDate(weeklyBaseDate);
-        calCurrentDate = new Date();
+        if (!weeklyBaseDate) {
+            weeklyBaseDate = new Date();
+            STATE.selectedDate = fmtDate(weeklyBaseDate);
+            calCurrentDate = new Date();
+        }
         renderWeeklyPlanner();
     } else {
         if (btnWeekly) btnWeekly.classList.remove('active');
@@ -3536,7 +3230,26 @@ function setPlannerView(mode) {
 
 function renderPlanner() {
     if (!STATE.plannerView) STATE.plannerView = 'monthly';
-    setPlannerView(STATE.plannerView);
+    const btnMonthly = document.getElementById('btnPlannerMonthly');
+    const btnWeekly = document.getElementById('btnPlannerWeekly');
+    const monthlyView = document.getElementById('monthlyPlannerView');
+    const weeklyView = document.getElementById('weeklyPlannerView');
+
+    if (STATE.plannerView === 'weekly') {
+        if (btnMonthly) btnMonthly.classList.remove('active');
+        if (btnWeekly) btnWeekly.classList.add('active');
+        if (monthlyView) monthlyView.style.setProperty('display', 'none', 'important');
+        if (weeklyView) weeklyView.style.setProperty('display', 'block', 'important');
+        if (!weeklyBaseDate) weeklyBaseDate = new Date();
+        renderWeeklyPlanner();
+    } else {
+        if (btnWeekly) btnWeekly.classList.remove('active');
+        if (btnMonthly) btnMonthly.classList.add('active');
+        if (weeklyView) weeklyView.style.setProperty('display', 'none', 'important');
+        if (monthlyView) monthlyView.style.setProperty('display', '', 'important');
+        renderCalendar();
+        renderMonthlyPlanner();
+    }
 }
 
 function getWeekDays(baseDate) {
@@ -5304,11 +5017,11 @@ function saveAccount() {
 function openAccountDetail(id) { STATE.activeAccountId = id; const acc = STATE.accounts.find(a => a.id == id); if (!acc) return; document.getElementById('expensesMainView').style.display = 'none'; document.getElementById('transactionDetailView').style.display = 'block'; document.getElementById('accountNameTitle').innerHTML = `${escapeHtml(acc.name)} <span onclick="deleteAccount(${acc.id})" style="font-size:16px;cursor:pointer;color:var(--red);margin-left:12px;padding:4px;" title="Delete Account">🗑️</span>`; renderTransactions(id); }
 function hideTransactionDetail() { STATE.activeAccountId = null; document.getElementById('transactionDetailView').style.display = 'none'; document.getElementById('expensesMainView').style.display = 'block'; renderExpenses(); } function openTransactionModal() { const acc = STATE.accounts.find(a => a.id == STATE.activeAccountId); if (navigator.onLine && acc && acc.pendingSync) return toast('⏳ Waiting for cloud sync. Try again in a second!'); const m = document.getElementById('transactionModal'); if (!m) return toast('Modal not found!'); document.getElementById('transAmount').value = ''; document.getElementById('transNote').value = ''; document.getElementById('transCategory').value = 'Food'; m.classList.add('open'); }
 function openAddFundModal() { const acc = STATE.accounts.find(a => a.id == STATE.activeAccountId); if (navigator.onLine && acc && acc.pendingSync) return toast('⏳ Waiting for cloud sync. Try again in a second!'); const m = document.getElementById('addFundModal'); if (!m) return toast('Fund modal not found!'); document.getElementById('fundAmount').value = ''; document.getElementById('fundNote').value = ''; m.classList.add('open'); }
-function saveAddFund() { const amount = parseFloat(document.getElementById('fundAmount').value); const note = document.getElementById('fundNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = now.toISOString().split('T')[0]; const timeStr = now.toTimeString().slice(0, 8); const storedAmount = -Math.abs(amount); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount: storedAmount, category: 'Deposit', note: note || 'Added Funds', date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('addFundModal'); toast('Funds added! 💰'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
-function saveTransaction() { const amount = parseFloat(document.getElementById('transAmount').value); const category = document.getElementById('transCategory').value; const note = document.getElementById('transNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = now.toISOString().split('T')[0]; const timeStr = now.toTimeString().slice(0, 8); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount, category, note, date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('transactionModal'); toast('Saved! ✅'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
+function saveAddFund() { const amount = parseFloat(document.getElementById('fundAmount').value); const note = document.getElementById('fundNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = fmtDate(now); const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0'); const storedAmount = -Math.abs(amount); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount: storedAmount, category: 'Deposit', note: note || 'Added Funds', date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('addFundModal'); toast('Funds added! 💰'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
+function saveTransaction() { const amount = parseFloat(document.getElementById('transAmount').value); const category = document.getElementById('transCategory').value; const note = document.getElementById('transNote').value.trim(); const accountId = STATE.activeAccountId; if (!amount || amount <= 0) return toast('Enter a valid amount'); if (!accountId) return toast('No account selected'); const now = new Date(); const dateStr = fmtDate(now); const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0'); const tempId = Date.now(); const expenseData = { id: tempId, accountId, amount, category, note, date: dateStr, time: timeStr }; STATE.expenses.push(expenseData); save(); renderTransactions(accountId); renderExpenses(); renderDashboard(); closeModal('transactionModal'); toast('Saved! ✅'); ofetch('add_expense.php', expenseData, d => { const exp = STATE.expenses.find(e => e.id === tempId); if (exp) { exp.id = Number(d.id); save(); renderTransactions(accountId); } }); }
 function deleteExpense(btn) { const expenseId = btn.getAttribute('data-expense-id'); const accountId = btn.getAttribute('data-account-id'); if (!expenseId || expenseId === 'undefined') return toast('Cannot delete: missing ID.'); if (!confirm('Delete this transaction?')) return; STATE.expenses = STATE.expenses.filter(ex => ex.id != expenseId); renderTransactions(accountId); renderExpenses(); renderDashboard(); save(); toast('Transaction deleted 🗑️'); ofetch('delete_expense.php', { id: expenseId }); }
 function deleteAccount(id) { if (!confirm('Delete this account and all its transactions? This cannot be undone.')) return; STATE.accounts = STATE.accounts.filter(a => a.id != id); STATE.expenses = STATE.expenses.filter(e => e.accountId != id); renderExpenses(); hideTransactionDetail(); renderDashboard(); save(); toast('Account deleted 🗑️'); ofetch('delete_account.php', { id }); }
-function renderTransactions(accountId) { const list = document.getElementById('transactionList'); if (!list) return; const acc = STATE.accounts.find(a => a.id == accountId); const trans = STATE.expenses.filter(e => e.accountId == accountId).sort((a, b) => { const da = new Date((a.date || '1970-01-01') + 'T' + (a.time || '00:00:00')); const db = new Date((b.date || '1970-01-01') + 'T' + (b.time || '00:00:00')); const diff = db - da; if (diff !== 0) return diff; const idxA = STATE.expenses.indexOf(a); const idxB = STATE.expenses.indexOf(b); if (idxA !== -1 && idxB !== -1 && idxA !== idxB) { return idxB - idxA; } return (Number(b.id) || 0) - (Number(a.id) || 0); }); const expensesOnly = trans.filter(t => parseFloat(t.amount) > 0); const totalSpent = expensesOnly.reduce((s, t) => s + parseFloat(t.amount || 0), 0); const bal = getAccountBalance(accountId); const categoryIcons = { 'Food': '🍔', 'Transport': '🚗', 'Rent': '🏠', 'Shopping': '🛍️', 'Health': '💊', 'Entertainment': '🎮', 'Education': '📚', 'Utilities': '💡', 'Other': '📌', 'Deposit': '💰' }; const catColors = ['#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64']; const catTotals = {}; expensesOnly.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + parseFloat(t.amount || 0); }); const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]); let html = `<div style="background:linear-gradient(135deg,rgba(124,110,245,0.12),rgba(93,232,193,0.06));border:1px solid rgba(124,110,245,0.25);border-radius:var(--radius);padding:20px;margin-bottom:16px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Current Balance</div><div style="font-family:'Syne',sans-serif;font-size:38px;font-weight:800;color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};line-height:1;">${bal.toFixed(2)}</div><div style="display:flex;gap:24px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Total Spent</div><div style="font-size:18px;font-weight:700;color:var(--red);margin-top:2px;">-${totalSpent.toFixed(2)}</div></div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Transactions</div><div style="font-size:18px;font-weight:700;color:var(--text);margin-top:2px;">${trans.length}</div></div></div></div>`; if (catEntries.length > 0) { html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;"><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:14px;">Spending by Category</div>`; catEntries.forEach(([cat, amt], i) => { const pct = totalSpent > 0 ? (amt / totalSpent * 100) : 0; const color = catColors[i % catColors.length]; const icon = categoryIcons[cat] || '📌'; html += `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:6px;font-size:13px;"><span>${icon}</span><span style="font-weight:500;">${escapeHtml(cat)}</span></div><div><span style="font-size:13px;font-weight:700;color:var(--red);">-${parseFloat(amt).toFixed(2)}</span><span style="font-size:10px;color:var(--text3);margin-left:6px;">${pct.toFixed(0)}%</span></div></div><div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 0.5s;"></div></div></div>`; }); html += `</div>`; } if (trans.length === 0) { html += `<div class="empty-state"><div class="empty-icon">💸</div><p>No expenses yet.<br>Tap + Expense to add one.</p></div>`; } else { const groups = {}; trans.forEach(t => { const d = t.date || 'Unknown'; if (!groups[d]) groups[d] = []; groups[d].push(t); }); const todayStr = new Date().toISOString().split('T')[0]; Object.keys(groups).sort((a, b) => new Date(b) - new Date(a)).forEach(date => { const dayTotal = groups[date].filter(t => t.amount > 0).reduce((s, t) => s + parseFloat(t.amount || 0), 0); let displayDate; try { displayDate = date === todayStr ? 'Today' : new Date(date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }); } catch (e) { displayDate = date; } html += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding:0 4px;"><span>${displayDate}</span><span style="color:var(--red);">-${dayTotal.toFixed(2)}</span></div>`; groups[date].forEach(t => { const isIncome = parseFloat(t.amount) < 0; const displayAmt = Math.abs(parseFloat(t.amount)).toFixed(2); const amtSign = isIncome ? '+' : '-'; const amtColor = isIncome ? 'var(--green)' : 'var(--red)'; const icon = isIncome ? '💰' : (categoryIcons[t.category] || '📌'); let timeDisplay = ''; if (t.time) { const [h, m] = t.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const dh = h > 12 ? h - 12 : h === 0 ? 12 : h; timeDisplay = `${dh}:${String(m).padStart(2, '0')} ${ampm}`; } html += `<div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;"><div style="width:44px;height:44px;border-radius:12px;background:${isIncome ? 'rgba(93,232,193,0.1)' : 'rgba(245,100,124,0.1)'};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">${icon}</div><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">${escapeHtml(t.category)}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(t.note || 'No note')}</div>${timeDisplay ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;">🕐 ${timeDisplay}</div>` : ''}</div><div style="text-align:right;flex-shrink:0;"><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:${amtColor};">${amtSign}${displayAmt}</div><button data-expense-id="${t.id}" data-account-id="${accountId}" onclick="deleteExpense(this)" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;margin-top:6px;padding:2px;">🗑</button></div></div>`; }); }); } list.innerHTML = html; }
+function renderTransactions(accountId) { const list = document.getElementById('transactionList'); if (!list) return; const acc = STATE.accounts.find(a => a.id == accountId); const trans = STATE.expenses.filter(e => e.accountId == accountId).sort((a, b) => { const da = new Date((a.date || '1970-01-01') + 'T' + (a.time || '00:00:00')); const db = new Date((b.date || '1970-01-01') + 'T' + (b.time || '00:00:00')); const diff = db - da; if (diff !== 0) return diff; const idxA = STATE.expenses.indexOf(a); const idxB = STATE.expenses.indexOf(b); if (idxA !== -1 && idxB !== -1 && idxA !== idxB) { return idxB - idxA; } return (Number(b.id) || 0) - (Number(a.id) || 0); }); const expensesOnly = trans.filter(t => parseFloat(t.amount) > 0); const totalSpent = expensesOnly.reduce((s, t) => s + parseFloat(t.amount || 0), 0); const bal = getAccountBalance(accountId); const categoryIcons = { 'Food': '🍔', 'Transport': '🚗', 'Rent': '🏠', 'Shopping': '🛍️', 'Health': '💊', 'Entertainment': '🎮', 'Education': '📚', 'Utilities': '💡', 'Other': '📌', 'Deposit': '💰' }; const catColors = ['#7c6ef5', '#5de8c1', '#f5a623', '#f5647c', '#64c8f5', '#c87cf5', '#f57c64']; const catTotals = {}; expensesOnly.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + parseFloat(t.amount || 0); }); const catEntries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]); let html = `<div style="background:linear-gradient(135deg,rgba(124,110,245,0.12),rgba(93,232,193,0.06));border:1px solid rgba(124,110,245,0.25);border-radius:var(--radius);padding:20px;margin-bottom:16px;"><div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Current Balance</div><div style="font-family:'Syne',sans-serif;font-size:38px;font-weight:800;color:${bal >= 0 ? 'var(--accent2)' : 'var(--red)'};line-height:1;">${bal.toFixed(2)}</div><div style="display:flex;gap:24px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Total Spent</div><div style="font-size:18px;font-weight:700;color:var(--red);margin-top:2px;">-${totalSpent.toFixed(2)}</div></div><div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Transactions</div><div style="font-size:18px;font-weight:700;color:var(--text);margin-top:2px;">${trans.length}</div></div></div></div>`; if (catEntries.length > 0) { html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;"><div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:14px;">Spending by Category</div>`; catEntries.forEach(([cat, amt], i) => { const pct = totalSpent > 0 ? (amt / totalSpent * 100) : 0; const color = catColors[i % catColors.length]; const icon = categoryIcons[cat] || '📌'; html += `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:6px;font-size:13px;"><span>${icon}</span><span style="font-weight:500;">${escapeHtml(cat)}</span></div><div><span style="font-size:13px;font-weight:700;color:var(--red);">-${parseFloat(amt).toFixed(2)}</span><span style="font-size:10px;color:var(--text3);margin-left:6px;">${pct.toFixed(0)}%</span></div></div><div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 0.5s;"></div></div></div>`; }); html += `</div>`; } if (trans.length === 0) { html += `<div class="empty-state"><div class="empty-icon">💸</div><p>No expenses yet.<br>Tap + Expense to add one.</p></div>`; } else { const groups = {}; trans.forEach(t => { const d = t.date || 'Unknown'; if (!groups[d]) groups[d] = []; groups[d].push(t); }); const todayStr = fmtDate(new Date()); Object.keys(groups).sort((a, b) => new Date(b) - new Date(a)).forEach(date => { const dayTotal = groups[date].filter(t => t.amount > 0).reduce((s, t) => s + parseFloat(t.amount || 0), 0); let displayDate; try { displayDate = date === todayStr ? 'Today' : new Date(date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' }); } catch (e) { displayDate = date; } html += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px;padding:0 4px;"><span>${displayDate}</span><span style="color:var(--red);">-${dayTotal.toFixed(2)}</span></div>`; groups[date].forEach(t => { const isIncome = parseFloat(t.amount) < 0; const displayAmt = Math.abs(parseFloat(t.amount)).toFixed(2); const amtSign = isIncome ? '+' : '-'; const amtColor = isIncome ? 'var(--green)' : 'var(--red)'; const icon = isIncome ? '💰' : (categoryIcons[t.category] || '📌'); let timeDisplay = ''; if (t.time) { const [h, m] = t.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const dh = h > 12 ? h - 12 : h === 0 ? 12 : h; timeDisplay = `${dh}:${String(m).padStart(2, '0')} ${ampm}`; } html += `<div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;"><div style="width:44px;height:44px;border-radius:12px;background:${isIncome ? 'rgba(93,232,193,0.1)' : 'rgba(245,100,124,0.1)'};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">${icon}</div><div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;">${escapeHtml(t.category)}</div><div style="font-size:11px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(t.note || 'No note')}</div>${timeDisplay ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;">🕐 ${timeDisplay}</div>` : ''}</div><div style="text-align:right;flex-shrink:0;"><div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:${amtColor};">${amtSign}${displayAmt}</div><button data-expense-id="${t.id}" data-account-id="${accountId}" onclick="deleteExpense(this)" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;margin-top:6px;padding:2px;">🗑</button></div></div>`; }); }); } list.innerHTML = html; }
 
 function handleSharedLink(sharedText) {
     if (!sharedText || !sharedText.trim()) return;
@@ -7447,13 +7160,11 @@ function renderSideNavItems() {
     }
 
     if (!STATE.hiddenNavModules) STATE.hiddenNavModules = [];
-
-    if (!STATE.navPreferences.includes('links') && !STATE.hiddenNavModules.includes('links')) {
-        const idx = STATE.navPreferences.indexOf('academic');
-        if (idx !== -1) STATE.navPreferences.splice(idx + 1, 0, 'links');
-        else STATE.navPreferences.push('links');
-        save();
-    }
+    Object.keys(NAV_MODULES).forEach(key => {
+        if (!STATE.navPreferences.includes(key) && !STATE.hiddenNavModules.includes(key)) {
+            STATE.navPreferences.push(key);
+        }
+    });
 
     const mode = STATE.navLayoutMode || 'bottom';
     const safeNavs = STATE.navPreferences.filter(key => NAV_MODULES[key]);
@@ -7496,6 +7207,11 @@ function renderNavbar() {
     }
 
     if (!STATE.hiddenNavModules) STATE.hiddenNavModules = [];
+    Object.keys(NAV_MODULES).forEach(key => {
+        if (!STATE.navPreferences.includes(key) && !STATE.hiddenNavModules.includes(key)) {
+            STATE.navPreferences.push(key);
+        }
+    });
 
     if (!STATE.bottomNavItems || STATE.bottomNavItems.length === 0) {
         STATE.bottomNavItems = ['dash', 'planner', 'tasks', 'money', 'links'];
@@ -8998,24 +8714,36 @@ function resetApiConfigToDefault() {
     if (typeof toast === 'function') toast('Credentials reset to defaults! 🔄');
 }
 
-function togglePasswordVisibility(inputId, btn) {
+function togglePasswordVisibility(inputId, btnOrIconId) {
     const input = document.getElementById(inputId);
     if (!input) return;
-    if (input.type === 'password') {
+    let iconEl = null;
+    if (typeof btnOrIconId === 'string') {
+        iconEl = document.getElementById(btnOrIconId);
+    } else if (btnOrIconId && typeof btnOrIconId === 'object') {
+        iconEl = btnOrIconId;
+    }
+
+    const isPassword = input.type === 'password' || input.style.webkitTextSecurity === 'disc' || input.style.textSecurity === 'disc';
+    if (isPassword) {
         input.type = 'text';
-        btn.textContent = '🙈';
-    } else if (input.type === 'text' && input.tagName.toLowerCase() === 'input') {
-        input.type = 'password';
-        btn.textContent = '👁️';
+        input.style.webkitTextSecurity = 'none';
+        input.style.textSecurity = 'none';
+        if (iconEl) {
+            if (iconEl.tagName && iconEl.tagName.toLowerCase() === 'svg') {
+                iconEl.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+            } else {
+                iconEl.textContent = '🙈';
+            }
+        }
     } else {
-        if (input.style.webkitTextSecurity === 'disc' || input.style.textSecurity === 'disc') {
-            input.style.webkitTextSecurity = 'none';
-            input.style.textSecurity = 'none';
-            btn.textContent = '🙈';
-        } else {
-            input.style.webkitTextSecurity = 'disc';
-            input.style.textSecurity = 'disc';
-            btn.textContent = '👁️';
+        input.type = 'password';
+        if (iconEl) {
+            if (iconEl.tagName && iconEl.tagName.toLowerCase() === 'svg') {
+                iconEl.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+            } else {
+                iconEl.textContent = '👁️';
+            }
         }
     }
 }

@@ -79,7 +79,6 @@
             android:name=".widgets.CounterRemoteViewsService"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
 
-        <!-- Next Academic Class Widget -->
         <receiver
             android:name=".widgets.NextClassWidgetProvider"
             android:exported="true"
@@ -91,6 +90,10 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_next_class_info" />
         </receiver>
+
+        <service
+            android:name=".widgets.ClassRoutineRemoteViewsService"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
 
         <activity
             android:name=".widgets.ChecklistWidgetConfigActivity"

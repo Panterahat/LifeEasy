@@ -62,6 +62,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var connectivityManager: ConnectivityManager
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+    var pendingSharedText: String? = null
     private var speechRecognizer: SpeechRecognizer? = null
 
     private val requestNotificationPermissionLauncher = registerForActivityResult(
@@ -138,6 +139,11 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
             override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
                 super.onReceivedSslError(view, handler, error)
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                checkAndSyncPendingWidgetActions()
             }
         }
 
@@ -306,18 +312,16 @@ class MainActivity : AppCompatActivity() {
         return if (id == 0 || id == Int.MAX_VALUE) 12345678 else id
     }
 
-    fun scheduleAlarm(rawId: String, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean) {
+    fun scheduleAlarm(rawId: String, triggerAtMillis: Long, title: String, message: String, isRecurring: Boolean, days: String = "") {
         try {
-            // CRITICAL: Ignore past or immediate timestamps (< 2 seconds from now).
-            // Android AlarmManager immediately triggers any alarm set in the past, causing unwanted boot notifications.
             if (triggerAtMillis <= System.currentTimeMillis() + 2000L) {
                 return
             }
 
             val alarmId = getSafeAlarmId(rawId)
-            Log.d("MainActivity", "scheduleAlarm: rawId=$rawId, alarmId=$alarmId, triggerAtMillis=$triggerAtMillis, title=$title, isRecurring=$isRecurring")
+            Log.d("MainActivity", "scheduleAlarm: rawId=$rawId, alarmId=$alarmId, triggerAtMillis=$triggerAtMillis, title=$title, isRecurring=$isRecurring, days=$days")
 
-            AlarmStorage.saveAlarm(this, rawId, triggerAtMillis, title, message, isRecurring)
+            AlarmStorage.saveAlarm(this, rawId, triggerAtMillis, title, message, isRecurring, days)
 
             val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
             val intent = Intent(this, AlarmReceiver::class.java).apply {
@@ -326,6 +330,8 @@ class MainActivity : AppCompatActivity() {
                 putExtra("title", title)
                 putExtra("message", message)
                 putExtra("isRecurring", isRecurring)
+                putExtra("days", days)
+                putExtra("triggerAtMillis", triggerAtMillis)
             }
             val pendingIntent = PendingIntent.getBroadcast(
                 this,
@@ -474,12 +480,26 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
-        fun scheduleAlarm(rawId: String?, triggerAtMillis: Long, title: String?, message: String?, isRecurring: Boolean) {
+        fun scheduleAlarm(rawId: String?, triggerAtMillis: Long, title: String?, message: String?, isRecurring: Boolean, days: String?) {
             activity.runOnUiThread {
                 if (!rawId.isNullOrBlank()) {
-                    activity.scheduleAlarm(rawId, triggerAtMillis, title ?: "", message ?: "", isRecurring)
+                    activity.scheduleAlarm(rawId, triggerAtMillis, title ?: "", message ?: "", isRecurring, days ?: "")
                 }
             }
+        }
+
+        @JavascriptInterface
+        fun ackWidgetActions() {
+            activity.runOnUiThread {
+                WidgetDataStore.clearPendingActions(activity)
+            }
+        }
+
+        @JavascriptInterface
+        fun getPendingSharedText(): String? {
+            val text = activity.pendingSharedText
+            activity.pendingSharedText = null
+            return text
         }
 
         @JavascriptInterface
@@ -693,13 +713,14 @@ class MainActivity : AppCompatActivity() {
         if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("text/") == true) {
             val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)
             if (!sharedText.isNullOrBlank()) {
+                pendingSharedText = sharedText
                 val jsonSafeText = JSONObject.quote(sharedText)
                 webView.postDelayed({
                     webView.evaluateJavascript(
                         "typeof handleSharedLink === 'function' && handleSharedLink($jsonSafeText)",
                         null
                     )
-                }, 1200)
+                }, 500)
             }
         }
     }

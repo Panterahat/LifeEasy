@@ -2962,35 +2962,6 @@
                 <div class="section-title">AI & Cloud API Credentials</div>
             </div>
 
-            <!-- On-Device Offline AI Model Card -->
-            <div class="card" style="margin-bottom:16px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <div>
-                        <div style="font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px;">
-                            <span>🧠</span> On-Device Offline AI Model
-                        </div>
-                        <div style="font-size:11px; color:var(--text3); margin-top:2px;">Downloads high-accuracy local natural language AI parser</div>
-                    </div>
-                    <span id="aiModelStatusBadge" class="badge" style="padding:4px 8px; font-size:11px; border-radius:12px; background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3);">Not Downloaded</span>
-                </div>
-
-                <div id="aiModelProgressContainer" style="display:none; margin-bottom:12px;">
-                    <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text2); margin-bottom:4px;">
-                        <span id="aiModelProgressStatus">Downloading neural model binary...</span>
-                        <span id="aiModelProgressPercent">0%</span>
-                    </div>
-                    <div style="width:100%; height:8px; background:var(--surface2, rgba(255,255,255,0.1)); border-radius:4px; overflow:hidden; margin-bottom:4px;">
-                        <div id="aiModelProgressBar" style="width:0%; height:100%; background:linear-gradient(90deg, #6366f1, #8b5cf6); transition:width 0.2s;"></div>
-                    </div>
-                    <div style="font-size:10px; color:var(--text3); text-align:right;" id="aiModelProgressMb">0.0 MB / 14.2 MB</div>
-                </div>
-
-                <div style="display:flex; gap:8px;">
-                    <button class="btn-primary" id="btnDownloadAiModel" style="flex:1; padding:10px 14px; font-weight:700; font-size:13px;" onclick="downloadOfflineAiModel()">📥 Download AI Model (~14 MB)</button>
-                    <button class="btn-secondary" id="btnDeleteAiModel" style="display:none; padding:10px 14px; font-weight:700; font-size:13px; color:#f87171; border-color:rgba(239,68,68,0.3);" onclick="deleteOfflineAiModel()">🗑️ Delete Model</button>
-                </div>
-            </div>
-
             <!-- Groq AI Credentials Card -->
             <div class="card" style="margin-bottom:16px;">
                 <div style="font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:var(--text); margin-bottom:12px; display:flex; align-items:center; gap:6px;">
@@ -4163,19 +4134,6 @@
 <script>
     // This runs after app.js is fully loaded
     initTheme();
-
-    function togglePasswordVisibility(inputId, iconId) {
-        const input = document.getElementById(inputId);
-        const icon = document.getElementById(iconId);
-        if (!input || !icon) return;
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
-        } else {
-            input.type = 'password';
-            icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
-        }
-    }
 </script>
 </body>
 

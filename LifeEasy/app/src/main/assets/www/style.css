@@ -1017,3 +1017,58 @@ body {
         box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
     }
 }
+
+/* =========================================================
+   HABITS & HEATMAP STYLES
+   ========================================================= */
+.habit-heatmap-container {
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-top: 10px;
+}
+
+.habit-heatmap-grid {
+    display: grid;
+    grid-template-rows: repeat(7, 12px);
+    grid-auto-flow: column;
+    gap: 3px;
+}
+
+.heatmap-cell {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--surface2);
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.heatmap-cell:hover {
+    transform: scale(1.2);
+    outline: 1px solid var(--text);
+}
+
+.heatmap-level-0 { background: var(--surface2); }
+.heatmap-level-1 { background: rgba(124, 110, 245, 0.3); }
+.heatmap-level-2 { background: rgba(124, 110, 245, 0.6); }
+.heatmap-level-3 { background: rgba(124, 110, 245, 0.85); }
+.heatmap-level-4 { background: var(--accent); }
+
+.habit-day-chip {
+    flex: 1;
+    padding: 6px 2px;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    cursor: pointer;
+}
+
+.habit-day-chip.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+}
