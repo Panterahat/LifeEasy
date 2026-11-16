@@ -372,6 +372,9 @@ async function executeSupabaseOperation(endpoint, payload) {
             break;
         }
         case 'delete_link.php': table = 'links'; break;
+        case 'add_daily_reminder.php': table = 'daily_reminders'; data = { id: payload.id, message: payload.message, time: payload.time, enabled: payload.enabled !== false }; break;
+        case 'update_daily_reminder.php': table = 'daily_reminders'; data = { enabled: payload.enabled }; break;
+        case 'delete_daily_reminder.php': table = 'daily_reminders'; break;
         default: throw new Error(`Unmapped endpoint: ${endpoint}`);
     }
 
@@ -414,7 +417,7 @@ async function processSyncQueue() {
     if (window._isSyncingQueue) return;
     window._isSyncingQueue = true;
 
-    let ok = 0, fail = 0; const idMap = {};
+    let ok = 0, fail = 0; const idMap = {}; const pendingRemaps = [];
     try {
         while (STATE.syncQueue && STATE.syncQueue.length > 0) {
             const item = STATE.syncQueue[0];
@@ -431,6 +434,8 @@ async function processSyncQueue() {
                     if (item.endpoint.startsWith('add_') && d.id) {
                         const tempId = item.payload.id;
                         idMap[tempId] = d.id;
+                        const _pfx = { 'add_task.php': 'task', 'add_plan.php': 'plan', 'add_money.php': 'money', 'add_academic.php': 'acad', 'add_alarm.php': 'alarm', 'add_att_routine.php': 'att' }[item.endpoint];
+                        if (_pfx) pendingRemaps.push([_pfx, tempId, d.id]);
                         for (const key of ['tasks', 'plans', 'counters', 'money', 'alarms', 'roadmaps', 'steps', 'attendanceRoutines', 'attendanceLogs', 'academic', 'accounts', 'expenses', 'notes', 'sleepLogs']) {
                             const arr = STATE[key];
                             if (Array.isArray(arr)) {
@@ -463,6 +468,7 @@ async function processSyncQueue() {
         }
     } finally {
         window._isSyncingQueue = false;
+        try { pendingRemaps.forEach(([p, oldId, newId]) => onIdRemapped(p, oldId, newId)); } catch (e) { console.warn('remap error', e); }
     }
 
     if (ok > 0) { toast(`☁️ Synced ${ok} item${ok > 1 ? 's' : ''} to cloud!`); hideSyncBadge(); load(); }
@@ -576,7 +582,7 @@ async function load() {
             });
         }
 
-        const [rTasks, rCounters, rPlans, rMoney, rAlarms, rRoadmaps, rSteps, rAcademic, rAccounts, rExpenses, rNotes, rSleep, rAttRoutines, rAttLogs, rLinks, rCover] = await Promise.all([
+        const [rTasks, rCounters, rPlans, rMoney, rAlarms, rRoadmaps, rSteps, rAcademic, rAccounts, rExpenses, rNotes, rSleep, rAttRoutines, rAttLogs, rLinks, rCover, rDaily] = await Promise.all([
             supabaseClient.from('tasks').select('*'),
             supabaseClient.from('counters').select('*'),
             supabaseClient.from('plans').select('*'),
@@ -592,7 +598,8 @@ async function load() {
             supabaseClient.from('attendance_routines').select('*'),
             supabaseClient.from('attendance_logs').select('*'),
             supabaseClient.from('links').select('*'),
-            supabaseClient.from('cover_templates').select('*')
+            supabaseClient.from('cover_templates').select('*'),
+            supabaseClient.from('daily_reminders').select('*')
         ]);
 
         if (rTasks.error?.status === 401 || rCounters.error?.status === 401) { document.getElementById('authModal').style.display = 'flex'; return; }
@@ -614,11 +621,11 @@ async function load() {
             });
         }
         if (rPlans.data) STATE.plans = rPlans.data.map(p => ({ ...p, id: Number(p.id), endTime: p.end_time || p.endTime || '09:30', repeatDays: p.repeat_days || p.repeatDays || null, excludedDates: p.excluded_dates || p.excludedDates || [] }));
-        if (rMoney.data) STATE.money = rMoney.data.map(m => ({ ...m, id: Number(m.id) }));
+        if (rMoney.data) STATE.money = rMoney.data.map(m => ({ ...m, id: Number(m.id), customReminderTime: m.custom_reminder_time || m.customReminderTime || '' }));
         if (rAlarms.data) STATE.alarms = rAlarms.data.map(a => ({ ...a, id: Number(a.id) }));
         if (rRoadmaps.data) STATE.roadmaps = rRoadmaps.data.map(r => ({ ...r, id: Number(r.id) }));
         if (rSteps.data) STATE.steps = rSteps.data.map(s => ({ ...s, id: Number(s.id), roadmapId: Number(s.roadmap_id || s.roadmapId) }));
-        if (rAcademic.data) STATE.academic = rAcademic.data.map(a => ({ ...a, id: Number(a.id) }));
+        if (rAcademic.data) STATE.academic = rAcademic.data.map(a => ({ ...a, id: Number(a.id), customReminderTime: a.custom_reminder_time || a.customReminderTime || '' }));
         if (rAccounts.data) STATE.accounts = rAccounts.data.map(a => ({ ...a, id: Number(a.id) }));
         if (rExpenses.data) STATE.expenses = rExpenses.data.map(e => ({ ...e, id: Number(e.id), accountId: Number(e.account_id || e.accountId) }));
         if (rNotes.data) STATE.notes = rNotes.data.map(n => {
@@ -646,6 +653,19 @@ async function load() {
         if (rCover && rCover.data) STATE.coverTemplates = rCover.data.map(c => ({ ...c, id: Number(c.id), bgData: c.bg_data || c.bgData }));
         if (rAttRoutines && rAttRoutines.data) STATE.attendanceRoutines = rAttRoutines.data.map(r => ({ ...r, id: Number(r.id), dayOfWeek: r.day_of_week !== undefined ? r.day_of_week : r.dayOfWeek, startTime: r.start_time || r.startTime || r.time, endTime: r.end_time || r.endTime || r.time }));
         if (rAttLogs && rAttLogs.data) STATE.attendanceLogs = rAttLogs.data.map(l => ({ ...l, id: Number(l.id), routineId: Number(l.routine_id || l.routineId) }));
+
+        // Daily reminders: DB is the source of truth. If the table does not exist yet (error), keep the local copy.
+        if (rDaily && rDaily.data && !rDaily.error) {
+            const dbIds = new Set(rDaily.data.map(r => Number(r.id)));
+            const queuedIds = new Set((STATE.syncQueue || []).filter(i => i.endpoint === 'add_daily_reminder.php').map(i => Number(i.payload.id)));
+            const localOnly = (STATE.dailyReminders || []).filter(r => !dbIds.has(Number(r.id)));
+            // one-time upload of reminders created before cloud sync existed
+            localOnly.forEach(r => { if (!queuedIds.has(Number(r.id))) ofetch('add_daily_reminder.php', r); });
+            STATE.dailyReminders = [
+                ...rDaily.data.map(r => ({ id: Number(r.id), message: r.message, time: r.time, enabled: r.enabled !== false, lastFiredDate: '' })),
+                ...localOnly
+            ];
+        }
 
         save();
         renderAll();
@@ -1658,11 +1678,13 @@ function confirmAndExecuteAiAction() {
             save();
             if (typeof renderAlarms === 'function') renderAlarms();
             if (typeof renderDashboard === 'function') renderDashboard();
-            const triggerAtMillis = typeof calculateAlarmTriggerMillis === 'function' ? calculateAlarmTriggerMillis(aData.time, '') : (Date.now() + 3600000);
-            if (window.AndroidInterface && typeof window.AndroidInterface.scheduleAlarm === 'function') {
-                try { window.AndroidInterface.scheduleAlarm(String(tempId), triggerAtMillis, aData.label, 'Alarm ⏰', false, ''); } catch(e) {}
-            }
-            if (typeof ofetch === 'function') ofetch('add_alarm.php', aData);
+            scheduleNativeAlarm(aData);
+            if (typeof ofetch === 'function') ofetch('add_alarm.php', aData, d => {
+                const a = STATE.alarms.find(x => x.id === tempId);
+                if (a) { a.id = d.id; onIdRemapped('alarm', tempId, d.id); }
+                if (typeof renderAlarms === 'function') renderAlarms();
+                save();
+            });
             toast('Alarm Set! ⏰');
         } else if (intent.type === 'note') {
             const tempId = Date.now();
@@ -3060,7 +3082,7 @@ function openPlannerModal(id = null) {
             if (p.recurrence === 'custom') {
                 setSelectedCustomDays(p.repeatDays || [0, 1, 2, 3, 4, 5, 6]);
             }
-            if (remOptEl) remOptEl.value = p.reminder || 'none';
+            setReminderUI('plan', p.reminder);
             document.getElementById('plannerModal').dataset.editId = p.id;
         }
     } else {
@@ -3106,7 +3128,7 @@ function savePlan() {
         duration: calcDuration,
         recurrence: recVal,
         repeatDays: repeatDays,
-        reminder: document.getElementById('planReminderOpt')?.value || 'none'
+        reminder: persistReminderValue(document.getElementById('planReminderOpt')?.value || 'none', document.getElementById('planCustomPicker')?.value || '')
     };
 
     const remOpt = document.getElementById('planReminderOpt')?.value || 'none';
@@ -3134,7 +3156,7 @@ function savePlan() {
         renderCalendar(); renderPlanner(); renderDashboard(); closeModal('plannerModal'); save(); toast('Event added 📅');
         ofetch('add_plan.php', planData, d => {
             const p = STATE.plans.find(x => x.id === tempId);
-            if (p) p.id = d.id;
+            if (p) { p.id = d.id; onIdRemapped('plan', tempId, d.id); }
             renderCalendar(); renderPlanner(); renderDashboard(); save();
         });
     }
@@ -4274,10 +4296,7 @@ function openTaskModalById(id) {
     document.getElementById('taskPriority').value = t.priority || 0;
     document.getElementById('taskDue').value = t.due || '';
 
-    const remOptEl = document.getElementById('taskReminderOpt');
-    if (remOptEl) remOptEl.value = t.reminder || 'none';
-    const customRowEl = document.getElementById('taskCustomPickerRow');
-    if (customRowEl) customRowEl.style.display = (t.reminder === 'custom') ? 'block' : 'none';
+    setReminderUI('task', t.reminder);
 
     document.getElementById('taskModal').dataset.editId = t.id;
     document.getElementById('taskModal').classList.add('open');
@@ -4293,7 +4312,7 @@ function saveTask() {
         category: document.getElementById('taskCategory').value,
         priority: parseInt(document.getElementById('taskPriority').value),
         due: document.getElementById('taskDue').value,
-        reminder: document.getElementById('taskReminderOpt')?.value || 'none'
+        reminder: persistReminderValue(document.getElementById('taskReminderOpt')?.value || 'none', document.getElementById('taskCustomPicker')?.value || '')
     };
 
     const remOpt = document.getElementById('taskReminderOpt')?.value || 'none';
@@ -4316,7 +4335,7 @@ function saveTask() {
         STATE.tasks.unshift(taskData);
         scheduleItemNotification(`task_${tempId}`, "Task Reminder 📋", taskData.title, triggerAtMillis);
         renderTasks(); renderDashboard(); closeModal('taskModal'); save(); toast('Saved! ✅');
-        ofetch('add_task.php', taskData, d => { const t = STATE.tasks.find(x => x.id === tempId); if (t) t.id = Number(d.id); renderTasks(); save(); });
+        ofetch('add_task.php', taskData, d => { const t = STATE.tasks.find(x => x.id === tempId); if (t) { t.id = Number(d.id); onIdRemapped('task', tempId, t.id); } renderTasks(); save(); });
     }
     if (taskData.reminder) scheduleReminderToast(taskData);
 }
@@ -4326,6 +4345,7 @@ function toggleTask(e, id) {
     const t = STATE.tasks.find(x => x.id === id);
     if (!t) return;
     t.completed = !t.completed;
+    if (t.completed) scheduleItemNotification(`task_${id}`, null, null, null); else rescheduleAllReminders();
     renderTasks(); renderDashboard(); save(); toast(t.completed ? 'Task done! 🎉' : 'Task reopened');
     ofetch('update_task.php', { id, completed: t.completed });
 }
@@ -4660,7 +4680,7 @@ function saveMoney() {
     const amount = parseFloat(document.getElementById('moneyAmount').value);
     if (!person || !amount) return toast('Fill required fields');
     const createdDate = document.getElementById('moneyCreatedDate')?.value || fmtDate(new Date());
-    const mData = { person, amount, type: document.getElementById('moneyType').value, note: document.getElementById('moneyNote').value, created_at: createdDate, date: createdDate, due: document.getElementById('moneyDue').value };
+    const mData = { person, amount, type: document.getElementById('moneyType').value, note: document.getElementById('moneyNote').value, created_at: createdDate, date: createdDate, due: document.getElementById('moneyDue').value, reminder: persistReminderValue(document.getElementById('moneyReminderOpt')?.value || 'none', document.getElementById('moneyCustomPicker')?.value || '') };
     const tempId = Date.now(); mData.id = tempId; mData.settled = false; STATE.money.push(mData);
 
     const remOpt = document.getElementById('moneyReminderOpt')?.value || 'none';
@@ -4669,9 +4689,9 @@ function saveMoney() {
     scheduleItemNotification(`money_${tempId}`, "Money Record Reminder 💰", `${person} - ${mData.note || 'Money Record'}`, triggerAtMillis);
 
     renderMoney(); renderDashboard(); closeModal('moneyModal'); save(); toast('Saved 💰');
-    ofetch('add_money.php', mData, d => { const m = STATE.money.find(x => x.id === tempId); if (m) m.id = d.id; renderMoney(); renderDashboard(); save(); });
+    ofetch('add_money.php', mData, d => { const m = STATE.money.find(x => x.id === tempId); if (m) { m.id = d.id; onIdRemapped('money', tempId, d.id); } renderMoney(); renderDashboard(); save(); });
 }
-function settleMoney(e, id) { if (e) e.stopPropagation(); const m = STATE.money.find(x => x.id === id); if (!m) return; m.settled = true; renderMoney(); save(); toast('Settled ✓'); ofetch('update_money.php', { id }); }
+function settleMoney(e, id) { if (e) e.stopPropagation(); const m = STATE.money.find(x => x.id === id); if (!m) return; m.settled = true; scheduleItemNotification(`money_${id}`, null, null, null); renderMoney(); save(); toast('Settled ✓'); ofetch('update_money.php', { id }); }
 function deleteMoney(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this money record?')) return; STATE.money = STATE.money.filter(x => x.id !== id); scheduleItemNotification(`money_${id}`, null, null, null); renderMoney(); save(); toast('Deleted 🗑️'); ofetch('delete_money.php', { id }); }
 function openMoneyModal() { document.getElementById('moneyPerson').value = ''; document.getElementById('moneyAmount').value = ''; document.getElementById('moneyNote').value = ''; if (document.getElementById('moneyCreatedDate')) document.getElementById('moneyCreatedDate').value = fmtDate(new Date()); document.getElementById('moneyDue').value = ''; document.getElementById('moneyModal').classList.add('open'); }
 function setMoneyFilter(f, el) { STATE.moneyFilter = f; document.querySelectorAll('#screen-money .filter-tab').forEach(t => t.classList.remove('active')); el.classList.add('active'); renderMoney(); }
@@ -4680,13 +4700,13 @@ function renderMoney() { const filter = STATE.moneyFilter || 'pending'; const ta
 // ============================================================
 // ALARMS
 // ============================================================
-function saveAlarm() { const time = document.getElementById('alarmTime').value; if (!time) return toast('Please set a time'); const days = [...document.querySelectorAll('.day-btn.selected')].map(b => b.dataset.day).join(''); const [h, m] = time.split(':').map(Number); const aData = { time, hour: h, minute: m, label: document.getElementById('alarmLabel').value || 'Alarm', days }; const tempId = Date.now(); aData.id = tempId; aData.enabled = true; STATE.alarms.push(aData); renderAlarms(); closeModal('alarmModal'); save(); toast('Alarm set ⏰'); ofetch('add_alarm.php', aData, d => { const a = STATE.alarms.find(x => x.id === tempId); if (a) a.id = d.id; renderAlarms(); renderDashboard(); save(); }); }
-function toggleAlarm(e, id) { if (e) e.stopPropagation(); const a = STATE.alarms.find(x => x.id === id); if (!a) return; a.enabled = !a.enabled; renderAlarms(); renderDashboard(); save(); toast(a.enabled ? 'Alarm enabled' : 'Alarm disabled'); ofetch('update_alarm.php', { id, enabled: a.enabled }); }
-function deleteAlarm(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this alarm?')) return; STATE.alarms = STATE.alarms.filter(x => x.id !== id); renderAlarms(); renderDashboard(); save(); toast('Alarm deleted 🗑️'); ofetch('delete_alarm.php', { id }); }
+function saveAlarm() { const time = document.getElementById('alarmTime').value; if (!time) return toast('Please set a time'); const days = [...document.querySelectorAll('.day-btn.selected')].map(b => b.dataset.day).join(''); const [h, m] = time.split(':').map(Number); const aData = { time, hour: h, minute: m, label: document.getElementById('alarmLabel').value || 'Alarm', days }; const tempId = Date.now(); aData.id = tempId; aData.enabled = true; STATE.alarms.push(aData); scheduleNativeAlarm(aData); renderAlarms(); closeModal('alarmModal'); save(); toast('Alarm set ⏰'); ofetch('add_alarm.php', aData, d => { const a = STATE.alarms.find(x => x.id === tempId); if (a) { a.id = d.id; onIdRemapped('alarm', tempId, d.id); } renderAlarms(); renderDashboard(); save(); }); }
+function toggleAlarm(e, id) { if (e) e.stopPropagation(); const a = STATE.alarms.find(x => x.id === id); if (!a) return; a.enabled = !a.enabled; if (a.enabled) { if (STATE.alarmArmed) delete STATE.alarmArmed[a.id]; scheduleNativeAlarm(a); } else { cancelNativeAlarm(a.id); if (STATE.alarmArmed) delete STATE.alarmArmed[a.id]; } renderAlarms(); renderDashboard(); save(); toast(a.enabled ? 'Alarm enabled' : 'Alarm disabled'); ofetch('update_alarm.php', { id, enabled: a.enabled }); }
+function deleteAlarm(e, id) { if (e) e.stopPropagation(); if (!confirm('Are you sure you want to delete this alarm?')) return; cancelNativeAlarm(id); if (STATE.alarmArmed) delete STATE.alarmArmed[id]; STATE.alarms = STATE.alarms.filter(x => x.id !== id); renderAlarms(); renderDashboard(); save(); toast('Alarm deleted 🗑️'); ofetch('delete_alarm.php', { id }); }
 function openAlarmModal() { document.getElementById('alarmTime').value = ''; document.getElementById('alarmLabel').value = ''; document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected')); document.getElementById('alarmModal').classList.add('open'); }
 function toggleDay(el) { el.classList.toggle('selected'); }
 function renderAlarms() { const el = document.getElementById('alarmList'); if (STATE.alarms.length === 0) return el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏰</div><p>No alarms set</p></div>'; el.innerHTML = STATE.alarms.map(a => { const [h, m] = a.time.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h; const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']; const daysStr = a.days ? a.days.split('').map(d => dayNames[parseInt(d)]).join(' ') : 'Once'; return `<div class="alarm-item ${!a.enabled ? 'money-settled' : ''}"><div style="flex:1"><div class="alarm-time">${String(displayH).padStart(2, '0')}:${String(m).padStart(2, '0')}<span class="alarm-time-ampm">${ampm}</span></div><div class="alarm-label">${a.label}</div><div class="alarm-days">${daysStr}</div></div><label class="alarm-toggle"><input type="checkbox" ${a.enabled ? 'checked' : ''} onchange="toggleAlarm(event, ${a.id})"><span class="toggle-slider"></span></label><div class="alarm-delete" onclick="deleteAlarm(event, ${a.id})">🗑</div></div>`; }).join(''); }
-function setupAlarmTicks() { setInterval(() => { const now = new Date(); const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds(); if (s === 0) { STATE.alarms.filter(a => a.enabled && a.time).forEach(a => { const [ah, am] = a.time.split(':').map(Number); if (ah !== h || am !== m) return; const dayOfWeek = now.getDay().toString(); if (!a.days || a.days === '' || a.days.includes(dayOfWeek)) { sendSystemNotification("Alarm: " + a.label, formatTime(a.time)); try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA==').play(); } catch (e) { } } }); } if (typeof checkDailyReminders === 'function') checkDailyReminders(); }, 1000); }
+function setupAlarmTicks() { setInterval(() => { const now = new Date(); const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds(); if (s === 0 && !window.AndroidInterface) { STATE.alarms.filter(a => a.enabled && a.time).forEach(a => { const [ah, am] = a.time.split(':').map(Number); if (ah !== h || am !== m) return; const dayOfWeek = now.getDay().toString(); if (!a.days || a.days === '' || a.days.includes(dayOfWeek)) { sendSystemNotification("Alarm: " + a.label, formatTime(a.time)); try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA==').play(); } catch (e) { } } }); } if (typeof checkDailyReminders === 'function') checkDailyReminders(); }, 1000); }
 
 // ============================================================
 // ROADMAPS
@@ -4767,7 +4787,7 @@ function saveAttRoutine() {
         closeModal('attRoutineModal'); save(); renderAttCalendar(); renderAttendance(); toast('Routine Added! 📅');
         ofetch('add_att_routine.php', rData, d => {
             const r = STATE.attendanceRoutines.find(x => x.id === tempId);
-            if (r) r.id = d.id;
+            if (r) { r.id = d.id; onIdRemapped('att', tempId, d.id); }
             save();
         });
     }
@@ -4799,7 +4819,7 @@ function saveAcademic() {
         room: document.getElementById('acadRoom')?.value || '',
         desc: document.getElementById('acadDesc').value,
         note: document.getElementById('acadNote').value,
-        reminder: reminder,
+        reminder: persistReminderValue(reminder, customVal),
         customReminderTime: customVal
     };
     if (editId) {
@@ -4817,7 +4837,7 @@ function saveAcademic() {
         renderCalendar(); renderAcademic(); renderDashboard(); renderPlanner(); closeModal('academicModal'); save(); toast('Saved! 🎓');
         ofetch('add_academic.php', aData, d => {
             const a = STATE.academic.find(x => x.id === tempId);
-            if (a) a.id = d.id;
+            if (a) { a.id = d.id; onIdRemapped('acad', tempId, d.id); }
             renderCalendar(); renderAcademic(); renderDashboard(); renderPlanner(); save();
         });
     }
@@ -4854,8 +4874,7 @@ function openAcademicModalById(id) {
     if (document.getElementById('acadRoom')) document.getElementById('acadRoom').value = a.room || '';
     document.getElementById('acadDesc').value = a.desc || '';
     document.getElementById('acadNote').value = a.note || '';
-    if (document.getElementById('acadReminderOpt')) document.getElementById('acadReminderOpt').value = a.reminder || 'none';
-    if (document.getElementById('acadCustomPickerRow')) document.getElementById('acadCustomPickerRow').style.display = (a.reminder === 'custom') ? 'block' : 'none';
+    setReminderUI('acad', a.reminder);
     if (document.getElementById('acadCustomPicker')) document.getElementById('acadCustomPicker').value = a.customReminderTime || '';
     document.getElementById('academicModal').dataset.editId = a.id;
     document.getElementById('academicModal').classList.add('open');
@@ -6808,6 +6827,7 @@ function rescheduleAllReminders() {
             scheduleAcademicNotification(a);
         }
     });
+    (STATE.alarms || []).forEach(a => { if (a.enabled) scheduleNativeAlarm(a); });
     if (typeof rescheduleAllDailyReminders === 'function') rescheduleAllDailyReminders();
 }
 function requestNotificationPermission() { if ("Notification" in window) { if (Notification.permission !== "granted" && Notification.permission !== "denied") { Notification.requestPermission(); } } }
@@ -6864,7 +6884,7 @@ function scheduleClassNotification(r) {
         const timeStr = formatTime(r.startTime || '09:00');
         const roomStr = r.room ? ` (Room: ${r.room})` : '';
         const msg = `${r.subject}${roomStr} - Class starts at ${timeStr}`;
-        scheduleItemNotification(notificationId, "Class Reminder 🎓", msg, triggerAtMillis);
+        scheduleItemNotification(notificationId, "Class Reminder 🎓", msg, triggerAtMillis, true, String(new Date(triggerAtMillis).getDay()));
     } else {
         scheduleItemNotification(notificationId, null, null, null);
     }
@@ -6936,20 +6956,124 @@ function calculateReminderTimestamp(option, baseDateStr, baseTimeStr, customDate
     }
 }
 
-function scheduleItemNotification(id, title, message, triggerAtMillis) {
+function scheduleItemNotification(id, title, message, triggerAtMillis, isRecurring, days) {
     if (!triggerAtMillis) {
-        if (window.AndroidInterface && typeof window.AndroidInterface.cancelAlarm === 'function') {
-            try { window.AndroidInterface.cancelAlarm(String(id)); } catch(e) {}
-        }
+        cancelNativeById(id);
         return;
     }
 
     if (triggerAtMillis > Date.now()) {
-        if (window.AndroidInterface && typeof window.AndroidInterface.scheduleAlarm === 'function') {
-            try {
-                window.AndroidInterface.scheduleAlarm(String(id), triggerAtMillis, title, message, false);
-            } catch(e) { console.warn('scheduleAlarm error:', e); }
+        nativeScheduleAlarm(id, triggerAtMillis, title, message, !!isRecurring, days || '');
+    }
+}
+
+// ------------------------------------------------------------
+// Native alarm bridge helpers
+// ------------------------------------------------------------
+// IMPORTANT: Android's WebView matches @JavascriptInterface methods by NAME + ARGUMENT COUNT.
+// Kotlin's scheduleAlarm() takes exactly 6 params. Calling it with 5 throws
+// "Method scheduleAlarm is not available" (which the old code swallowed in try/catch).
+function nativeScheduleAlarm(rawId, triggerAtMillis, title, message, isRecurring, days) {
+    if (!(window.AndroidInterface && typeof window.AndroidInterface.scheduleAlarm === 'function')) return false;
+    try {
+        window.AndroidInterface.scheduleAlarm(
+            String(rawId), Math.round(triggerAtMillis), String(title || ''), String(message || ''), !!isRecurring, String(days || '')
+        );
+        return true;
+    } catch (e) { console.warn('scheduleAlarm error:', e); return false; }
+}
+
+function cancelNativeById(rawId) {
+    if (window.AndroidInterface && typeof window.AndroidInterface.cancelAlarm === 'function') {
+        try { window.AndroidInterface.cancelAlarm(String(rawId)); } catch (e) { }
+    }
+}
+function cancelNativeAlarm(id) { cancelNativeById(`alarm_${id}`); }
+
+// Next time the alarm should ring. days = string of digits (0=Sun..6=Sat), '' = once.
+function calculateAlarmTriggerMillis(timeStr, days) {
+    const { h, m } = parseTimeHHMM(timeStr);
+    const allowed = String(days || '').split('').map(Number).filter(n => !isNaN(n));
+    const now = Date.now();
+    for (let i = 0; i <= 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        d.setHours(h, m, 0, 0);
+        if (d.getTime() <= now + 2000) continue;
+        if (allowed.length === 0 || allowed.includes(d.getDay())) return d.getTime();
+    }
+    return null;
+}
+
+// Schedule a native (AlarmManager) alarm for an item from the Alarms screen.
+function scheduleNativeAlarm(a) {
+    if (!a || !a.enabled || !a.time) return;
+    const days = a.days || '';
+    STATE.alarmArmed = STATE.alarmArmed || {};
+
+    // A one-time alarm whose armed time has already passed has fired: switch it off
+    // instead of re-arming it for tomorrow.
+    if (days === '' && STATE.alarmArmed[a.id] && STATE.alarmArmed[a.id] <= Date.now()) {
+        a.enabled = false;
+        delete STATE.alarmArmed[a.id];
+        save();
+        ofetch('update_alarm.php', { id: a.id, enabled: false });
+        if (typeof renderAlarms === 'function') renderAlarms();
+        return;
+    }
+
+    const trigger = calculateAlarmTriggerMillis(a.time, days);
+    if (!trigger) return;
+    if (nativeScheduleAlarm(`alarm_${a.id}`, trigger, 'Alarm: ' + (a.label || 'Alarm'), formatTime(a.time), days !== '', days)) {
+        if (days === '') STATE.alarmArmed[a.id] = trigger;
+    }
+}
+
+// When the server assigns a real id to an item created offline/optimistically,
+// the native alarm registered under the temporary id must be cancelled and re-registered.
+function onIdRemapped(prefix, oldId, newId) {
+    if (prefix === 'alarm' && STATE.alarmArmed && STATE.alarmArmed[oldId] !== undefined) {
+        STATE.alarmArmed[newId] = STATE.alarmArmed[oldId];
+        delete STATE.alarmArmed[oldId];
+    }
+    cancelNativeById(`${prefix}_${oldId}`);
+    rescheduleAllReminders();
+}
+
+// ------------------------------------------------------------
+// Reminder persistence helpers
+// ------------------------------------------------------------
+// A "custom" reminder needs its date/time stored. The old code stored the word 'custom'
+// and dropped the picked time, so after a reload the reminder vanished.
+// We now store the picked time as an ISO string in the same `reminder` column
+// (calculateReminderTimestamp already understands ISO strings) - no DB change needed.
+function persistReminderValue(opt, customVal) {
+    if (opt === 'custom') {
+        if (!customVal) return 'none';
+        const t = new Date(customVal).getTime();
+        return isNaN(t) ? 'none' : new Date(t).toISOString();
+    }
+    return opt || 'none';
+}
+
+// Fill the reminder dropdown + custom picker in an edit modal from a stored value.
+function setReminderUI(prefix, value) {
+    const sel = document.getElementById(prefix + 'ReminderOpt');
+    const row = document.getElementById(prefix + 'CustomPickerRow');
+    const pick = document.getElementById(prefix + 'CustomPicker');
+    if (!sel) return;
+    const isIso = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value);
+    if (isIso) {
+        sel.value = 'custom';
+        const d = new Date(value);
+        if (pick && !isNaN(d.getTime())) {
+            const p2 = n => String(n).padStart(2, '0');
+            pick.value = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
         }
+        if (row) row.style.display = 'block';
+    } else {
+        sel.value = value || 'none';
+        if (row) row.style.display = (value === 'custom') ? 'block' : 'none';
     }
 }
 
@@ -7740,7 +7864,8 @@ function scheduleDailyReminderAlarm(reminder) {
                 triggerAtMillis,
                 "Daily Reminder 🔔",
                 reminder.message,
-                true
+                true,
+                ''
             );
         } catch (e) {
             console.warn('Native scheduleAlarm failed:', e);
@@ -7770,7 +7895,7 @@ function addDailyReminder() {
 
     if (!STATE.dailyReminders) STATE.dailyReminders = [];
 
-    const tempId = Math.floor(Math.random() * 899999) + 100000;
+    const tempId = Date.now(); // client-generated id (stable, also used as the DB primary key)
     const reminder = {
         id: tempId,
         message: msg,
@@ -7782,6 +7907,7 @@ function addDailyReminder() {
     STATE.dailyReminders.push(reminder);
     save();
     renderDailyReminders();
+    ofetch('add_daily_reminder.php', reminder);
 
     scheduleDailyReminderAlarm(reminder);
 
@@ -7797,6 +7923,7 @@ function toggleDailyReminder(id) {
         r.enabled = !r.enabled;
         save();
         renderDailyReminders();
+        ofetch('update_daily_reminder.php', { id: r.id, enabled: r.enabled });
         if (r.enabled) {
             scheduleDailyReminderAlarm(r);
             toast('Reminder enabled 🔔');
@@ -7813,6 +7940,7 @@ function deleteDailyReminder(id) {
     STATE.dailyReminders = (STATE.dailyReminders || []).filter(x => x.id !== id);
     save();
     renderDailyReminders();
+    ofetch('delete_daily_reminder.php', { id });
     toast('Reminder deleted 🗑️');
 }
 
@@ -8213,7 +8341,8 @@ function testScheduledNotification() {
                 targetTime,
                 "⏱️ Scheduled Test",
                 "5-second scheduled test notification working properly!",
-                false
+                false,
+                ''
             );
             toast("Scheduled notification set for 5 seconds from now! ⏱️");
         } catch(e) {

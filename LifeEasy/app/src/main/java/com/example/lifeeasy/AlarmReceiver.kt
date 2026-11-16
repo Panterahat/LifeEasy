@@ -109,8 +109,10 @@ class AlarmReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.d("AlarmReceiver", "Received ACTION_BOOT_COMPLETED: rescheduling active alarms...")
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
+            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED ||
+            intent.action == "android.intent.action.QUICKBOOT_POWERON") {
+            Log.d("AlarmReceiver", "Received ${intent.action}: rescheduling active alarms...")
             rescheduleAllAlarms(context)
             return
         }

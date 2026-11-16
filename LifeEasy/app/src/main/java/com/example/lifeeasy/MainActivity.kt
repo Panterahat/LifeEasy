@@ -381,10 +381,10 @@ class MainActivity : AppCompatActivity() {
         } else {
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility = (
-                View.SYSTEM_UI_FLAG_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-            )
+                    View.SYSTEM_UI_FLAG_FULLSCREEN
+                            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    )
         }
     }
 
@@ -486,6 +486,13 @@ class MainActivity : AppCompatActivity() {
                     activity.scheduleAlarm(rawId, triggerAtMillis, title ?: "", message ?: "", isRecurring, days ?: "")
                 }
             }
+        }
+
+        // Safety net: WebView matches bridge methods by argument count, so a JS call with
+        // 5 args (no "days") would otherwise throw. Forward it to the 6-arg version.
+        @JavascriptInterface
+        fun scheduleAlarm(rawId: String?, triggerAtMillis: Long, title: String?, message: String?, isRecurring: Boolean) {
+            scheduleAlarm(rawId, triggerAtMillis, title, message, isRecurring, "")
         }
 
         @JavascriptInterface

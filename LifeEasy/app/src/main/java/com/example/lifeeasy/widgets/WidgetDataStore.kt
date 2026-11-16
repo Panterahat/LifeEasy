@@ -325,60 +325,124 @@ object WidgetDataStore {
     }
 
     fun getAcademicCountdown(context: Context): AcademicItem? {
+        val list = getUpcomingExams(context)
+        return list.firstOrNull()
+    }
+
+    fun getUpcomingExams(context: Context): List<AcademicItem> {
         val academicJson = getPrefs(context).getString(KEY_ACADEMIC_JSON, "[]") ?: "[]"
-        val todayDate = Date()
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val todayCalendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val todayDate = todayCalendar.time
+        val nowMillis = System.currentTimeMillis()
+
+        val dateFormats = listOf(
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()),
+            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        )
+
+        val items = mutableListOf<Pair<Long, AcademicItem>>()
 
         try {
             val jsonArray = JSONArray(academicJson)
-            var nearestItem: AcademicItem? = null
-            var minDiffDays = Long.MAX_VALUE
 
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
                 val id = obj.optString("id", "")
-                val title = obj.optString("title", "Exam/Assignment")
-                val due = obj.optString("due", "")
-                val subject = obj.optString("subject", "")
-                val type = obj.optString("type", "exam")
 
-                if (due.isNotEmpty()) {
-                    try {
-                        val dueDate = dateFormat.parse(due)
-                        if (dueDate != null) {
-                            val diffMillis = dueDate.time - todayDate.time
-                            val diffDays = TimeUnit.MILLISECONDS.toDays(diffMillis)
-                            if (diffDays >= 0 && diffDays < minDiffDays) {
-                                minDiffDays = diffDays
-                                val countdownStr = when {
-                                    diffDays == 0L -> "Today ⚡"
-                                    diffDays == 1L -> "Tomorrow ⏰"
-                                    else -> "In $diffDays days ⏳"
-                                }
-                                nearestItem = AcademicItem(id, title, due, subject, type, countdownStr)
-                            }
-                        }
-                    } catch (_: Exception) {}
+                val subject = obj.optString("subject", obj.optString("courseName", obj.optString("courseCode", "")))
+                    .takeIf { it.isNotBlank() && it != "null" } ?: ""
+
+                val type = obj.optString("type", "Exam")
+                    .takeIf { it.isNotBlank() && it != "null" } ?: "Exam"
+
+                var rawTitle = obj.optString("title", "")
+                if (rawTitle.isBlank() || rawTitle == "null") {
+                    rawTitle = if (subject.isNotBlank()) "$type: $subject" else type
                 }
-            }
-            if (nearestItem != null) return nearestItem
 
-            if (jsonArray.length() > 0) {
-                val obj = jsonArray.getJSONObject(0)
-                return AcademicItem(
-                    obj.optString("id", ""),
-                    obj.optString("title", "Exam"),
+                val dateStr = listOf(
+                    obj.optString("date", ""),
                     obj.optString("due", ""),
-                    obj.optString("subject", ""),
-                    obj.optString("type", "exam"),
-                    "Upcoming 📚"
-                )
+                    obj.optString("due_date", "")
+                ).firstOrNull { it.isNotBlank() && it != "null" } ?: ""
+
+                val timeStr = obj.optString("time", "09:00")
+                val roomStr = obj.optString("room", "")
+
+                if (dateStr.isNotEmpty()) {
+                    var parsedDueDate: Date? = null
+                    for (fmt in dateFormats) {
+                        try {
+                            parsedDueDate = fmt.parse(dateStr)
+                            if (parsedDueDate != null) break
+                        } catch (_: Exception) {}
+                    }
+
+                    if (parsedDueDate != null) {
+                        val targetCal = Calendar.getInstance().apply {
+                            time = parsedDueDate
+                            val (h, m) = parseTimeToHoursAndMinutes(timeStr)
+                            set(Calendar.HOUR_OF_DAY, h)
+                            set(Calendar.MINUTE, m)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }
+
+                        val diffMillis = targetCal.timeInMillis - nowMillis
+                        val diffDays = TimeUnit.MILLISECONDS.toDays(targetCal.timeInMillis - todayDate.time)
+
+                        if (diffDays >= 0) {
+                            val countdownStr = when {
+                                diffDays == 0L -> {
+                                    if (diffMillis > 0) {
+                                        val diffMin = TimeUnit.MILLISECONDS.toMinutes(diffMillis)
+                                        if (diffMin < 60) "Starts in ${diffMin}m ⚡"
+                                        else "Starts in ${diffMin / 60}h ${diffMin % 60}m ⚡"
+                                    } else {
+                                        "Today ⚡"
+                                    }
+                                }
+                                diffDays == 1L -> "Tomorrow ⏰"
+                                diffDays in 2..30 -> "In $diffDays days ⏳"
+                                else -> "In ${diffDays / 30}mo ⏳"
+                            }
+                            val displaySubj = if (roomStr.isNotBlank()) "$subject (Room $roomStr)" else subject
+                            items.add(targetCal.timeInMillis to AcademicItem(id, rawTitle, dateStr, displaySubj, type, countdownStr))
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
-        return null
+        return items.sortedBy { it.first }.map { it.second }
+    }
+
+    private fun parseTimeToHoursAndMinutes(timeStr: String?): Pair<Int, Int> {
+        if (timeStr.isNullOrBlank()) return Pair(9, 0)
+        return try {
+            val clean = timeStr.trim().uppercase()
+            val isPM = clean.contains("PM")
+            val isAM = clean.contains("AM")
+            val digits = clean.replace("AM", "").replace("PM", "").trim()
+            val parts = digits.split(":")
+            var hour = parts[0].toInt()
+            val minute = if (parts.size > 1) parts[1].toInt() else 0
+
+            if (isPM && hour < 12) hour += 12
+            if (isAM && hour == 12) hour = 0
+
+            Pair(hour, minute)
+        } catch (e: Exception) {
+            Pair(9, 0)
+        }
     }
 
     fun getTodayClasses(context: Context): List<ClassRoutineItem> {
@@ -411,9 +475,20 @@ object WidgetDataStore {
                     val startMin = parseTimeToMinutes(startTime)
                     val endMin = parseTimeToMinutes(endTime)
                     val statusText = if (!isAfter5PM) {
-                        if (currentMinutes in startMin..endMin) "In Progress 🟢"
-                        else if (startMin > currentMinutes) "Next ⏰"
-                        else "Finished"
+                        if (currentMinutes in startMin..endMin) {
+                            "In Progress 🟢"
+                        } else if (startMin > currentMinutes) {
+                            val diffMin = startMin - currentMinutes
+                            if (diffMin < 60) {
+                                "Starts in ${diffMin}m ⏰"
+                            } else {
+                                val hrs = diffMin / 60
+                                val mins = diffMin % 60
+                                if (mins > 0) "Starts in ${hrs}h ${mins}m ⏰" else "Starts in ${hrs}h ⏰"
+                            }
+                        } else {
+                            "Finished"
+                        }
                     } else {
                         "Tomorrow 📅"
                     }
@@ -483,7 +558,8 @@ object WidgetDataStore {
             TodayChecklistWidgetProvider::class.java to R.id.checklist_list,
             DailyCountersWidgetProvider::class.java to R.id.counters_list,
             TodayPlannerWidgetProvider::class.java to R.id.planner_list,
-            NextClassWidgetProvider::class.java to R.id.class_list
+            NextClassWidgetProvider::class.java to R.id.class_list,
+            AcademicCountdownWidgetProvider::class.java to R.id.academic_list
         )
 
         for ((providerClass, listId) in providers) {
@@ -499,16 +575,6 @@ object WidgetDataStore {
                 }
                 context.sendBroadcast(intent)
             }
-        }
-
-        val component = ComponentName(context, AcademicCountdownWidgetProvider::class.java)
-        val ids = appWidgetManager.getAppWidgetIds(component)
-        if (ids.isNotEmpty()) {
-            val intent = Intent(context, AcademicCountdownWidgetProvider::class.java).apply {
-                action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-            }
-            context.sendBroadcast(intent)
         }
     }
 }

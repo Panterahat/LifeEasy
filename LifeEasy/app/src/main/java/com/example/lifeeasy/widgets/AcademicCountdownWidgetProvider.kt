@@ -5,7 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.view.View
+import android.net.Uri
 import android.widget.RemoteViews
 import com.example.lifeeasy.MainActivity
 import com.example.lifeeasy.R
@@ -18,51 +18,31 @@ class AcademicCountdownWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray
     ) {
         for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
+            val intent = Intent(context, AcademicRemoteViewsService::class.java).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
+            }
+
+            val views = RemoteViews(context.packageName, R.layout.widget_academic_countdown).apply {
+                setRemoteAdapter(R.id.academic_list, intent)
+                setEmptyView(R.id.academic_list, R.id.academic_empty_view)
+            }
+
+            val mainIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("target_screen", "academic")
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                501,
+                mainIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widget_academic_container, pendingIntent)
+
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.academic_list)
         }
         super.onUpdate(context, appWidgetManager, appWidgetIds)
-    }
-
-    private fun updateAppWidget(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetId: Int
-    ) {
-        val views = RemoteViews(context.packageName, R.layout.widget_academic_countdown)
-
-        // Header click -> Open app to academic / tasks screen
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("target_screen", "academic")
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            501,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        views.setOnClickPendingIntent(R.id.widget_academic_container, pendingIntent)
-
-        val item = WidgetDataStore.getAcademicCountdown(context)
-
-        if (item != null) {
-            views.setViewVisibility(R.id.academic_content_layout, View.VISIBLE)
-            views.setViewVisibility(R.id.academic_empty_view, View.GONE)
-
-            views.setTextViewText(R.id.academic_title, item.title)
-            views.setTextViewText(R.id.academic_countdown_badge, item.countdownText)
-
-            val subjStr = if (!item.subject.isNullOrEmpty()) "📖 ${item.subject}" else "📖 Academic Task"
-            views.setTextViewText(R.id.academic_subject, subjStr)
-
-            val dueStr = if (!item.due.isNullOrEmpty()) "📅 Due: ${item.due}" else ""
-            views.setTextViewText(R.id.academic_due, dueStr)
-        } else {
-            views.setViewVisibility(R.id.academic_content_layout, View.GONE)
-            views.setViewVisibility(R.id.academic_empty_view, View.VISIBLE)
-            views.setTextViewText(R.id.academic_countdown_badge, "No Exams")
-        }
-
-        appWidgetManager.updateAppWidget(appWidgetId, views)
     }
 }

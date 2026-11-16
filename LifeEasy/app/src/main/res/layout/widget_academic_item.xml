@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/academic_item_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_widget_item"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:layout_marginBottom="6dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/academic_item_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Class Test: Math"
+            android:textColor="#1F2937"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/academic_item_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="In 4 days ⏳"
+            android:textColor="#E11D48"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/academic_item_subject"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="📖 Math"
+            android:textColor="#4B5563"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/academic_item_due"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📅 2026-11-19"
+            android:textColor="#0284C7"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+</LinearLayout>
