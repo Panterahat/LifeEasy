@@ -482,7 +482,8 @@ object WidgetDataStore {
         val providers = listOf(
             TodayChecklistWidgetProvider::class.java to R.id.checklist_list,
             DailyCountersWidgetProvider::class.java to R.id.counters_list,
-            TodayPlannerWidgetProvider::class.java to R.id.planner_list
+            TodayPlannerWidgetProvider::class.java to R.id.planner_list,
+            NextClassWidgetProvider::class.java to R.id.class_list
         )
 
         for ((providerClass, listId) in providers) {
@@ -500,16 +501,14 @@ object WidgetDataStore {
             }
         }
 
-        for (cls in listOf(NextClassWidgetProvider::class.java, AcademicCountdownWidgetProvider::class.java)) {
-            val component = ComponentName(context, cls)
-            val ids = appWidgetManager.getAppWidgetIds(component)
-            if (ids.isNotEmpty()) {
-                val intent = Intent(context, cls).apply {
-                    action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-                }
-                context.sendBroadcast(intent)
+        val component = ComponentName(context, AcademicCountdownWidgetProvider::class.java)
+        val ids = appWidgetManager.getAppWidgetIds(component)
+        if (ids.isNotEmpty()) {
+            val intent = Intent(context, AcademicCountdownWidgetProvider::class.java).apply {
+                action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
             }
+            context.sendBroadcast(intent)
         }
     }
 }

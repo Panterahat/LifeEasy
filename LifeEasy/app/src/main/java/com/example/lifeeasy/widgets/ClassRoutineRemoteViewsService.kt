@@ -60,9 +60,9 @@ class ClassRoutineRemoteViewsFactory(
         }
 
         if (item.statusText == "Finished") {
-            views.setInt(R.id.class_item_container, "setAlpha", 128)
+            views.setFloat(R.id.class_item_container, "setAlpha", 0.5f)
         } else {
-            views.setInt(R.id.class_item_container, "setAlpha", 255)
+            views.setFloat(R.id.class_item_container, "setAlpha", 1.0f)
         }
 
         return views
